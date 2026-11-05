@@ -1,55 +1,57 @@
-# Đánh giá và kế hoạch triển khai
+# Implementation and evaluation plan
 
-## Thiết kế đánh giá nội bộ
+## Evaluation protocol
 
-Chia dữ liệu **theo doanh nghiệp** trong train. Tập `fit` dùng xây prompt, index few-shot, học reranker/policy và fine-tune. Tập `calibration` dùng hiệu chỉnh confidence và chọn ngưỡng. Tập `holdout` dành cho so sánh đã định trước và kiểm tra bản chốt. Khi ít business, dùng group cross-validation trong phần phát triển để sinh dự đoán out-of-fold cho verifier và policy, rồi giữ riêng một holdout. Ghi số business, số câu và phân bố nhóm lỗi/kiểu đáp án từng phần. Mọi biến thể của một câu và mọi bảng của cùng doanh nghiệp đi cùng nhóm. Mỗi câu khi chạy vẫn được truy cập gói dữ liệu và rule của nó theo đề.
+Split the official training data **by business**. Use the `fit` group to develop prompts, build the few-shot index, train rerankers and decision models, and fine-tune the generator. Use the `calibration` group to calibrate probabilities, choose the threshold, and select among candidate configurations. Reserve the `holdout` group for a prespecified comparison and the final check. With few businesses, use grouped cross-validation within development to obtain out-of-fold predictions for the verifier or decision model while keeping a separate holdout. Keep every table and question variant from the same business in one group. Record business counts, question counts, answer types, and major error categories per split. During evaluation, the agent still receives the current question's business package and shared rules.
 
-| Chỉ số | Dùng để quyết định |
+| Metric | What it tells us |
 | --- | --- |
-| PA và số đúng/sai/abstain | Chọn cấu hình theo điểm thi. Tách riêng `unanswerable` đúng, dự đoán nhầm và các câu bị bỏ qua. |
-| Coverage và accuracy khi trả lời | Coverage là tỷ lệ dự đoán khác `abstain`, gồm cả `unanswerable`. Với coverage dương, `PA = coverage × (2 × accuracy_khi_trả_lời − 1)`. Vẽ PA và tỷ lệ sai theo coverage khi quét ngưỡng. |
-| Evidence recall@k và context tokens | Đo schema/rule cần thiết đã vào prompt hay chưa. Đo trên tập có nhãn evidence riêng. |
-| Oracle@N, top-1 và chênh lệch | Oracle tính tỷ lệ câu có ứng viên đúng theo evaluator trước gate. Chênh với top-1 trên cùng candidate pool đo phần có thể cải thiện bằng xếp hạng. Theo dõi thêm trên các câu có đáp án thông thường. |
-| Hợp lệ, chạy được, đúng ngữ nghĩa | Tách tỷ lệ parse lỗi, SQL lỗi/timeout, output lỗi và SQL chạy nhưng ra đáp án sai. |
-| Calibration | Brier score, reliability bins và độ đúng thực tế quanh ngưỡng, phân theo loại câu hoặc định dạng file nếu đủ mẫu. |
-| Tài nguyên | p50/p95 latency, số lượt sinh và execute, token, peak VRAM, thời gian ingest/load, throughput và tổng wall-clock. Đo cả lượt chạy cold start trong Docker. |
+| PA and correct, wrong, and abstain counts | How a configuration performs under competition scoring. Report correct `unanswerable` predictions, false `unanswerable` predictions, and abstentions separately. |
+| Coverage and accuracy at that coverage | Coverage is the fraction of questions receiving a prediction other than `abstain`, including `unanswerable`. For positive coverage, `PA = coverage × (2 × accuracy among answered questions − 1)`. Plot PA and error rate across coverage levels as the threshold varies. |
+| Evidence recall@k and prompt tokens | Whether the prompt contains the required fields and rules. Measure recall on questions with annotated evidence. |
+| Oracle@N and top-1 correctness | Oracle@N is the fraction of questions with a candidate that matches the reference before the gate. Compare top-1 correctness on the same candidate pool and report results separately for answerable questions. |
+| Parse, execution, and semantic errors | Track parse failures, SQL errors, timeouts, serialization errors, and queries that run but produce the wrong answer. |
+| Calibration | Measure Brier score, reliability by confidence range, and observed accuracy around the decision threshold. Break down by question type or source format where sample sizes allow. |
+| Resource use | Measure p50 and p95 latency, generation and query counts, token usage, peak VRAM, data and model loading, throughput, and total wall-clock time. Include a cold Docker run. |
 
-Ví dụ cấu hình A có 60 đúng, 20 sai, 20 abstain trên 100 câu thì PA = 0,40. Nếu B chuyển 10 câu sai và 3 câu đúng của A thành `abstain`, PA tăng lên 0,47. Báo cả ba bộ đếm để phân biệt cải thiện ở chọn đáp án, giảm lỗi hay đổi coverage. So sánh PA theo cặp trên cùng câu. Khi đủ doanh nghiệp, bootstrap theo business để ước lượng bất định vì lỗi trong cùng gói dữ liệu có tương quan. Tách kết quả theo nguồn CSV/Excel/SQLite, kiểu đáp án, nhóm nghiệp vụ và nhóm lỗi.
+On 100 questions, 60 correct, 20 wrong, and 20 abstentions yield PA of 0.40. If a new policy abstains on 10 of those wrong answers and three of the correct answers, the counts become 57 correct, 10 wrong, and 33 abstentions, for PA of 0.47. Report the counts alongside PA. Compare configurations on the same questions. When the sample contains enough businesses, bootstrap at the business level so the uncertainty estimate accounts for correlated errors within a data package. Report slices by CSV, Excel, or SQLite source, answer type, business operation, and failure mode.
 
-## Chuỗi thực nghiệm
+## Experiment sequence
 
-Chạy mỗi hàng với cùng split và evaluator. Cố định seed, checkpoint, prompt, ngân sách và candidate pool khi biến đang thử cho phép. Lưu cấu hình và bảng thay đổi theo từng câu.
+Use the same split and evaluator for each comparison. Keep the seed, checkpoint, prompt, resource limits, and candidate pool fixed where the experiment allows. Save each configuration and its per-question changes.
 
-| Thử nghiệm | Thay đổi | Điều kiện đi tiếp |
+| Run | Change | Evidence needed to proceed |
 | --- | --- | --- |
-| B0 | SQL viết tay trên fixture tự tạo và vài câu train, đối chiếu evaluator | Xác nhận loader, hợp đồng JSONL, và đúng/sai/abstain cho cả nhãn thiếu căn cứ. |
-| B1 | LM local, schema gọn, một lần sinh SQL và executor chỉ đọc | Có điểm local theo business và trace đủ để gán lỗi theo stage. |
-| E1 | Lexical retrieval có join closure, sau đó thử context reranking nếu cần | Recall tăng hoặc giữ ổn định, token/latency giảm hoặc PA tăng trên câu cần retrieval. |
-| E2 | `N=1` so với `N=2–3` để ước lượng oracle, rồi heuristic/learned verifier trên cùng pool | Oracle tăng đủ để bù chi phí và verifier thu được cải thiện PA. |
-| E3 | Gate dựa trên luật so với logistic được hiệu chỉnh | So PA, số sai, coverage và độ ổn định theo business, gồm cả dự đoán `unanswerable`. |
-| E4 | Retry có điều kiện so với cố định, cùng ngân sách tính toán | Chỉ giữ nếu cải thiện PA ổn định, có thể tái lập và còn dư thời gian trong Docker. |
-| E5 | Một vòng SFT lọc hoặc một phương pháp preference, nếu có dữ liệu và thời gian | Oracle/top-1 hoặc PA tăng dưới cùng budget. Kiểm tra lại calibration nếu đổi generator. |
+| B0 | Run handwritten SQL on synthetic fixtures and selected fit questions. Compare the output with the official evaluator. | Data loads correctly, JSONL matches the contract, and scoring handles correct, wrong, `unanswerable`, and `abstain` cases. |
+| B1 | Use a local model, a compact schema, one SQL generation, and read-only execution. | End-to-end local scores by business and traces that identify the failing stage. |
+| E1 | Add lexical retrieval that keeps the keys needed for joins. Try context reranking if evidence coverage warrants it. | Check that evidence recall improves or holds steady, then compare prompt size, latency, and PA on retrieval-dependent questions. |
+| E2 | Compare `N=1` with `N=2–3`, estimate oracle@N, then compare heuristic and learned verifiers on the same pool. | Higher oracle coverage at an acceptable cost and a verifier that turns some of that gain into higher PA. |
+| E3 | Compare a rule-based gate with calibrated logistic regression. | Compare PA, wrong-answer count, coverage, and stability across businesses, including `unanswerable` predictions. |
+| E4 | Compare conditional retries with a fixed schedule at the same compute budget. | A repeatable PA gain with enough time left under the Docker limit. |
+| E5 | Try one filtered SFT run or one preference method if the fit split and schedule allow. | Better oracle@N, top-1 correctness, or PA under the same inference budget. Recalibrate the gate if the generator changes. |
 
-Một log thực nghiệm tối thiểu gồm `run_id`, commit, data/split hash, prompt/model/config revision, seed, N và budget, PA, các bộ đếm, p95, tổng thời gian, lỗi lớn nhất và quyết định giữ hay bỏ. Với giả thuyết RL, trước hết replay nhánh `stop`, `expand` và `retry` trên cùng câu fit để đo giá trị bổ sung và chi phí. Nếu log chỉ có một hành động trên mỗi trạng thái, ghi rõ phần phản thực tế chưa quan sát được.
+For each run, log the run ID, commit, dataset and split hashes, prompt, model and configuration revisions, seed, candidate count and compute limits, PA and answer counts, p95 and total elapsed time, largest error category, and the decision to retain or drop the change. For the RL hypothesis, replay `stop`, `expand`, and `retry` branches on the same fit questions and measure the extra reward and compute. If existing logs contain only the action taken by a fixed policy, record which alternate actions lack evidence.
 
-## Lịch đề xuất từ 05/11 đến 16/11 (GMT+7)
+## Proposed schedule
 
-| Mốc | Phạm vi | Đầu ra để chốt mốc |
+All dates are in November 2026, GMT+7. See the competition deadlines and the release-time discrepancy in the [challenge brief](01-competition.md).
+
+| Dates | Work | Milestone |
 | --- | --- | --- |
-| 05–06/11 | Đọc kit/rulebook/Docker Guide, kiểm kê train, dựng split và B0 | Evaluator chạy local, fixture qua các kiểu trọng yếu, danh mục nhóm câu và lỗi. |
-| 07–09/11 | Loader, catalog, một model offline, một query/câu, chuẩn hóa, writer | B1 chạy đầu cuối. Có bản Docker smoke test đọc mount chỉ đọc và ghi JSONL. |
-| 10–12/11 | Sửa các lỗi lớn nhất, thêm retrieval, Best-of-N nhỏ và verifier | Báo cáo PA, oracle gap và chi phí trước/sau. Chọn một cấu hình triển vọng. |
-| 13–14/11 | Hiệu chỉnh gate và kiểm tra ngân sách. Thử retry hoặc SFT nếu qua mốc trước và còn thời gian | PA/coverage trên holdout, time budget với cold start và hai lượt replay. |
-| 15–16/11 | Chốt cấu hình, dựng lại Docker sạch, kiểm kê weights, log, checksum và nộp | Image offline cùng lệnh chạy đã kiểm tra, đầy đủ tài liệu và artifact theo hướng dẫn BTC. |
-| 20–23/11 | Chạy private bằng image đã nộp, kiểm tra file rồi nộp JSONL | Kết quả sinh từ cấu hình đã freeze, có trace để đối chiếu. |
+| November 5–6 | Read the kit, rulebook, and Docker Guide. Inventory training data, freeze the splits, and run B0. | The evaluator runs locally. Key fixtures pass, and the initial question and error categories are documented. |
+| November 7–9 | Implement loaders, catalog, one local model call, read-only execution, normalization, and JSONL writing. | B1 runs end to end. A Docker smoke test reads the mounted inputs and writes predictions. |
+| November 10–12 | Fix the largest errors. Test retrieval, a small best-of-N pool, and a verifier. | Report changes in PA, oracle gap, and cost. Select a candidate configuration for calibration. |
+| November 13–14 | Calibrate the gate and profile runtime. Try retry or SFT only if the earlier milestones are complete and time permits. | Record holdout PA and coverage for the selected configuration. Check cold-start runtime and repeatability across two runs. |
+| November 15–16 | Freeze the configuration, rebuild Docker, and verify weights, logs, and checksum. | The offline image and required artifacts are ready before the submission deadline. |
+| November 20–23 | Run the private test using the submitted image, validate the output, and upload JSONL. | The submission comes from the frozen solution, with logs available for comparison. |
 
-Nếu tiến độ chậm, ưu tiên B1, khả năng tái lập và kiểm tra output. Có thể cắt cross-encoder, tăng N, fine-tuning và policy tuần tự theo chi phí đo được. Khi đã biết kích thước workload, dự trù từ `thời gian load + ingest + inference + serialize` đo trên batch đại diện. Dành dư địa cho câu chậm, dữ liệu lớn và lỗi có thể phục hồi. Chạy nhiều câu song song chỉ khi giới hạn tài nguyên và cách ghi kết quả đã kiểm tra.
+If the schedule slips, prioritize the single-query baseline, reproducibility, and output validation. Defer the cross-encoder, larger candidate pools, fine-tuning, or sequential policy work based on measured costs. Once the workload size is known, estimate total time from model loading, ingestion, inference, and serialization on representative batches. Leave capacity for slow queries, larger packages, and recoverable failures. Add concurrency after checking resource limits and deterministic result writing.
 
-## Checklist trước khi đóng băng
+## Before freezing the solution
 
-- [ ] So lại bản thể lệ và Docker Guide, gồm lệnh chạy, đường dẫn, quy cách log và artefact cần nộp. [Portal DataMate](https://challenge.zalo.ai/portal/datamate/)
-- [ ] Khai báo tên, phiên bản weights, ngày phát hành, giấy phép, số tham số và quantization của từng model. Tổng số tham số đáp ứng giới hạn track.
-- [ ] Dựng image sạch, chạy không có mạng và với dữ liệu mount chỉ đọc. Kiểm tra input có đủ schema, rulebook và lịch, rồi xác nhận output JSONL và log.
-- [ ] Kiểm tra ID trùng/thiếu, type, format và encoding. Chạy evaluator local, mô phỏng một timeout và kiểm tra bài nộp vẫn đọc được.
-- [ ] Replay để kiểm tra độ tái lập, cold start và dự báo wall-clock. Lưu checksum image, commit, phiên bản dữ liệu và cấu hình chạy.
-- [ ] Đối chiếu thành phần được phép đưa vào gói và quyền truy cập link tải theo BTC trước khi nộp. Chốt artifact trước 23:59 ngày 16/11 (GMT+7).
+- [ ] Check the latest rules and Docker Guide for the command, mount paths, log format, and required artifacts. [DataMate portal](https://challenge.zalo.ai/portal/datamate/)
+- [ ] Record each model's name, weight revision, release date, license, parameter count, and quantization. Verify the combined inference parameter count.
+- [ ] Build the image from scratch and run it with networking disabled and inputs mounted read-only. Confirm the package schema, rulebook, calendar, JSONL output, and logs.
+- [ ] Check for duplicate or missing IDs, invalid types, malformed JSON, and encoding problems. Run the local evaluator. Simulate a timeout and verify that completed predictions remain readable.
+- [ ] Repeat the run, measure cold-start cost, and estimate the full wall-clock budget. Save the image checksum, commit, dataset version, and configuration.
+- [ ] Verify the required package contents and download link permissions. Submit the frozen solution by 23:59 on November 16 (GMT+7).
