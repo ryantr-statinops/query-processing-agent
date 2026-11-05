@@ -1,24 +1,27 @@
 # DataMate · Zalo AI Challenge 2026
 
-Đề xuất cho `query-processing-agent`, cập nhật ngày 05/11/2026 (GMT+7). Mục tiêu là xây một harness chạy được từ dữ liệu thô đến bài nộp, rồi dùng cùng harness để đo tác động của retrieval, reranking và học policy trên các doanh nghiệp chưa thấy trong train.
+**Planning draft · November 5, 2026 (GMT+7)**
 
-## Đường đọc
+The project aims to build a harness that turns raw business data and a Vietnamese question into a valid DataMate submission. The same harness will measure how retrieval, reranking, and policy learning affect performance on businesses held out from model development.
 
-1. [Đề bài và thể lệ](01-competition.md) — I/O, cách chấm, lịch và ràng buộc Docker.
-2. [Các bài toán con và thiết kế harness](02-harness.md) — dữ liệu, thời gian, thực thể, SQL, verifier và ví dụ xuyên suốt.
-3. [Reranking, decision policy và huấn luyện LM](03-methods.md) — các cơ chế, hàm mục tiêu, dữ liệu học và điều kiện thử RL.
-4. [Đánh giá và kế hoạch triển khai](04-workplan.md) — thứ tự thực nghiệm, chỉ số, tiêu chí qua từng mốc và checklist nộp.
+## Reading order
 
-## Giả thuyết thiết kế
+1. [Challenge scope, scoring, and rules](01-competition.md) covers inputs, outputs, deadlines, and Docker constraints.
+2. [Agent harness design](02-harness.md) breaks the pipeline into testable components and walks through a question from raw data to answer.
+3. [Reranking, decision policies, and model training](03-methods.md) defines each method, its objective, and when RL is worth testing.
+4. [Implementation and evaluation plan](04-workplan.md) specifies the experiment sequence, metrics, milestones, and submission checklist.
 
-Một harness giới hạn phạm vi khả thi trong khoảng thời gian còn lại nếu hoàn thành sớm luồng offline từ input đến JSONL và có tài nguyên để thử Docker. Mốc đầu tiên là chạy được `câu hỏi → schema và rule liên quan → một SQL → thực thi chỉ đọc → đáp án có kiểu → chấm local`. Sau đó mở rộng theo lỗi đã đo được. Chưa có số liệu từ bộ kit hay benchmark GPU để ước lượng điểm hoặc thời gian chạy thực tế.
+## Design hypothesis
 
-Hướng nghiên cứu phù hợp với Quant AI là **tối ưu quyết định dưới bất định và giới hạn tài nguyên**. Dùng tập ứng viên cố định để phân biệt ba câu hỏi thực nghiệm. Generator có tạo được phương án đúng không? Verifier có nhận ra phương án đúng không? Policy có biết khi nào nên trả lời, thử thêm hay dừng không? Ba câu hỏi này cho ba tín hiệu khác nhau để quyết định nên đầu tư tiếp vào đâu.
+An end-to-end harness is feasible within the competition schedule if the offline baseline runs early and the team has compute for a Docker rehearsal. The baseline retrieves the relevant schema and rules, generates one SQL query, executes it with read-only access, and exports a typed answer for local scoring. Later work should follow the failure modes measured on that baseline. Expected score and runtime remain open until the team runs the official kit and profiles inference.
 
-## Bắt đầu phiên làm việc đầu tiên
+The quantitative research question is **how to make decisions under uncertainty and a compute budget**. Measure whether the generator produces a correct candidate, whether the verifier selects it when it is available, and whether the decision policy knows when to answer, gather more evidence, or abstain. When comparing verifiers, keep the candidate pool fixed so changes in generation do not affect the comparison.
 
-1. Tải bộ kit chính thức qua tab **Data**. Ghi phiên bản/hash, mở rulebook và evaluator. Đọc một gói CSV, một Excel và một SQLite nếu mỗi loại có trong train.
-2. Chọn một câu tra cứu và một câu tổng hợp đơn bảng từ train. Viết SQL bằng tay, lưu trace nội bộ, serialize đúng kiểu và đối chiếu điểm bằng evaluator. Thêm một câu `unanswerable` và kiểm tra riêng hành động `abstain`.
-3. Đóng băng holdout theo `business_id` trước khi xây prompt hay chọn ví dụ. Sau đó thay SQL viết tay bằng một lần sinh từ model chạy local và đo lại.
+## First working session
 
-Repo lúc khảo sát chưa có dữ liệu hoặc mã nguồn. Các interface, ví dụ và mốc kỹ thuật trong bộ tài liệu này là thiết kế đề xuất.
+1. Get the official kit from the **Data** tab. Record the release or archive hash, open the rulebook and evaluator, and inspect a sample of each available file format.
+2. Assign training businesses to development, calibration, and holdout groups before choosing examples or building prompts.
+3. Pick one lookup and one single-table aggregate from the development group. Write the SQL by hand, record the execution trace, serialize the answers, and check both with the evaluator. Test a labeled `unanswerable` question and the `abstain` action separately.
+4. Replace the handwritten queries with one generation from a local model and score the same cases again.
+
+The interfaces, examples, and milestones in these documents describe the proposed implementation.
