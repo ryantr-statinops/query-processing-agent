@@ -1,53 +1,57 @@
-# Đề bài và thể lệ DataMate
+# DataMate challenge scope and rules
 
-## Phạm vi
+## Inputs and outputs
 
-Agent nhận câu hỏi tiếng Việt, `business_id`, `as_of_date` và gói dữ liệu tương ứng gồm CSV, Excel hoặc SQLite, kèm README mô tả doanh nghiệp. Rulebook và lịch dương–âm dùng chung trong split. Dùng `as_of_date` để giải nghĩa thời gian tương đối. Bài nộp là câu trả lời cuối có kiểu, định danh bằng `id` của câu hỏi. [DataMate · Description](https://challenge.zalo.ai/portal/datamate/)
+Each question has an ID, a `business_id`, and an `as_of_date`. Load the matching business package, which can contain CSV, Excel, or SQLite files and a README describing the business. The split also supplies a rulebook and a shared solar–lunar calendar. Resolve relative dates using `as_of_date` and submit a typed answer keyed by the question ID. [DataMate description](https://challenge.zalo.ai/portal/datamate/)
 
-Ví dụ minh họa tự tạo về input và output tương ứng:
+The following synthetic question is in Vietnamese to match the track's input. It asks how many cups of peach tea were sold last month.
 
 ```jsonl
 {"id":"demo_01","business_id":"demo_shop","question":"Tháng trước bán được mấy ly trà đào?","as_of_date":"2026-03-04"}
 ```
 
+The example contains five qualifying cups, so the response uses the `number` type with a value of `5`.
+
 ```jsonl
 {"id":"demo_01","type":"number","answer":5}
 ```
 
-## Cách chấm
+## Scoring
 
-`PA = (số đúng − số sai) / tổng số câu`. Mỗi câu có trọng số bằng nhau. Đúng được `+1`, sai `−1`, `abstain` hoặc thiếu đáp án được `0`. Một đáp án thông thường phải khớp cả kiểu lẫn giá trị. Không có điểm một phần. `unanswerable` là dự đoán dữ liệu thiếu căn cứ và được `+1` khi khớp nhãn đó. Nó bị `−1` khi câu có thể trả lời. Nếu hòa điểm, BTC xét thời gian inference khi chạy lại, rồi thời điểm nộp. [DataMate · Evaluation](https://challenge.zalo.ai/portal/datamate/)
+Penalized Accuracy (PA) equals `(correct − wrong) / total questions`. Each question has equal weight. A correct answer earns `+1`, a wrong answer earns `−1`, and abstaining or omitting an answer earns `0`. The evaluator requires both the correct type and a matching value for ordinary answers. Predicting `unanswerable` earns `+1` on a matching reference and `−1` on an answerable question. Score ties are settled by total inference time in the organizers' rerun, then by earlier submission. [DataMate evaluation](https://challenge.zalo.ai/portal/datamate/)
 
-| Kiểu | Điều cần kiểm tra trước khi nộp |
+| Type | What the evaluator checks |
 | --- | --- |
-| `number` | Khớp giá trị tham chiếu. Dùng đúng đơn vị và làm tròn theo quy ước của evaluator. |
-| `percent` | Dùng đơn vị phần trăm, ví dụ `12.5` cho 12,5%. Khớp sau khi làm tròn hai chữ số thập phân, gồm cả dấu. |
-| `string` | So khớp sau chuẩn hóa. Giữ dấu tiếng Việt trong đáp án. BTC có thể chấp nhận các biến thể tên xuất hiện trong gói dữ liệu và mã tương ứng. |
-| `date` | Chuỗi ISO `YYYY-MM-DD`, hoặc `YYYY-MM` với câu hỏi về tháng. |
-| `boolean` | JSON `true` hoặc `false`. |
-| `list` | So khớp theo vị trí, giữ thứ tự được yêu cầu hoặc thứ tự mặc định. |
-| `table` | Gồm `columns` và `rows`. Cột khớp theo tên đã chuẩn hóa, có fallback theo vị trí. Hàng so theo tập hợp. |
-| `unanswerable` | Khớp nhãn thiếu căn cứ. |
-| `abstain` | Hành động bỏ qua câu, luôn 0 điểm. |
+| `number` | Exact numerical match against the reference value. Use the required unit and precision. |
+| `percent` | Match after rounding to two decimal places, including the sign. Use the percentage value, so 12.5% is encoded as `12.5`. |
+| `string` | Exact match after normalization against accepted forms. Preserve Vietnamese diacritics. Accepted forms can include name variants from the data and the corresponding code. |
+| `date` | ISO `YYYY-MM-DD`, or `YYYY-MM` for a question about a month. |
+| `boolean` | JSON `true` or `false`. |
+| `list` | Match elements in order using the applicable string or number rules. |
+| `table` | Supply `columns` and `rows`. Columns are aligned by normalized name with positional fallback, and rows are compared as a set. |
+| `unanswerable` | Match the reference label for insufficient evidence. |
+| `abstain` | Always scores zero. |
 
-Với câu xếp hạng, dùng tiêu chí đề nêu hoặc mặc định trong rulebook, xếp giảm dần trên đơn hợp lệ và dùng mã tăng dần để phá hòa. BTC loại khỏi test những câu có hòa ngay ranh giới top-k hoặc hạng nhất với câu hỏi “nhất”. Nếu ít hơn k ứng viên thì trả toàn bộ theo thứ tự. Các chi tiết về matching và payload nên được khóa bằng fixture chạy trên evaluator chính thức. [DataMate · Evaluation](https://challenge.zalo.ai/portal/datamate/)
+For ranking questions, apply the stated criterion or the rulebook default to valid orders. Sort the criterion descending and resolve ties by code ascending. The test sets exclude ties at the requested cutoff, including first place for superlatives. If fewer than `k` candidates qualify, return all of them in order. Verify the exact answer matching and serialization rules against the official evaluator. [DataMate evaluation](https://challenge.zalo.ai/portal/datamate/)
 
-## Ràng buộc ảnh hưởng trực tiếp đến thiết kế
+## Rules that affect the architecture
 
-- **Model**. Trần **15B tham số cộng gộp** cho tất cả model inference, gồm LM, embedding, reranker và classifier, kể cả chạy luân phiên. MoE tính toàn bộ tham số. Được lượng tử hóa và fine-tune. Weights gốc phải được công bố trước 26/10/2026 với giấy phép phù hợp. Khai báo model trong README của bài nộp. [DataMate · Rule](https://challenge.zalo.ai/portal/datamate/)
-- **Inference**. Docker chạy offline, mount test tại `/data` chỉ đọc và thu `/result/submission.jsonl`. Agent có thể thực thi code trong container. Kết quả phải tự sinh. BTC cấm hard-code câu trả lời và logic đặc thù theo ID câu hỏi hoặc doanh nghiệp. Dùng `business_id` để tìm gói dữ liệu tương ứng. [DataMate · Rule](https://challenge.zalo.ai/portal/datamate/)
-- **Dữ liệu phát triển**. Được dùng train, dữ liệu tự tổng hợp và nguồn công khai phù hợp thể lệ. BTC cấm dùng public/private test để train hoặc thu thập đáp án test. Dành holdout nội bộ từ train cho hiệu chỉnh và chọn cấu hình. [DataMate · Rule](https://challenge.zalo.ai/portal/datamate/), [Thể lệ chung](https://challenge.zalo.ai/regulations)
-- **Tài nguyên và tái lập**. Máy tham chiếu có 2 RTX 5090 (32 GB VRAM mỗi card) và 512 GB RAM. Giới hạn **6 giờ toàn bộ private test**, kể cả load model. BTC dùng điểm Docker chạy lại làm điểm cuối, với ngưỡng chênh PA cho tính tái lập là `0.03`. Nếu dừng sớm, các câu chưa ghi được tính `abstain`. [DataMate · Rule](https://challenge.zalo.ai/portal/datamate/)
+- **Models.** The combined inference limit is **15B parameters** across language models, embedders, rerankers, and classifiers, even if they run at different times. Count all mixture-of-experts parameters. The underlying weights must have been publicly released before October 26, 2026, under a compatible license. Quantization and fine-tuning are permitted. List the models in the submission README. [DataMate rules](https://challenge.zalo.ai/portal/datamate/)
+- **Execution.** Inference runs offline in Docker. The organizers mount the dataset at `/data` with read-only access and collect `/result/submission.jsonl`. Generated code can run inside the container. Answers must be produced automatically. Use identifiers for routing data and matching predictions to questions. The rules prohibit hard-coded answers and solution logic keyed to specific question or business IDs. [DataMate rules](https://challenge.zalo.ai/portal/datamate/)
+- **Development data.** The rules allow the supplied training set, synthetic data, and eligible public data and models. They prohibit training on public or private test data and obtaining answers to test questions. Split the training set by business for calibration and internal evaluation. [DataMate rules](https://challenge.zalo.ai/portal/datamate/), [General regulations](https://challenge.zalo.ai/regulations)
+- **Compute and reproducibility.** The reference machine has two RTX 5090 GPUs with 32 GB of VRAM each and 512 GB of RAM. The **six-hour** wall-clock limit covers the full private test, including model loading. Final ranking uses the organizers' Docker rerun. The stated reproducibility criterion is an absolute difference of at most `0.03` PA between the uploaded output and the rerun. If execution stops early, unwritten answers count as abstentions. [DataMate rules](https://challenge.zalo.ai/portal/datamate/)
 
-## Mốc nộp (GMT+7)
+## Submission milestones
 
-| Mốc | Việc của đội |
+All times are GMT+7.
+
+| Date | Deliverable |
 | --- | --- |
-| 26/10–16/11 | Chạy public test và nộp JSONL để tham khảo leaderboard. Portal nêu tối đa 5 lượt/ngày. |
-| 16/11 lúc 23:59 | Nộp Docker và đóng băng giải pháp. Submission Guidance yêu cầu checksum và link Drive công khai để BTC tải. Tối đa 2 lượt, BTC lấy lượt cuối. |
-| 20/11 | Private test được mở. Tab Submission Guidance ghi 09:00, timeline trang chủ ghi 11:00. Xác nhận giờ trên portal trước ngày chạy. |
-| 23/11 lúc 23:59 | Hạn nộp JSONL private do Docker đã đóng băng tạo ra. |
+| October 26–November 16 | Run the public test and upload JSONL. The portal allows up to five public submissions per day. |
+| November 16, 23:59 | Submit the Docker package and freeze the solution. The guidance asks for a checksum and a public Google Drive download link. The organizers use the last of up to two solution submissions. |
+| November 20 | Private test release. The track guidance lists 09:00, while the general timeline lists 11:00. Confirm the release time on the portal before the run. |
+| November 23, 23:59 | Upload the private-test JSONL produced by the frozen solution. |
 
-Nguồn lịch và quy cách nộp. [DataMate · Submission Guidance](https://challenge.zalo.ai/portal/datamate/), [Timeline chung](https://challenge.zalo.ai/#timeline)
+[DataMate submission guidance](https://challenge.zalo.ai/portal/datamate/), [General timeline](https://challenge.zalo.ai/#timeline)
 
-Tab **Data** yêu cầu đăng nhập. Repo hiện chưa có bộ kit. Link PDF Docker Guide được xác định qua portal, nhưng chưa đọc được PDF trong phiên khảo sát. Khi lấy kit, xác nhận layout train/test, phiên bản evaluator, danh sách kiểu và trường bắt buộc trong JSONL, quy cách log, image gốc, lệnh chạy và cách đóng gói. Dùng tài liệu BTC cho các chi tiết này. [Docker Guide của DataMate](https://dl-challenge.zalo.ai/2026/datamate_dkewxftdzo/zac2026_DataMate_docker_guideline_final.pdf)
+The **Data** tab requires sign-in, and the Docker Guide PDF was unavailable during this review. Confirm the kit layout, evaluator version, required JSONL fields, log format, base image, and exact Docker command once the official kit and guide are available. [DataMate Docker Guide](https://dl-challenge.zalo.ai/2026/datamate_dkewxftdzo/zac2026_DataMate_docker_guideline_final.pdf)
