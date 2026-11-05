@@ -1,23 +1,23 @@
 # Query Processing Agent
 
-**Giai đoạn hiện tại · Planning**
+**Current stage · Planning**
 
-Dự án hướng tới **Track 2 · DataMate** của Zalo AI Challenge 2026. Agent sẽ nhận câu hỏi tiếng Việt và dữ liệu doanh nghiệp dạng CSV, Excel hoặc SQLite, rồi truy vấn dữ liệu để trả về câu trả lời có kiểu. Khi dữ liệu thiếu căn cứ, agent có thể dự đoán `unanswerable`. Khi độ tin cậy thấp, agent có thể chọn `abstain`. [Đề bài DataMate](https://challenge.zalo.ai/portal/datamate/)
+Query Processing Agent is a proposed entry for **Track 2 · DataMate** at Zalo AI Challenge 2026. The agent will answer Vietnamese questions about business records in CSV, Excel, or SQLite. It will return a typed answer, predict `unanswerable` when the data cannot support an answer, or `abstain` when the evidence is too weak to commit. [DataMate challenge](https://challenge.zalo.ai/portal/datamate/)
 
-## Hướng triển khai
+## Planned approach
 
-1. Dựng baseline offline để đọc dữ liệu, sinh một truy vấn SQL, thực thi chỉ đọc và xuất JSONL để chấm bằng evaluator của ban tổ chức.
-2. Thử reranking ở hai điểm. Chọn schema và quy tắc liên quan trước khi sinh SQL, rồi dùng bằng chứng thực thi để chọn giữa các ứng viên.
-3. Hiệu chỉnh policy quyết định khi nào nên trả lời, thử thêm hoặc dừng. Dùng kết quả trên các doanh nghiệp giữ riêng để quyết định có cần fine-tune model sinh SQL hay thử RL cho policy nhiều bước.
+1. Build an offline baseline that loads the business data, generates one SQL query, executes it with read-only access, and writes JSONL for the official evaluator.
+2. Test reranking at two stages. Retrieve relevant schema and business rules before generating SQL, then use execution evidence to rank the resulting answers.
+3. Calibrate a decision policy that can answer, gather more evidence, or stop. Use results from held-out businesses to decide whether to fine-tune the SQL generator or try reinforcement learning for a policy that can take several steps.
 
-## Tiến độ
+## Project status
 
-Repo hiện chứa tài liệu về đề bài, kiến trúc dự kiến và kế hoạch đánh giá. Mốc triển khai đầu tiên là chạy baseline từ một câu hỏi đến một dòng JSONL hợp lệ và đối chiếu điểm bằng evaluator chính thức.
+The repository contains the challenge brief, proposed architecture, and evaluation plan. The first implementation milestone is to take one question from its raw data package to a valid JSONL prediction and check the score with the official evaluator.
 
-## Tài liệu
+## Documentation
 
-- [Mục lục tài liệu](docs/README.md)
-- [Đề bài và thể lệ](docs/01-competition.md)
-- [Thiết kế agent harness](docs/02-harness.md)
-- [Reranking, decision policy và huấn luyện LM](docs/03-methods.md)
-- [Kế hoạch triển khai và đánh giá](docs/04-workplan.md)
+- [Documentation index](docs/README.md)
+- [Challenge scope, scoring, and rules](docs/01-competition.md)
+- [Agent harness design](docs/02-harness.md)
+- [Reranking, decision policies, and model training](docs/03-methods.md)
+- [Implementation and evaluation plan](docs/04-workplan.md)
