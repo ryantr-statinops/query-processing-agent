@@ -1,57 +1,57 @@
-# Các bài toán con và thiết kế harness
+# Agent harness design
 
-Harness là phần đọc dữ liệu, cung cấp công cụ, quản lý ngân sách, thực thi, ghi trace và xuất bài nộp. Generator, verifier và decision policy có thể thay riêng qua các interface. Thiết kế dưới đây dùng một model local với SQL làm đường thực thi đầu tiên. Chọn SQL engine và thư viện đọc Excel sau khi xem mẫu train, ưu tiên một engine có dialect cố định và adapter kiểm thử được.
+The harness loads business data, exposes query tools, enforces resource limits, records traces, and writes the submission. The generator, verifier, and decision policy have separate interfaces so each can be evaluated independently. The first implementation uses a local model and a single SQL dialect. Choose the SQL engine and Excel reader after inspecting the official training files and confirming that the adapters preserve source types.
 
 ```mermaid
 flowchart TD
-    Q[Câu hỏi, business_id, as_of_date] --> C[Catalog dữ liệu và truy hồi rule]
-    C --> G[Sinh kế hoạch và SQL]
-    G --> X[Kiểm tra và thực thi chỉ đọc]
-    X --> V[Xác minh bằng chứng và xếp hạng]
-    V --> P{Policy và ngân sách còn lại}
-    P -->|Mở rộng schema hoặc thử phương án khác| C
-    P -->|Trả lời, unanswerable hoặc abstain| O[Chuẩn hóa và ghi JSONL]
-    O --> E[Evaluator BTC cho dữ liệu có nhãn]
+    Q["Question, business_id, as_of_date"] --> C["Load catalog and retrieve evidence"]
+    C --> G["Generate a plan and SQL"]
+    G --> X["Validate and execute read-only"]
+    X --> V["Verify evidence and rank candidates"]
+    V --> P{"Decide within remaining budget"}
+    P -->|"Retrieve more evidence or try another query"| C
+    P -->|"Answer, unanswerable, or abstain"| O["Normalize and write JSONL"]
+    O --> E["Score labeled examples during development"]
 ```
 
-## Tách bài toán để xử lý từng bước
+## Subproblems and fixtures
 
-Các hàng là nhóm kỹ thuật đề xuất để gán lỗi và chọn mẫu thử. Tần suất và thứ tự ưu tiên sau hai hàng đầu cần đo trên train.
+Start with data loading and answer serialization. Use errors on the training split to prioritize the remaining components.
 
-| Bài toán con | Cách làm đầu tiên | Một phép thử độc lập |
+| Subproblem | First implementation | Isolated check |
 | --- | --- | --- |
-| Đọc CSV, Excel, SQLite | Giữ nguồn file/sheet/table, kiểu gốc và kiểu suy luận. Phân biệt null, rỗng, 0, mã có số 0 đầu, ngày Excel và số có dấu phân tách. Cache catalog từng doanh nghiệp. | Cùng một bảng tổng hợp nhân tạo lưu ở ba định dạng cho cùng kết quả. |
-| Hợp đồng đáp án | Một serializer kiểm tra `type`, giá trị, JSONL và ID. Chuẩn hóa theo evaluator. | Fixture đủ kiểu, cả percent âm, list đảo thứ tự, bảng đảo hàng và hai kiểu từ chối. |
-| Tra cứu schema và thực thể | Match tên trường, alias, mã và giá trị mẫu từ gói hiện tại. Lấy cả bảng liên quan và khóa join. Giữ dấu trong giá trị trả về. | Hai sản phẩm cùng tên gần giống. Chọn theo mã hoặc căn cứ trong dữ liệu, ghi nhận mơ hồ nếu có. |
-| Thời gian và lịch | Parse khoảng từ `as_of_date` và rulebook. Dùng biên nửa mở `[start,end)` cho timestamp khi hợp quy tắc. Tra lịch cung cấp cho câu hỏi âm lịch. | Ngày đầu tháng, giao năm, mốc âm lịch, bản ghi ngay sát hai biên. |
-| Tra cứu, lọc và tổng hợp | Một SQL đọc. Phân biệt `COUNT(*)`, đếm thực thể phân biệt và `SUM`. Đưa đơn vị và cách xử lý null vào kế hoạch. | Hai dòng cùng đơn, một đơn hủy, một giá trị null. |
-| Join và phép tính nghiệp vụ | Gắn tên rule và grain trước khi join. Kiểm tra khóa, fan-out và tính đủ dữ liệu cho doanh thu, giá vốn hoặc công nợ. | Một hóa đơn có nhiều dòng và nhiều khoản thanh toán. Kiểm tra tổng sau tiền tổng hợp. |
-| Top-k, so sánh và đầu ra nhiều giá trị | Chốt tiêu chí, đơn hợp lệ, tie-break và thứ tự đáp án. Khóa công thức phần trăm và xử lý mẫu số bằng 0 theo rulebook. | Ca ít hơn k, hòa nội bộ và so sánh với kỳ gốc bằng 0. |
-| Thiếu căn cứ | Theo dõi trường bắt buộc, độ phủ thời gian và bằng chứng rule. Tách query rỗng hợp lệ, thiếu dữ liệu, lỗi parser, timeout. | Thiếu bảng giá vốn so với có giá vốn và lợi nhuận đúng bằng 0. |
+| Load CSV, Excel, and SQLite | Track the source file, sheet or table, and both source and inferred types. Distinguish nulls, empty strings, zeros, codes with leading zeros, Excel dates, and locale-specific numbers. Cache the catalog by data package. | Store the same synthetic table in all three formats and compare the typed results. |
+| Serialize answers | Use one serializer to validate the ID, `type`, and answer value. Apply the evaluator's normalization rules at the output boundary. | Cover all types, including negative percentages, reordered lists, reordered table rows, `unanswerable`, and `abstain`. |
+| Retrieve schema and resolve entities | Match field names, aliases, codes, and representative values within the current package. Include the join keys connecting relevant tables. Preserve the original spelling of returned values. | Give two products similar names. Resolve the intended product from a code or other evidence, and surface ambiguity when the data cannot distinguish them. |
+| Interpret dates and calendars | Resolve relative dates from `as_of_date` and the rulebook. Use half-open timestamp intervals `[start, end)` where the rule permits. Use the supplied calendar for lunar dates. | Check month and year boundaries, a lunar date, and records on both sides of a cutoff. |
+| Look up, filter, and aggregate | Generate one read-only query. Distinguish row count, distinct entity count, and sum. Include units and null handling in the plan. | Use two rows from the same order, a canceled order, and a null value. |
+| Join and apply business rules | Identify the rule and what each row represents before joining. Check keys, join fan-out, and whether the data supports calculations such as revenue, cost of goods sold, and outstanding balances. | Use an invoice with several lines and several payments. Verify the totals after aggregating each side at the appropriate level. |
+| Rank and compare results | Choose the ranking criterion, eligible orders, tie-breaker, and output ordering. Apply the rulebook's percentage formula and handling of a zero denominator. | Check a result with fewer than `k` entries, a tie within the ranking, and a comparison against a zero baseline. |
+| Detect insufficient evidence | Track required fields, date coverage, and rule support. Distinguish an empty result that answers the question from missing inputs, parse errors, and timeouts. | Compare a business missing cost data with one whose valid profit calculation returns exactly zero. |
 
-## Interface tối thiểu
+## Component interfaces
 
-| Thành phần | Đầu ra đề xuất |
+| Component | Proposed output or responsibility |
 | --- | --- |
-| `catalog` | Danh mục cột, kiểu, alias, nguồn, khóa, profile null/cardinality và mẫu có giới hạn. Cache theo gói dữ liệu và phiên bản loader. |
-| `retrieve` | Schema và đường join ứng viên, rule/đoạn README cùng nguồn, ví dụ few-shot chỉ từ tập fit hoặc dữ liệu tự tạo hợp lệ. |
-| `generate` | Một hoặc vài ứng viên có intent, khoảng ngày, metric, filter, loại output dự kiến, SQL và các giả định cần kiểm tra. Bước đầu giữ SQL làm chương trình chính để giảm công triển khai DSL. |
-| `execute` | Trạng thái thực thi, bảng kết quả có kiểu, lỗi, số hàng và thời gian. Tách dữ liệu khỏi instruction, kể cả nội dung trong cell và README. |
-| `verify` | Hard checks và tín hiệu xếp hạng. Kiểm tra cột và đơn vị, grain, phạm vi ngày, thực thể, rule và độ nhất quán giữa các phương án thực sự khác nhau. |
-| `decide` | `answer`, `unanswerable`, `abstain` hoặc một hành động lấy thêm bằng chứng trong ngân sách còn lại. |
-| `run` | Một dòng hợp lệ mỗi ID, ghi tăng dần để giữ các kết quả đã có khi dừng sớm. Writer duy nhất hoặc merge có thứ tự ổn định. Resume theo ID đã ghi hợp lệ và cùng config/data hash. |
+| `catalog` | Fields, types, aliases, sources, keys, null rates, cardinalities, and bounded samples. Invalidate the cache when the data package or loader changes. |
+| `retrieve` | Relevant schema, join paths, rules, README excerpts with provenance, and optional few-shot examples from the fit split or permitted synthetic data. |
+| `generate` | One or more candidates with an intent, date interval, metric, filters, expected output type, SQL, and assumptions to check. Start with SQL as the executable representation. |
+| `execute` | Status, typed result rows, errors, row counts, and latency. Treat cell values and business README content as data separate from instructions. |
+| `verify` | Hard checks and ranking signals for required columns, units, row granularity, dates, entity matches, business rules, and agreement across distinct plans. |
+| `decide` | Return a value, predict `unanswerable`, `abstain`, or take another evidence-gathering action within the remaining budget. |
+| `run` | Write valid predictions incrementally through one writer or a deterministic merge. For resume, require matching data and configuration hashes, validate existing lines, and rerun only missing IDs. |
 
-Executor bản đầu nhận một statement truy vấn qua allowlist/AST và chạy trong worker chỉ đọc theo gói hiện tại. Chặn lệnh ghi, attach, đọc file tùy ý, extension và các đường gọi ngoài phạm vi. Dùng giới hạn thời gian, bộ nhớ và số hàng. Nếu có bước Python sau này, chạy trong worker cô lập và coi toàn bộ code sinh là đầu vào chưa tin cậy. Docker offline là ràng buộc nộp bài, còn việc cô lập worker giúp một câu lỗi không làm hỏng cả lượt chạy.
+The first executor parses a single query, validates it against an allowlist, and runs it in a worker with read-only access to the current business package. Restrict writes, database attachment, arbitrary file reads, extensions, and calls outside the worker's scope. Bound runtime, memory, and result size. If Python execution becomes necessary, isolate that worker and treat generated code as untrusted input.
 
-Trace nội bộ lưu ID, phiên bản rule/catalog, bảng/cột được lấy, plan và SQL, kết quả check, lỗi theo stage, quyết định cuối, latency/token và seed. Giới hạn dữ liệu thô trong log. Tách output nộp và output phân tích. Xác nhận định dạng log BTC yêu cầu trong Docker Guide và tab Data.
+Record the question ID, catalog and rule versions, retrieved tables and columns, plan, SQL, check outcomes, errors by stage, final decision, elapsed time, token counts, and seed. Keep raw data out of logs where possible and separate diagnostic traces from the submission file. Confirm the official log requirements in the Docker Guide and Data tab before packaging.
 
-## Ví dụ xuyên suốt
+## Worked example
 
-Giả sử shop có bảng `orders(order_id, sold_at, status)` và `order_lines(order_id, sku, qty, unit_price)`. Câu hỏi “Tháng trước bán được mấy ly trà đào?” với `as_of_date = 2026-03-04` đi qua các bước sau:
+A synthetic shop has `orders(order_id, sold_at, status)`, `order_lines(order_id, sku, qty, unit_price)`, and `products(sku, name)`. The question asks how many cups of peach tea were sold last month, with `as_of_date = 2026-03-04`.
 
-1. Catalog xác định grain đơn và dòng sản phẩm. Retriever giữ cả khóa join `order_id`, mã sản phẩm, số lượng, trạng thái, ngày và rule về đơn hợp lệ.
-2. Parser tạo khoảng `[2026-02-01, 2026-03-01)` theo giả định “tháng trước” là tháng dương lịch liền trước. Entity linker xác định `sku` qua catalog sản phẩm của shop.
-3. Generator có thể tạo hai SQL đều chạy được. A dùng `SUM(qty)`, B dùng `COUNT(*)`. Nếu có hai dòng với số lượng 2 và 3, kết quả là 5 và 2. Verifier dùng cụm “mấy ly”, đơn vị và grain dòng hàng để ưu tiên A.
-4. Nếu mapping `sku` còn mơ hồ, policy có thể truy thêm catalog rồi chạy lại. Nếu chứng minh được dữ liệu thiếu số lượng và rule không cho suy ra, chọn `unanswerable`. Nếu chỉ còn timeout hoặc bằng chứng yếu, chọn `abstain`.
+1. The catalog identifies the order and line-item levels. Retrieval supplies the relevant keys, product name, quantity, order status, date, and the rule defining valid orders.
+2. Assuming the rulebook uses the previous calendar month, date resolution produces `[2026-02-01, 2026-03-01)`. The entity linker finds the peach tea SKU in `products`.
+3. Two candidates can execute successfully. Candidate A uses `SUM(qty)` and candidate B uses `COUNT(*)`. With two qualifying lines containing two and three cups, A returns five and B returns two. The requested unit is cups, so the verifier should favor A.
+4. If the product mapping is ambiguous, the policy can gather more evidence. If the package lacks quantity data and the rules provide no way to derive it, the policy can predict `unanswerable`. If a timeout or weak evidence leaves the result uncertain, it can `abstain`.
 
-Thử nghiệm này kiểm riêng ba nguyên nhân mất điểm. Retriever có bỏ sót `qty` không? Generator có sinh phương án A không? Verifier và policy có chọn A khi cả hai phương án đều chạy không?
+This fixture lets us inspect where an error occurred. Did retrieval include `qty`? Did the generator propose `SUM(qty)`? Did the verifier prefer it when both queries executed?
