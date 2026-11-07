@@ -17,7 +17,7 @@ from datamate.application.answers import answer_from_result
 from datamate.data.calendar import calendar_context
 from datamate.ranking.features import candidate_features
 from datamate.generation.local_gguf import LocalSQLGenerator
-from datamate.policy import CandidateBandit
+from datamate.ranking.policy import CandidateBandit
 from datamate.ranking.reranker import FeatureReranker
 from datamate.execution.sql import execute_select
 from datamate.data.catalog import BusinessCatalog
