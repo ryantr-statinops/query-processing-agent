@@ -85,7 +85,7 @@ class RunnerSmokeTests(unittest.TestCase):
             (data_root / "rulebook.md").write_text("", encoding="utf-8")
             result_root = root / "result"
             subprocess.run(
-                [sys.executable, str(ROOT / "src" / "runner.py"), "--data-root", str(data_root),
+                [sys.executable, "-m", "datamate", "--data-root", str(data_root),
                  "--result-root", str(result_root), "--model-path", str(root / "missing.gguf")],
                 check=True,
                 capture_output=True,

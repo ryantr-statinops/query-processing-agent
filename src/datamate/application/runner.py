@@ -13,7 +13,7 @@ import sys
 import time
 from typing import Any
 
-from datamate.application.agent import DataMateAgent
+from .agent import DataMateAgent
 from datamate.ranking.policy import CandidateBandit
 from datamate.ranking.reranker import FeatureReranker
 
