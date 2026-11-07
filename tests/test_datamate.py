@@ -12,7 +12,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from datamate.answers import answer_from_result, answers_match, pa_reward  # noqa: E402
 from datamate.generator import parse_candidate_json  # noqa: E402
-from datamate.sql import execute_select  # noqa: E402
+from datamate.execution.sql import execute_select  # noqa: E402
 from datamate.data.splits import build_split_manifest  # noqa: E402
 from datamate.data.catalog import BusinessCatalog  # noqa: E402
 

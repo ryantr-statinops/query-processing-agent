@@ -19,7 +19,7 @@ from datamate.features import candidate_features
 from datamate.generator import LocalSQLGenerator
 from datamate.policy import CandidateBandit
 from datamate.rerank import FeatureReranker
-from datamate.sql import execute_select
+from datamate.execution.sql import execute_select
 from datamate.data.catalog import BusinessCatalog
 
 
