@@ -14,7 +14,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from datamate.evaluation.labels import pa_reward  # noqa: E402
 from datamate.metrics import score_predictions  # noqa: E402
 from datamate.policy import CandidateBandit  # noqa: E402
-from datamate.rerank import FeatureReranker  # noqa: E402
+from datamate.ranking.reranker import FeatureReranker  # noqa: E402
 
 
 def load_jsonl(path: pathlib.Path) -> list[dict]:
