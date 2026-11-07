@@ -7,15 +7,13 @@ import sys
 import tempfile
 import unittest
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
-
-from datamate.application.answers import answer_from_result  # noqa: E402
-from datamate.evaluation.labels import answers_match, pa_reward  # noqa: E402
-from datamate.generation.local_gguf import parse_candidate_json  # noqa: E402
-from datamate.execution.sql import execute_select  # noqa: E402
-from datamate.data.splits import build_split_manifest  # noqa: E402
-from datamate.data.catalog import BusinessCatalog  # noqa: E402
+from datamate.application.answers import answer_from_result
+from datamate.application.candidates import CandidatePipeline
+from datamate.data.catalog import BusinessCatalog
+from datamate.data.splits import build_split_manifest
+from datamate.evaluation.labels import answers_match, pa_reward
+from datamate.execution.sql import execute_select
+from datamate.generation.local_gguf import parse_candidate_json
 
 
 class AnswerTests(unittest.TestCase):
@@ -41,6 +39,32 @@ class CatalogTests(unittest.TestCase):
                 self.assertEqual(result.rows, [[11]])
                 self.assertFalse(execute_select(catalog, "UPDATE records SET total=0").ok)
                 self.assertFalse(execute_select(catalog, "SELECT * FROM read_csv('/etc/passwd')").ok)
+            finally:
+                catalog.close()
+
+
+class CandidatePipelineTests(unittest.TestCase):
+    def test_shared_pipeline_generates_and_executes_candidate(self):
+        class FakeGenerator:
+            def generate_one(self, question, schema, index, rules, calendar):
+                return {"index": index, "sql": "SELECT SUM(total) AS value FROM records", "type": "number"}
+
+        with tempfile.TemporaryDirectory() as temp:
+            data_root = pathlib.Path(temp)
+            business = data_root / "data" / "biz_1"
+            business.mkdir(parents=True)
+            (business / "records.csv").write_text("item,total\napples,4\n", encoding="utf-8")
+            catalog = BusinessCatalog(business)
+            try:
+                pipeline = CandidatePipeline(data_root, FakeGenerator(), count=1)
+                candidates = pipeline.generate(
+                    {"id": "q1", "business_id": "biz_1", "question": "total?", "as_of_date": "2026-01-01"},
+                    catalog,
+                )
+                self.assertEqual(len(candidates), 1)
+                self.assertEqual(candidates[0]["answer"], {"type": "number", "answer": 4})
+                self.assertTrue(candidates[0]["result"]["ok"])
+                self.assertIn("sql_valid", candidates[0]["features"])
             finally:
                 catalog.close()
 
