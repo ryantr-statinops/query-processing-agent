@@ -14,6 +14,18 @@ Query Processing Agent is a proposed entry for **Track 2 · DataMate** at Zalo A
 
 The repository contains the challenge brief, proposed architecture, and evaluation plan. The first implementation milestone is to take one question from its raw data package to a valid JSONL prediction and check the score with the official evaluator.
 
+## Get the DataMate data
+
+After cloning the repository, run:
+
+```powershell
+python scripts/setup_data.py
+```
+
+The script downloads the official training and public-test archives when they are not already present, verifies their pinned SHA-256 hashes and ZIP integrity, then extracts them into `train/` and `public_test/`. It uses only Python's standard library. The downloaded archives and extracted competition data are ignored by Git and are not committed to the repository.
+
+To use a local archive, place it at the repository root as `train.zip` or `public_test.zip` before running the script. If the organizers publish updated archives, update the official URLs and SHA-256 values in the setup script after verifying the release.
+
 ## Documentation
 
 - [Documentation index](docs/README.md)
