@@ -166,7 +166,7 @@ def aggregate_fold_metrics(folds: list[dict]) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--candidates", type=pathlib.Path, default=ROOT / "artifacts" / "train_candidates.jsonl")
-    parser.add_argument("--manifest", type=pathlib.Path, default=ROOT / "configs" / "split_seed_2026.json")
+    parser.add_argument("--manifest", type=pathlib.Path, default=ROOT / "configs" / "splits" / "seed_2026.json")
     parser.add_argument("--output", type=pathlib.Path, default=ROOT / "artifacts" / "experiment_metrics.json")
     args = parser.parse_args()
     rows = load_jsonl(args.candidates)
