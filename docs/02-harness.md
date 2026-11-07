@@ -1,6 +1,6 @@
 # Agent harness design
 
-The harness loads business data, exposes query tools, enforces resource limits, records traces, and writes the submission. The generator, verifier, and decision policy have separate interfaces so each can be evaluated independently. The first implementation uses a local model and a single SQL dialect. Choose the SQL engine and Excel reader after inspecting the official training files and confirming that the adapters preserve source types.
+The harness loads business data, exposes query tools, enforces resource limits, records traces, and writes the submission. The generator, verifier, and decision policy have separate interfaces so each can be evaluated independently. The implementation uses Polars/Fastexcel for Rust-backed CSV and Excel ingestion, Apache DataFusion for Rust-backed SQL, and `mistralrs` for local GGUF inference. SQLite files are read-only ingestion sources and their tables are registered in the in-memory DataFusion catalog.
 
 ```mermaid
 flowchart TD
@@ -41,7 +41,7 @@ Start with data loading and answer serialization. Use errors on the training spl
 | `decide` | Return a value, predict `unanswerable`, `abstain`, or take another evidence-gathering action within the remaining budget. |
 | `run` | Write valid predictions incrementally through one writer or a deterministic merge. For resume, require matching data and configuration hashes, validate existing lines, and rerun only missing IDs. |
 
-The first executor parses a single query, validates it against an allowlist, and runs it in a worker with read-only access to the current business package. Restrict writes, database attachment, arbitrary file reads, extensions, and calls outside the worker's scope. Bound runtime, memory, and result size. If Python execution becomes necessary, isolate that worker and treat generated code as untrusted input.
+The executor accepts one `SELECT` or CTE, disables DataFusion DDL/DML/statements, rejects external table-reader functions, and limits returned rows. DataFusion runs over the in-memory tables loaded for the current business; the model cannot run arbitrary Python or shell commands. Query wall-clock cancellation remains a hardening item for expensive plans, so full-benchmark profiling must check worst-case latency before using this as the final image.
 
 Record the question ID, catalog and rule versions, retrieved tables and columns, plan, SQL, check outcomes, errors by stage, final decision, elapsed time, token counts, and seed. Keep raw data out of logs where possible and separate diagnostic traces from the submission file. Confirm the official log requirements in the Docker Guide and Data tab before packaging.
 
