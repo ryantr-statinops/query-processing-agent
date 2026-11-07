@@ -7,7 +7,7 @@ from typing import Any
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 
-from .ranking.features import prefix_features
+from .features import prefix_features
 
 
 class CandidateBandit:
