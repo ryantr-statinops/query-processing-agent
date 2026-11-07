@@ -14,7 +14,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from datamate.answers import label_match, pa_reward  # noqa: E402
 from datamate.data.calendar import calendar_context  # noqa: E402
-from datamate.generator import LocalSQLGenerator  # noqa: E402
+from datamate.generation.local_gguf import LocalSQLGenerator  # noqa: E402
 from datamate.features import candidate_features  # noqa: E402
 from datamate.execution.sql import execute_select  # noqa: E402
 from datamate.data.catalog import BusinessCatalog  # noqa: E402

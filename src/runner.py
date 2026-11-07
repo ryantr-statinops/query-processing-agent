@@ -16,7 +16,7 @@ from typing import Any
 from datamate.answers import answer_from_result
 from datamate.data.calendar import calendar_context
 from datamate.features import candidate_features
-from datamate.generator import LocalSQLGenerator
+from datamate.generation.local_gguf import LocalSQLGenerator
 from datamate.policy import CandidateBandit
 from datamate.rerank import FeatureReranker
 from datamate.execution.sql import execute_select
