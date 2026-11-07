@@ -16,15 +16,15 @@ The repository contains the challenge brief, proposed architecture, and evaluati
 
 ## Get the DataMate data
 
-After cloning the repository, run:
+Use Python 3.9 or newer. After cloning, open a terminal in the repository folder and run:
 
 ```powershell
 python scripts/setup_data.py
 ```
 
-The script downloads the official training and public-test archives when they are not already present, verifies their pinned SHA-256 hashes and ZIP integrity, then extracts them into `train/` and `public_test/`. It uses only Python's standard library. The downloaded archives and extracted competition data are ignored by Git and are not committed to the repository.
+On a fresh clone, the script downloads the official training and public-test ZIPs, checks their pinned SHA-256 hashes and ZIP integrity, and extracts the data into `train/` and `public_test/`. After verifying both datasets, it deletes the ZIPs to save disk space. If those folders already contain the complete datasets, running the script again skips the downloads. No Python packages need to be installed.
 
-To use a local archive, place it at the repository root as `train.zip` or `public_test.zip` before running the script. If the organizers publish updated archives, update the official URLs and SHA-256 values in the setup script after verifying the release.
+If you already have an official archive, put it at the repository root as `train.zip` or `public_test.zip` before running the script. The script verifies local archives the same way and removes them after successful setup. The ZIP files and extracted competition data are ignored by Git. If the organizers publish updated archives, verify the new release and update the URLs and SHA-256 values in `scripts/setup_data.py`.
 
 ## Documentation
 
