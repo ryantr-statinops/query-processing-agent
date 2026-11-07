@@ -4,12 +4,10 @@ from __future__ import annotations
 
 import argparse
 import pathlib
-import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
 
-from datamate.data.splits import write_split_manifest  # noqa: E402
+from datamate.data.splits import write_split_manifest
 
 
 def main() -> int:
