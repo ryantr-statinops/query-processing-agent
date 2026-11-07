@@ -20,7 +20,7 @@ from datamate.generator import LocalSQLGenerator
 from datamate.policy import CandidateBandit
 from datamate.rerank import FeatureReranker
 from datamate.sql import execute_select
-from datamate.tables import BusinessCatalog
+from datamate.data.catalog import BusinessCatalog
 
 
 def parse_args() -> argparse.Namespace:

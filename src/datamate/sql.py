@@ -9,7 +9,7 @@ from typing import Any
 
 from datafusion import SQLOptions
 
-from .tables import BusinessCatalog
+from .data.catalog import BusinessCatalog
 
 
 @dataclass

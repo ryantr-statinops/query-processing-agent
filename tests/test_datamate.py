@@ -14,7 +14,7 @@ from datamate.answers import answer_from_result, answers_match, pa_reward  # noq
 from datamate.generator import parse_candidate_json  # noqa: E402
 from datamate.sql import execute_select  # noqa: E402
 from datamate.splits import build_split_manifest  # noqa: E402
-from datamate.tables import BusinessCatalog  # noqa: E402
+from datamate.data.catalog import BusinessCatalog  # noqa: E402
 
 
 class AnswerTests(unittest.TestCase):
