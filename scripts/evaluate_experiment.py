@@ -12,7 +12,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from datamate.evaluation.labels import pa_reward  # noqa: E402
-from datamate.metrics import score_predictions  # noqa: E402
+from datamate.evaluation.metrics import score_predictions  # noqa: E402
 from datamate.ranking.policy import CandidateBandit  # noqa: E402
 from datamate.ranking.reranker import FeatureReranker  # noqa: E402
 
