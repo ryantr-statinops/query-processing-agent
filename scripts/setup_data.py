@@ -18,11 +18,17 @@ DATASETS = {
     "train": {
         "url": "https://dl-challenge.zalo.ai/2026/datamate_dkewxftdzo/train.zip",
         "sha256": "c1adbc654a301c30e4cf20b55d301381025f49db1162d88322b552d7472fea01",
+        "file_count": 162,
     },
     "public_test": {
         "url": "https://dl-challenge.zalo.ai/2026/datamate_dkewxftdzo/public_test.zip",
         "sha256": "46fb50f926ed1510b9f099a53918f45e304b256680452c93e74401b4a5442c52",
+        "file_count": 97,
     },
+}
+REQUIRED_FILES = {
+    "train": ("questions.jsonl", "answers.jsonl", "calendar.csv"),
+    "public_test": ("questions.jsonl", "calendar.csv"),
 }
 
 
@@ -102,6 +108,21 @@ def checked_members(archive: pathlib.Path, expected_root: str) -> tuple[list[str
     return files, directories
 
 
+def dataset_file_count(name: str) -> int:
+    destination = ROOT / name
+    return sum(1 for path in destination.rglob("*") if path.is_file())
+
+
+def dataset_is_ready(name: str, expected_count: int) -> bool:
+    destination = ROOT / name
+    return (
+        destination.is_dir()
+        and (destination / "data").is_dir()
+        and all((destination / filename).is_file() for filename in REQUIRED_FILES[name])
+        and dataset_file_count(name) == expected_count
+    )
+
+
 def extract_dataset(name: str, archive: pathlib.Path) -> int:
     destination = ROOT / name
     files, directories = checked_members(archive, name)
@@ -122,17 +143,8 @@ def extract_dataset(name: str, archive: pathlib.Path) -> int:
         with zipfile.ZipFile(archive) as package:
             package.extractall(ROOT)
 
-    required = {
-        "train": ("train/questions.jsonl", "train/answers.jsonl", "train/calendar.csv", "train/data"),
-        "public_test": (
-            "public_test/questions.jsonl",
-            "public_test/calendar.csv",
-            "public_test/data",
-        ),
-    }[name]
-    missing = [item for item in required if not (ROOT / item).exists()]
-    if missing:
-        raise RuntimeError(f"Missing required {name} contents: {', '.join(missing)}")
+    if not dataset_is_ready(name, len(files)):
+        raise RuntimeError(f"Required files or extracted file count are wrong for {name}/")
 
     print(f"{name}/: verified {len(files)} files, {len(directories)} directories")
     return len(files)
@@ -142,8 +154,24 @@ def main() -> int:
     try:
         counts = {}
         for name, metadata in DATASETS.items():
+            if not (ROOT / f"{name}.zip").exists() and dataset_is_ready(
+                name, metadata["file_count"]
+            ):
+                counts[name] = metadata["file_count"]
+                print(f"{name}/: already present and verified; skipping download")
+                continue
             archive = ensure_archive(name, metadata["url"], metadata["sha256"])
             counts[name] = extract_dataset(name, archive)
+
+        for name, metadata in DATASETS.items():
+            if not dataset_is_ready(name, metadata["file_count"]):
+                raise RuntimeError(f"Refusing to remove {name}.zip before data verification")
+        for name in DATASETS:
+            archive = ROOT / f"{name}.zip"
+            if archive.exists():
+                archive.unlink()
+                print(f"Removed {archive.name} after successful extraction")
+
         print(
             "Data setup complete: "
             + ", ".join(f"{name}={count} files" for name, count in counts.items())
