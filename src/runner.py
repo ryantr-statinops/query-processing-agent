@@ -13,14 +13,9 @@ import sys
 import time
 from typing import Any
 
-from datamate.application.answers import answer_from_result
-from datamate.data.calendar import calendar_context
-from datamate.ranking.features import candidate_features
-from datamate.generation.local_gguf import LocalSQLGenerator
+from datamate.application.agent import DataMateAgent
 from datamate.ranking.policy import CandidateBandit
 from datamate.ranking.reranker import FeatureReranker
-from datamate.execution.sql import execute_select
-from datamate.data.catalog import BusinessCatalog
 
 
 def parse_args() -> argparse.Namespace:
@@ -64,110 +59,6 @@ def gpu_memory_used_mb() -> int | None:
         return max(values) if values else None
     except (OSError, subprocess.SubprocessError, ValueError):
         return None
-
-
-class DataMateAgent:
-    def __init__(self, data_root: pathlib.Path, model_path: pathlib.Path | None, count: int,
-                 reranker: FeatureReranker | None, policy: CandidateBandit | None):
-        self.data_root = data_root
-        self.count = max(1, min(3, count))
-        self.reranker = reranker
-        self.policy = policy
-        self.catalogs: dict[str, BusinessCatalog] = {}
-        self.generator = None
-        if model_path and model_path.is_file():
-            self.generator = LocalSQLGenerator(
-                model_path,
-                context_size=int(os.environ.get("DATAMATE_CONTEXT_SIZE", "3072")),
-                seed=int(os.environ.get("DATAMATE_SEED", "2026")),
-            )
-
-    def _catalog(self, business_id: str) -> BusinessCatalog:
-        if business_id not in self.catalogs:
-            self.catalogs[business_id] = BusinessCatalog(self.data_root / "data" / business_id)
-        return self.catalogs[business_id]
-
-    def _candidates(self, question: dict[str, Any], catalog: BusinessCatalog) -> list[dict[str, Any]]:
-        if self.generator is None:
-            return []
-        business_id = question.get("business_id", "")
-        business_dir = self.data_root / "data" / str(business_id)
-        rules = load_text(self.data_root / "rulebook.md")
-        business_readme = load_text(business_dir / "README.md", limit=4000)
-        if business_readme:
-            rules = f"{rules}\n\nBUSINESS README:\n{business_readme}"
-        cal = calendar_context(self.data_root / "calendar.csv", question)
-        schema = catalog.schema_text(str(question.get("question", "")))
-
-        # The policy can stop early or spend inference on another candidate, but never exceed 3.
-        candidates: list[dict[str, Any]] = []
-        attempts = 0
-        while len(candidates) < self.count and attempts < self.count:
-            raw = self.generator.generate_one(question, schema, attempts, rules, cal)
-            attempts += 1
-            sql = raw.get("sql", "").strip()
-            if not sql and raw.get("type") != "unanswerable":
-                continue
-            if any(sql and sql.casefold() == str(item.get("sql", "")).casefold() for item in candidates):
-                continue
-            if raw.get("type") == "unanswerable":
-                answer = {"type": "unanswerable"}
-                result = {"ok": True, "columns": [], "rows": [], "error": None, "elapsed_ms": 0}
-            else:
-                execution = execute_select(catalog, sql)
-                result = {
-                    "ok": execution.ok,
-                    "columns": execution.columns,
-                    "rows": execution.rows,
-                    "error": execution.error,
-                    "elapsed_ms": execution.elapsed_ms,
-                }
-                answer = answer_from_result(raw.get("type", ""), execution.columns, execution.rows) if execution.ok else None
-            candidate = {**raw, "answer": answer, "result": result, "heuristic_score": float(bool(result["ok"]))}
-            candidates.append(candidate)
-            answers = [candidate.get("answer") for candidate in candidates]
-            for item in candidates:
-                item["all_answers"] = answers
-                item["features"] = candidate_features(question, item, schema, rules)
-            if self.policy:
-                ordered = self.reranker.rerank(candidates) if self.reranker else candidates
-                action = self.policy.choose(ordered, can_generate_more=len(candidates) < self.count)
-                if action != "generate_more":
-                    break
-
-        if self.reranker and candidates:
-            candidates = self.reranker.rerank(candidates)
-        return candidates
-
-    def answer(self, question: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
-        business_id = str(question.get("business_id", ""))
-        trace: dict[str, Any] = {"code": [], "output": []}
-        try:
-            catalog = self._catalog(business_id)
-            candidates = self._candidates(question, catalog)
-            for item in candidates:
-                trace["code"].append(item.get("sql", ""))
-                result = dict(item.get("result", {}))
-                rows = result.get("rows", []) or []
-                result["row_count"] = len(rows)
-                result["truncated_for_log"] = len(rows) > 20
-                result["rows"] = rows[:20]
-                trace["output"].append(result)
-            selected = next((c for c in candidates if c.get("answer") is not None), None)
-            if selected is None:
-                answer = {"id": question["id"], "type": "abstain"}
-            else:
-                answer = {"id": question["id"], **selected["answer"]}
-            trace["candidate_count"] = len(candidates)
-            trace["selected_candidate"] = selected.get("index") if selected else None
-            return answer, trace
-        except Exception as error:
-            trace["error"] = f"{type(error).__name__}: {error}"[:500]
-            return {"id": question["id"], "type": "abstain"}, trace
-
-    def close(self) -> None:
-        for catalog in self.catalogs.values():
-            catalog.close()
 
 
 def write_jsonl_record(stream: Any, record: dict[str, Any]) -> None:
