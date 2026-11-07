@@ -12,7 +12,7 @@ import time
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from datamate.answers import label_match, pa_reward  # noqa: E402
+from datamate.evaluation.labels import label_match, pa_reward  # noqa: E402
 from datamate.data.calendar import calendar_context  # noqa: E402
 from datamate.generation.local_gguf import LocalSQLGenerator  # noqa: E402
 from datamate.features import candidate_features  # noqa: E402
@@ -73,7 +73,7 @@ def main() -> int:
                         continue
                     else:
                         result = execute_select(catalog, sql)
-                        from datamate.answers import answer_from_result
+                        from datamate.application.answers import answer_from_result
                         answer = answer_from_result(raw.get("type", ""), result.columns, result.rows) if result.ok else None
                         candidate = {
                             **raw,

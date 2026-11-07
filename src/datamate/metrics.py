@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from .answers import label_match, pa_reward
+from .evaluation.labels import label_match, pa_reward
 
 
 def score_predictions(predictions: dict[str, dict[str, Any]], references: dict[str, dict[str, Any]]) -> dict[str, Any]:

@@ -10,7 +10,8 @@ import unittest
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from datamate.answers import answer_from_result, answers_match, pa_reward  # noqa: E402
+from datamate.application.answers import answer_from_result  # noqa: E402
+from datamate.evaluation.labels import answers_match, pa_reward  # noqa: E402
 from datamate.generation.local_gguf import parse_candidate_json  # noqa: E402
 from datamate.execution.sql import execute_select  # noqa: E402
 from datamate.data.splits import build_split_manifest  # noqa: E402

@@ -11,7 +11,7 @@ from collections import defaultdict
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from datamate.answers import pa_reward  # noqa: E402
+from datamate.evaluation.labels import pa_reward  # noqa: E402
 from datamate.metrics import score_predictions  # noqa: E402
 from datamate.policy import CandidateBandit  # noqa: E402
 from datamate.rerank import FeatureReranker  # noqa: E402
