@@ -10,6 +10,7 @@ The project aims to build a harness that turns raw business data and a Vietnames
 2. [Agent harness design](02-harness.md) breaks the pipeline into testable components and walks through a question from raw data to answer.
 3. [Reranking, decision policies, and model training](03-methods.md) defines each method, its objective, and when RL is worth testing.
 4. [Implementation and evaluation plan](04-workplan.md) specifies the experiment sequence, metrics, milestones, and submission checklist.
+5. [Package architecture](05-package-architecture.md) maps the installed `datamate` layers and their dependency direction.
 
 ## Design hypothesis
 
@@ -24,4 +25,4 @@ The quantitative research question is **how to make decisions under uncertainty 
 3. Pick one lookup and one single-table aggregate from the development group. Write the SQL by hand, record the execution trace, serialize the answers, and check both with the evaluator. Test a labeled `unanswerable` question and the `abstain` action separately.
 4. Replace the handwritten queries with one generation from a local model and score the same cases again.
 
-The interfaces, examples, and milestones in these documents describe the proposed implementation.
+The architecture page documents the current package layout; the methods and workplan pages describe the experiment design and remaining evaluation steps.

@@ -56,6 +56,8 @@ The loader uses one inference request at a time, disables prefix caching, tokeni
 
 `predict.sh` takes no arguments, reads `/data/questions.jsonl`, loads `/data/data/<business_id>/`, and writes `/result/submission.jsonl` plus per-question records under `/result/logs/`. Set `DATAMATE_MODEL_PATH`, `DATAMATE_RERANKER_PATH`, and `DATAMATE_POLICY_PATH` in the image environment if using the local model and trained artifacts. Without a model, the runner writes `abstain` answers, which is useful only for checking the output plumbing.
 
+For the same CLI locally, run `uv run python -m datamate --help`. The package boundaries and shared candidate flow are described in the [package architecture](docs/05-package-architecture.md).
+
 Each log has the required `id`, `answer`, `elapsed_ms`, and `thinking` fields, plus SQL in `code`, execution evidence in `output`, and candidate selection metadata.
 
 Build the CPU image after downloading the model. Without evaluated artifacts it runs the candidate generator without a trained reranker or policy:
@@ -81,3 +83,4 @@ The GPU wheel has to be chosen for the evaluator hardware; the local Quadro T100
 - [Agent harness design](docs/02-harness.md)
 - [Reranking, decision policies, and model training](docs/03-methods.md)
 - [Implementation and evaluation plan](docs/04-workplan.md)
+- [Package architecture](docs/05-package-architecture.md)

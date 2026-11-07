@@ -5,6 +5,7 @@
 - Use `uv` for Python environment and dependency management. Keep `pyproject.toml` and `uv.lock` in sync.
 - Prefer the existing Rust-backed stack: Polars/Fastexcel for tabular ingestion, DataFusion for SQL execution, and `mistralrs` for local GGUF inference.
 - Keep model inference offline and bounded. The runner uses one request at a time; the documented GPU memory goal is 3 GiB.
+- Keep imports inside the `application`, `data`, `execution`, `generation`, `ranking`, and `evaluation` boundaries documented in `docs/05-package-architecture.md`. Use `python -m datamate` as the inference entrypoint; do not add `sys.path` manipulation to scripts.
 
 ## Data and evaluation
 
