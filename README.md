@@ -1,30 +1,78 @@
 # Query Processing Agent
 
-**Current stage · Planning**
+Offline baseline and experiment harness for **Track 2 · DataMate** at Zalo AI Challenge 2026. It loads one business package, uses a local GGUF model to generate up to three read-only SQL candidates, and emits typed answers in the competition JSONL format.
 
-Query Processing Agent is a proposed entry for **Track 2 · DataMate** at Zalo AI Challenge 2026. The agent will answer Vietnamese questions about business records in CSV, Excel, or SQLite. It will return a typed answer, predict `unanswerable` when the data cannot support an answer, or `abstain` when the evidence is too weak to commit. [DataMate challenge](https://challenge.zalo.ai/portal/datamate/)
+## Stack
 
-## Planned approach
+- `uv` manages the Python environment and checked-in `uv.lock`.
+- Polars and Fastexcel use Rust-backed CSV/Excel processing.
+- Apache DataFusion executes SQL through its Rust query engine.
+- `mistralrs` runs the local GGUF model with its Rust inference engine.
+- NumPy and scikit-learn provide small feature-based reranker and fitted-Q policy estimators.
 
-1. Build an offline baseline that loads the business data, generates one SQL query, executes it with read-only access, and writes JSONL for the official evaluator.
-2. Test reranking at two stages. Retrieve relevant schema and business rules before generating SQL, then use execution evidence to rank the resulting answers.
-3. Calibrate a decision policy that can answer, gather more evidence, or stop. Use results from held-out businesses to decide whether to fine-tune the SQL generator or try reinforcement learning for a policy that can take several steps.
+## Setup
 
-## Project status
-
-The repository contains the challenge brief, proposed architecture, and evaluation plan. The first implementation milestone is to take one question from its raw data package to a valid JSONL prediction and check the score with the official evaluator.
-
-## Get the DataMate data
-
-Use Python 3.9 or newer. After cloning, open a terminal in the repository folder and run:
+Install [uv](https://docs.astral.sh/uv/) and Python 3.10–3.13, then from the repository root:
 
 ```powershell
-python scripts/setup_data.py
+uv sync --locked
+uv run python scripts/setup_data.py
+uv run python scripts/download_model.py
 ```
 
-On a fresh clone, the script downloads the official training and public-test ZIPs, checks their pinned SHA-256 hashes and ZIP integrity, and extracts the data into `train/` and `public_test/`. After verifying both datasets, it deletes the ZIPs to save disk space. If those folders already contain the complete datasets, running the script again skips the downloads. No Python packages need to be installed.
+The model and competition data remain local and are excluded from Git. To use a different model path:
 
-If you already have an official archive, put it at the repository root as `train.zip` or `public_test.zip` before running the script. The script verifies local archives the same way and removes them after successful setup. The ZIP files and extracted competition data are ignored by Git. If the organizers publish updated archives, verify the new release and update the URLs and SHA-256 values in `scripts/setup_data.py`.
+```powershell
+$env:DATAMATE_MODEL_PATH = "D:\path\to\qwen2.5-coder-1.5b-instruct-q4_k_m.gguf"
+```
+
+The loader uses one inference request at a time, disables prefix caching, tokenizes and trims each prompt to fit a 3,072-token request budget, and caps generation at 384 tokens. Set `DATAMATE_CONTEXT_SIZE` to change the budget after measuring memory and quality. The checked-in PyPI `mistralrs` dependency is the CPU runtime. The Dockerfile can replace it with a matching Linux CUDA wheel and cap the planned GPU memory to `3GiB`; set `DATAMATE_MEMORY_GOAL=none` for CPU-only inference.
+
+## Experiment workflow
+
+1. Create the fixed business-level split manifest:
+
+   ```powershell
+   uv run python scripts/make_splits.py
+   ```
+
+2. Generate and save candidate SQL, execution evidence, features, and train-only labels:
+
+   ```powershell
+   uv run python scripts/collect_candidates.py
+   ```
+
+   Use `--limit 20` for a quick smoke run. Remove that option for the full experiment; the 3,000-question collection makes up to 9,000 local model calls.
+
+3. Run grouped OOF comparisons, fit the final development reranker and policy, and evaluate the reserved holdout once:
+
+   ```powershell
+   uv run python scripts/evaluate_experiment.py
+   ```
+
+   Results and fitted artifacts go under the Git-ignored `artifacts/` folder. The collector reads only `train/`; `public_test/` is only supplied to inference.
+
+## Inference and Docker interface
+
+`predict.sh` takes no arguments, reads `/data/questions.jsonl`, loads `/data/data/<business_id>/`, and writes `/result/submission.jsonl` plus per-question records under `/result/logs/`. Set `DATAMATE_MODEL_PATH`, `DATAMATE_RERANKER_PATH`, and `DATAMATE_POLICY_PATH` in the image environment if using the local model and trained artifacts. Without a model, the runner writes `abstain` answers, which is useful only for checking the output plumbing.
+
+Each log has the required `id`, `answer`, `elapsed_ms`, and `thinking` fields, plus SQL in `code`, execution evidence in `output`, and candidate selection metadata.
+
+Build the CPU image after downloading the model. Without evaluated artifacts it runs the candidate generator without a trained reranker or policy:
+
+```powershell
+docker build -t datamate:cpu .
+```
+
+For the evaluator GPU, pass the upstream `mistralrs` CUDA wheel URL that matches its driver and GPU, and reserve a 3 GiB memory goal:
+
+```powershell
+docker build -t datamate:gpu `
+  --build-arg MISTRALRS_CUDA_WHEEL_URL="<matching upstream wheel URL>" `
+  --build-arg DATAMATE_MEMORY_GOAL=3GiB .
+```
+
+The GPU wheel has to be chosen for the evaluator hardware; the local Quadro T1000 and Docker evaluator may need different runtime builds. The Docker image includes the model weights but expects `/data` mounted read-only and `/result` mounted writable.
 
 ## Documentation
 
