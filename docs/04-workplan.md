@@ -2,7 +2,7 @@
 
 ## Evaluation protocol
 
-Split the official training data **by business**. Use the `fit` group to develop prompts, build the few-shot index, train rerankers and decision models, and fine-tune the generator. Use the `calibration` group to calibrate probabilities, choose the threshold, and select among candidate configurations. Reserve the `holdout` group for a prespecified comparison and the final check. With few businesses, use grouped cross-validation within development to obtain out-of-fold predictions for the verifier or decision model while keeping a separate holdout. Keep every table and question variant from the same business in one group. Record business counts, question counts, answer types, and major error categories per split. During evaluation, the agent still receives the current question's business package and shared rules.
+Split the 30 official training businesses deterministically with seed `2026`: reserve 6 businesses as holdout, then assign the other 24 to four grouped folds. Train a verifier or policy on three development folds and score it on the fourth to produce OOF comparisons. After development selection, fit on all 24 development businesses and evaluate the six-business holdout once. Use `train/answers.jsonl` only for candidate labels; never use public-test labels or select settings from public-test results. The checked-in manifest records businesses, question counts, and a hash. Keep every question and table from one business in the same group.
 
 | Metric | What it tells us |
 | --- | --- |
@@ -26,9 +26,9 @@ Use the same split and evaluator for each comparison. Keep the seed, checkpoint,
 | B1 | Use a local model, a compact schema, one SQL generation, and read-only execution. | End-to-end local scores by business and traces that identify the failing stage. |
 | E1 | Add lexical retrieval that keeps the keys needed for joins. Try context reranking if evidence coverage warrants it. | Check that evidence recall improves or holds steady, then compare prompt size, latency, and PA on retrieval-dependent questions. |
 | E2 | Compare `N=1` with `N=2–3`, estimate oracle@N, then compare heuristic and learned verifiers on the same pool. | Higher oracle coverage at an acceptable cost and a verifier that turns some of that gain into higher PA. |
-| E3 | Compare a rule-based gate with calibrated logistic regression. | Compare PA, wrong-answer count, coverage, and stability across businesses, including `unanswerable` predictions. |
-| E4 | Compare conditional retries with a fixed schedule at the same compute budget. | A repeatable PA gain with enough time left under the Docker limit. |
-| E5 | Try one filtered SFT run or one preference method if the fit split and schedule allow. | Better oracle@N, top-1 correctness, or PA under the same inference budget. Recalibrate the gate if the generator changes. |
+| E3 | Fit a feature-based candidate reranker, then a small fitted-Q controller over submit, abstain, and generate-one-more actions. | Compare OOF PA with top-1 and reranked candidates. Keep the policy only if it improves the reranker without exceeding the inference budget. |
+| E4 | Compare conditional candidate generation with a fixed schedule at the same compute budget. | A repeatable PA gain with enough time left under the Docker limit. |
+| E5 | Consider generator fine-tuning only as a separate later experiment. | Better oracle@N or PA under the same inference budget. Recalibrate if the generator changes. |
 
 For each run, log the run ID, commit, dataset and split hashes, prompt, model and configuration revisions, seed, candidate count and compute limits, PA and answer counts, p95 and total elapsed time, largest error category, and the decision to retain or drop the change. For the RL hypothesis, replay `stop`, `expand`, and `retry` branches on the same fit questions and measure the extra reward and compute. If existing logs contain only the action taken by a fixed policy, record which alternate actions lack evidence.
 
