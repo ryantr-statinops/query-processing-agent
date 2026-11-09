@@ -87,3 +87,15 @@ class PeriodTests(unittest.TestCase):
         self.assertEqual(shift_hours("ca chiều"), (14, 22))
         self.assertEqual(count_weekdays(Period(date(2026, 9, 1), date(2026, 9, 30)), 0), 4)
         self.assertEqual(count_weekdays(Period(date(2026, 9, 1), date(2026, 9, 30)), 1), 5)
+
+
+    def test_evidence_coverage_and_half_up_money(self):
+        import polars as pl
+        from datamate.application.evidence import InsufficientEvidence, in_period, numeric_answer
+
+        table = pl.DataFrame({"day": [date(2026, 1, 1), date(2026, 1, 3)]})
+        self.assertEqual(in_period(table, Period(date(2026, 1, 2), date(2026, 1, 2))).height, 0)
+        self.assertEqual(in_period(table, Period(date(2025, 12, 31), date(2026, 1, 1))).height, 1)
+        with self.assertRaises(InsufficientEvidence):
+            in_period(table, Period(date(2025, 1, 1), date(2025, 1, 2)))
+        self.assertEqual(numeric_answer(12.5, money=True), {"type": "number", "answer": 13})
