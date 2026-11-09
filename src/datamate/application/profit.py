@@ -24,3 +24,13 @@ def gross_profit(lines: pl.DataFrame, period: Period, *, limit: int | None = Non
     rows = by_product.sort("product_id").to_dicts()
     return {"type": "table", "columns": ["product_id", "gross_profit"], "rows": rows,
             "total": numeric_answer(total, money=True)["answer"]}
+
+
+def net_profit(gross: int | float, expenses: pl.DataFrame, period: Period) -> dict:
+    if not {"day", "amount"} <= set(expenses.columns):
+        raise UnsupportedQuestion("expense_fields_missing")
+    rows = expenses.filter(pl.col("day").is_between(period.start, period.end))
+    if rows["amount"].null_count():
+        raise InsufficientEvidence("incomplete_expense_ledger")
+    expense_total = rows["amount"].sum() or 0
+    return numeric_answer(gross - expense_total, money=True)

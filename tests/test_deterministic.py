@@ -263,6 +263,14 @@ class ProfitTests(unittest.TestCase):
         gross = gross_profit(lines, period)["total"]
         self.assertEqual(gross, 40)
 
+    def test_net_profit_deducts_all_period_expenses(self):
+        import polars as pl
+        from datamate.application.profit import net_profit
+
+        period = Period(date(2026, 9, 1), date(2026, 9, 30))
+        expenses = pl.DataFrame({"day": [date(2026, 9, 3)], "amount": [20], "note": ["repair"]})
+        self.assertEqual(net_profit(40, expenses, period)["answer"], 20)
+
 
 class IntentTests(unittest.TestCase):
     def test_near_match_and_stable_tie(self):
