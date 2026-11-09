@@ -79,3 +79,13 @@ class SourceTests(unittest.TestCase):
                                        number_value("total").alias("total"), status_value("note", note=True).alias("status"))
         self.assertEqual(result.row(0), ("0001", date(2026, 9, 7), Decimal("89526400"), "Đã huỷ", "cancelled"))
         self.assertEqual(result.row(1)[1:3], (date(2026, 9, 8), Decimal("2301.50")))
+
+
+    def test_grouped_rows_do_not_fill_across_orders(self):
+        import polars as pl
+        from datamate.data.normalize import grouped_rows
+
+        frame = pl.DataFrame({"id": ["1", None, None, "2"], "status": ["hủy", None, None, None],
+                              "amount": [1, 2, 2, 2]})
+        result = grouped_rows(frame, "id", ("status",))
+        self.assertEqual(result.rows(), [("1", "hủy", 1), ("1", "hủy", 2), ("2", None, 2)])

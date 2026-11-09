@@ -36,3 +36,12 @@ def status_value(column: str, *, note: bool = False) -> pl.Expr:
         .when(value.str.contains(r"hoàn thành|đã nhập|đã giao|complete|delivered")).then(pl.lit("completed"))
         .otherwise(pl.lit("completed") if note else None)
     )
+
+
+def grouped_rows(frame: pl.DataFrame, key: str, fields: tuple[str, ...]) -> pl.DataFrame:
+    """Restore export fields for contiguous lines of each identified order."""
+    selected = [field for field in fields if field in frame.columns and field != key]
+    frame = frame.with_columns(clean(key).forward_fill().alias(key))
+    if selected:
+        frame = frame.with_columns(clean(field).forward_fill().over(key).alias(field) for field in selected)
+    return frame.unique(maintain_order=True)
