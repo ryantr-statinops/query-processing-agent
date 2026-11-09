@@ -78,3 +78,12 @@ class PeriodTests(unittest.TestCase):
             period = tet_period("dịp tết năm 2026", date(2026, 3, 1), calendar)
             self.assertEqual(period, Period(date(2026, 2, 10), date(2026, 2, 26)))
             self.assertEqual(before_tet(period).end, date(2026, 2, 9))
+
+
+    def test_shift_ranges_and_weekday_counts(self):
+        from datamate.application.periods import count_weekdays, shift_hours
+
+        self.assertEqual(shift_hours("ca sáng"), (6, 14))
+        self.assertEqual(shift_hours("ca chiều"), (14, 22))
+        self.assertEqual(count_weekdays(Period(date(2026, 9, 1), date(2026, 9, 30)), 0), 4)
+        self.assertEqual(count_weekdays(Period(date(2026, 9, 1), date(2026, 9, 30)), 1), 5)

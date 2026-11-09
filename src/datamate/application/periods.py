@@ -113,3 +113,19 @@ def tet_period(text: str, as_of: date, calendar_path: Path) -> Period | None:
 def before_tet(period: Period) -> Period:
     length = (period.end - period.start).days + 1
     return Period(period.start - timedelta(days=length), period.start - timedelta(days=1))
+
+
+def shift_hours(text: str) -> tuple[int, int] | None:
+    morning = "ca sáng" in text
+    afternoon = "ca chiều" in text
+    if morning == afternoon:
+        return None
+    return (6, 14) if morning else (14, 22)
+
+
+def count_weekdays(period: Period, weekday: int) -> int:
+    if not 0 <= weekday <= 6:
+        raise ValueError("Weekday must be between 0 and 6")
+    length = (period.end - period.start).days + 1
+    first = (weekday - period.start.weekday()) % 7
+    return max(0, (length + 6 - first) // 7)
