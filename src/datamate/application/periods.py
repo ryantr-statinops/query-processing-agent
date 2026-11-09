@@ -44,3 +44,31 @@ def explicit_period(text: str, as_of: date) -> Period | None:
     except ValueError:
         return None
     return None
+
+
+def relative_period(text: str, as_of: date) -> Period | None:
+    one_day = timedelta(days=1)
+    if match := re.search(r"\b(\d{1,4})\s*ngày\s*(?:gần nhất|qua|vừa qua)\b", text):
+        count = int(match[1])
+        return Period(as_of - (count - 1) * one_day, as_of) if count else None
+    if any(phrase in text for phrase in ("từ đầu năm", "đầu năm tới nay", "đầu năm đến nay")):
+        return Period(as_of.replace(month=1, day=1), as_of)
+    if "tuần này" in text:
+        return Period(as_of - as_of.weekday() * one_day, as_of)
+    if any(phrase in text for phrase in ("tuần trước", "tuần rồi", "tuần vừa rồi")):
+        monday = as_of - (as_of.weekday() + 7) * one_day
+        return Period(monday, monday + 6 * one_day)
+    if "tháng này" in text:
+        return Period(as_of.replace(day=1), as_of)
+    if any(phrase in text for phrase in ("tháng trước", "tháng rồi", "tháng vừa rồi")):
+        previous = as_of.replace(day=1) - one_day
+        return month_period(previous.year, previous.month)
+    if "hôm qua" in text:
+        return Period(as_of - one_day, as_of - one_day)
+    if "hôm nay" in text:
+        return Period(as_of, as_of)
+    return None
+
+
+def resolve_period(text: str, as_of: date) -> Period | None:
+    return explicit_period(text, as_of) or relative_period(text, as_of)

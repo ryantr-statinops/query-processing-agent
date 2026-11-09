@@ -45,3 +45,13 @@ class PeriodTests(unittest.TestCase):
         self.assertEqual(explicit_period("tháng 9", today).start, date(2025, 9, 1))
         self.assertEqual(explicit_period("quý 4/2025", today).end, date(2025, 12, 31))
         self.assertIsNone(explicit_period("ngày 31/02/2026", today))
+
+
+    def test_relative_periods(self):
+        from datamate.application.periods import resolve_period
+
+        today = date(2026, 9, 7)
+        self.assertEqual(resolve_period("tháng này", today), Period(date(2026, 9, 1), today))
+        self.assertEqual(resolve_period("tuần này", today), Period(today, today))
+        self.assertEqual(resolve_period("tuần rồi", today), Period(date(2026, 8, 31), date(2026, 9, 6)))
+        self.assertEqual(resolve_period("3 ngày gần nhất", today), Period(date(2026, 9, 5), today))
