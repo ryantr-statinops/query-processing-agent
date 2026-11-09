@@ -12,11 +12,11 @@ from datamate.data.normalize import clean, date_value, number_value, status_valu
 from datamate.data.sources import Binding, SourceCatalog, bind_sources
 
 _FIELDS = {
-    "day": ("thời gian", "ngày nhập", "ngày nhập hàng", "ngày", "thời điểm"),
-    "amount": ("cần trả ncc", "tổng tiền", "tổng tiền nhập", "tổng giá trị nhập", "thành tiền", "trị giá", "giá trị"),
+    "day": ("thời gian", "ngày nhập", "ngày nhập hàng", "ngày nhập kho", "ngày", "thời điểm"),
+    "amount": ("cần trả ncc", "tổng tiền", "tổng tiền nhập", "tổng giá trị nhập", "tong gia tri nhap", "thành tiền", "trị giá", "giá trị"),
 }
 _OPTIONAL = {
-    "status": ("trạng thái", "tình trạng"),
+    "status": ("trạng thái", "tình trạng", "tinh trang"),
     "note": ("ghi chú", "ghi chu", "diễn giải"),
     "code": ("mã nhập hàng", "số phiếu", "mã phiếu nhập", "mã nhập"),
 }

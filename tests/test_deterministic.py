@@ -39,6 +39,23 @@ class PurchaseTests(unittest.TestCase):
             answer = answer_purchase_total(SourceCatalog(root), "Tháng 1/2025 tổng giá trị phiếu nhập", date(2026, 1, 1))
             self.assertEqual(answer, {"type": "number", "answer": 100})
 
+    def test_purchase_loader_binds_sqlite_domain_schema_aliases(self):
+        import sqlite3
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from datamate.application.purchases import answer_purchase_total
+        from datamate.data.sources import SourceCatalog
+
+        with TemporaryDirectory() as folder:
+            root = Path(folder)
+            with sqlite3.connect(root / "retail.db") as db:
+                db.execute("CREATE TABLE phieu_nhap (NgayNhapKho TEXT, TongGiaTriNhap TEXT, TinhTrang TEXT)")
+                db.execute("INSERT INTO phieu_nhap VALUES ('2026-09-01', '123000', 'Hoàn thành')")
+            db.close()
+            answer = answer_purchase_total(SourceCatalog(root), "Tháng 9/2026 tổng tiền nhập hàng",
+                                           date(2026, 9, 7))
+            self.assertEqual(answer, {"type": "number", "answer": 123000})
+
 
 class SalesTests(unittest.TestCase):
     def test_order_count_deduplicates_and_excludes_cancelled_or_returned(self):
