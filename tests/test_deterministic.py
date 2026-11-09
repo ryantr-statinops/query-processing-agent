@@ -392,3 +392,14 @@ class PharmacyTests(unittest.TestCase):
                              "remaining_quantity": [4, 3, 0], "unit_cost": [10, 20, 1]})
         result = expiring_lots(lots, date(2026, 9, 9), 2)
         self.assertEqual([row["remaining_cost"] for row in result["rows"]], [60, 40])
+
+
+class ConstructionTests(unittest.TestCase):
+    def test_deliveries_count_by_arrival_date_not_order_date(self):
+        import polars as pl
+        from datamate.application.construction import count_deliveries
+
+        deliveries = pl.DataFrame({"delivery_id": ["d1", "d2", "d3"],
+                                   "delivery_day": [date(2026, 9, 1), date(2026, 9, 2), date(2026, 9, 3)],
+                                   "status": ["delivered", "delivered", "pending"]})
+        self.assertEqual(count_deliveries(deliveries, date(2026, 9, 2))["answer"], 2)
