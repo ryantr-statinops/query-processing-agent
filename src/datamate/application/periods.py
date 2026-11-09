@@ -71,7 +71,8 @@ def relative_period(text: str, as_of: date) -> Period | None:
 
 
 def resolve_period(text: str, as_of: date) -> Period | None:
-    return explicit_period(text, as_of) or relative_period(text, as_of)
+    normalized = text.casefold()
+    return explicit_period(normalized, as_of) or relative_period(normalized, as_of)
 
 
 def comparison_periods(text: str, as_of: date) -> tuple[Period, Period] | None:

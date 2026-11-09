@@ -314,6 +314,7 @@ class PeriodTests(unittest.TestCase):
         self.assertEqual(resolve_period("tuần này", today), Period(today, today))
         self.assertEqual(resolve_period("tuần rồi", today), Period(date(2026, 8, 31), date(2026, 9, 6)))
         self.assertEqual(resolve_period("3 ngày gần nhất", today), Period(date(2026, 9, 5), today))
+        self.assertEqual(resolve_period("Tháng này", today), Period(date(2026, 9, 1), today))
 
 
     def test_aligns_partial_month_comparisons(self):
