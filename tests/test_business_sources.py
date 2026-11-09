@@ -66,6 +66,14 @@ class SourceTests(unittest.TestCase):
             first.load(binding(first, "b"))
             self.assertIsNot(first.load(binding(first, "a")), before)
 
+    def test_sector_rules_follow_schema_evidence_not_business_id(self):
+        from datamate.data.sectors import detect_sector
+
+        schema = Source(Path("anywhere.csv"), None, ("Biển số", "Công việc", "Phiếu bảo hành", "Thợ xưởng"))
+        evidence = detect_sector([schema])
+        self.assertEqual(evidence.sector, "repair")
+        self.assertIsNone(detect_sector([]))
+
 
     def test_normalizes_values_without_mutating_codes(self):
         from datetime import date
