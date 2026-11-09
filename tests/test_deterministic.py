@@ -448,3 +448,15 @@ class RepairTests(unittest.TestCase):
                                "amount": [100, 0, 50], "is_warranty": [False, True, False]})
         self.assertEqual(warranty_rate(visits)["answer"], 50.0)
         self.assertEqual(repeat_vehicles(visits)["rows"], [{"plate": "A", "visits": 2}])
+
+
+class PhoneTests(unittest.TestCase):
+    def test_trade_in_is_separate_from_revenue_and_payable(self):
+        import polars as pl
+        from datamate.application.phones import phone_sale_totals
+
+        orders = pl.DataFrame({"order_id": ["a", "b"], "status": ["completed", "cancelled"],
+                               "revenue": [100, 900], "customer_payable": [80, 900],
+                               "trade_in_value": [20, 0]})
+        self.assertEqual(phone_sale_totals(orders)["rows"][0],
+                         {"revenue": 100, "customer_payable": 80, "trade_in_value": 20})
