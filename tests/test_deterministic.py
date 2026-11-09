@@ -13,6 +13,19 @@ class PlanTests(unittest.TestCase):
         self.assertEqual(Unresolved("ambiguous_period").reason, "ambiguous_period")
 
 
+class PurchaseTests(unittest.TestCase):
+    def test_purchase_total_uses_inclusive_period_and_excludes_cancelled(self):
+        from decimal import Decimal
+        import polars as pl
+        from datamate.application.purchases import purchase_total
+
+        frame = pl.DataFrame({"day": [date(2026, 9, 1), date(2026, 9, 7), date(2026, 9, 8)],
+                              "amount": [Decimal("89526400"), Decimal("400"), Decimal("999")],
+                              "status": ["completed", "cancelled", "completed"]})
+        self.assertEqual(purchase_total(frame, Period(date(2026, 9, 1), date(2026, 9, 7))),
+                         {"type": "number", "answer": 89526400})
+
+
 class IntentTests(unittest.TestCase):
     def test_near_match_and_stable_tie(self):
         from datamate.ranking.intents import IntentIndex
