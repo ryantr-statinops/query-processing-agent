@@ -358,3 +358,14 @@ class PeriodTests(unittest.TestCase):
         with self.assertRaises(InsufficientEvidence):
             in_period(table, Period(date(2025, 1, 1), date(2025, 1, 2)))
         self.assertEqual(numeric_answer(12.5, money=True), {"type": "number", "answer": 13})
+
+
+class CafeTests(unittest.TestCase):
+    def test_modifiers_are_classified_without_duplicate_value_or_quantity(self):
+        import polars as pl
+        from datamate.application.cafe import annotate_cafe_lines
+
+        result = annotate_cafe_lines(pl.DataFrame({"product_name": ["Trà sữa size L, topping: trân châu"],
+                                                   "quantity": [2], "amount": [100]}))
+        self.assertEqual(result.select("base_item", "size", "toppings", "quantity", "amount").row(0),
+                         ("Trà sữa", "L", ["trân châu"], 2, 100))
