@@ -50,6 +50,29 @@ class SalesTests(unittest.TestCase):
                          {"type": "number", "answer": 600})
 
 
+class DeterministicAgentTests(unittest.TestCase):
+    def test_agent_executes_purchase_question_and_abstains_outside_scope(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from datamate.application.deterministic import DeterministicAgent
+
+        with TemporaryDirectory() as folder:
+            business = Path(folder) / "data" / "biz_test"
+            business.mkdir(parents=True)
+            (business / "DanhSachNhapHang.csv").write_text(
+                "Mã nhập hàng,Thời gian,Cần trả NCC,Trạng thái\n"
+                "001,07/09/2026,100,Hoàn thành\n002,07/09/2026,900,Đã hủy\n", encoding="utf-8")
+            agent = DeterministicAgent(Path(folder))
+            answer, _ = agent.answer({"id": "q1", "business_id": "biz_test",
+                                      "question": "tháng này tổng giá trị các phiếu nhập hàng là bao nhiu",
+                                      "as_of_date": "2026-09-07"})
+            self.assertEqual(answer, {"id": "q1", "type": "number", "answer": 100})
+            unsupported, _ = agent.answer({"id": "q2", "business_id": "biz_test",
+                                           "question": "xếp hạng nhà cung cấp nhập nhiều nhất",
+                                           "as_of_date": "2026-09-07"})
+            self.assertEqual(unsupported, {"id": "q2", "type": "abstain"})
+
+
 class IntentTests(unittest.TestCase):
     def test_near_match_and_stable_tie(self):
         from datamate.ranking.intents import IntentIndex
