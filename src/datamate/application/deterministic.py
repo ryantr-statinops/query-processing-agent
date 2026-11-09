@@ -7,12 +7,15 @@ from datamate.application.evidence import InsufficientEvidence
 from datamate.application.periods import resolve_period
 from datamate.application.plans import QuestionPlan, Unresolved
 from datamate.application.purchases import answer_purchase_total
+from datamate.application.retail_answers import answer_order_count, answer_revenue
 from datamate.application.routing import select_plan
 from datamate.data.sources import SourceCatalog
 from datamate.ranking.intents import IntentIndex
 
 _DESCRIPTIONS = (
     ("purchase_total", "tổng tiền tổng giá trị số tiền các phiếu nhập hàng trong kỳ"),
+    ("sales_count", "đếm số đơn hàng hóa đơn bán ra trong kỳ có bao nhiêu đơn"),
+    ("sales_revenue", "doanh thu tiền bán tổng thành tiền các dòng hàng trong kỳ"),
 )
 
 
@@ -25,6 +28,28 @@ def _purchase_plan(text: str, as_of: date) -> QuestionPlan | None:
         return None
     period = resolve_period(text, as_of)
     return QuestionPlan("purchase_total", "number", period) if period is not None else None
+
+
+def _sales_count_plan(text: str, as_of: date) -> QuestionPlan | None:
+    if any(term in text for term in ("nhập hàng", "phiếu nhập", "nhà cung cấp")):
+        return None
+    if not any(term in text for term in ("bao nhiêu đơn", "số đơn", "đếm đơn", "đếm số hóa đơn")):
+        return None
+    if any(term in text for term in ("mặt hàng", "sản phẩm", "khách", "nhân viên", "theo ")):
+        return None
+    period = resolve_period(text, as_of)
+    return QuestionPlan("sales_count", "number", period) if period is not None else None
+
+
+def _sales_revenue_plan(text: str, as_of: date) -> QuestionPlan | None:
+    if not any(term in text for term in ("doanh thu", "tiền bán", "tổng tiền hàng")):
+        return None
+    if any(term in text for term in ("theo ", "so với", "từng tháng", "lần lượt", "tiền mặt", "chuyển khoản")):
+        return None
+    if any(term in text for term in ("nhập hàng", "phiếu nhập")):
+        return None
+    period = resolve_period(text, as_of)
+    return QuestionPlan("sales_revenue", "number", period) if period is not None else None
 
 
 class DeterministicAgent:
@@ -55,13 +80,19 @@ class DeterministicAgent:
             if not isinstance(text, str):
                 raise ValueError("question_text_required")
             as_of = date.fromisoformat(question["as_of_date"])
-            parsers = {"purchase_total": lambda normalized: _purchase_plan(normalized, as_of)}
+            parsers = {"purchase_total": lambda normalized: _purchase_plan(normalized, as_of),
+                       "sales_count": lambda normalized: _sales_count_plan(normalized, as_of),
+                       "sales_revenue": lambda normalized: _sales_revenue_plan(normalized, as_of)}
             plan, match = select_plan(text, self.index, parsers)
-            if isinstance(plan, Unresolved) or match is None:
+            if isinstance(plan, Unresolved) or match is None or plan.period is None:
                 return {"id": question_id, "type": "abstain"}, trace
-            # The handler validates the period and required source columns before calculation.
-            result = answer_purchase_total(self._catalog(str(question.get("business_id", ""))), text,
-                                           as_of)
+            catalog = self._catalog(str(question.get("business_id", "")))
+            if plan.intent == "purchase_total":
+                result = answer_purchase_total(catalog, text, as_of)
+            elif plan.intent == "sales_count":
+                result = answer_order_count(catalog, plan.period)
+            else:
+                result = answer_revenue(catalog, plan.period)
             return {"id": question_id, **result}, trace
         except InsufficientEvidence as error:
             trace["error"] = f"{type(error).__name__}: {error}"[:500]

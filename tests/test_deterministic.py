@@ -121,6 +121,26 @@ class DeterministicAgentTests(unittest.TestCase):
                                        "as_of_date": "2026-09-07"})
             self.assertEqual(ranking, {"id": "q4", "type": "abstain"})
 
+    def test_agent_routes_order_count_and_sales_revenue_through_polars(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from datamate.application.deterministic import DeterministicAgent
+
+        with TemporaryDirectory() as folder:
+            business = Path(folder) / "data" / "biz_test"
+            business.mkdir(parents=True)
+            (business / "DanhSachHoaDon.csv").write_text(
+                "Mã hóa đơn,Thời gian,Trạng thái\n1,01/09/2026,Hoàn thành\n"
+                "2,01/09/2026,Đã hủy\n3,02/09/2026,Đang giao\n", encoding="utf-8")
+            (business / "DanhSachHoaDonChiTiet.csv").write_text(
+                "Mã hóa đơn,Mã hàng,Thành tiền\n1,a,100\n2,b,200\n3,c,300\n", encoding="utf-8")
+            agent = DeterministicAgent(Path(folder))
+            question = {"business_id": "biz_test", "as_of_date": "2026-09-02"}
+            count, _ = agent.answer({**question, "id": "c", "question": "tháng này có bao nhiêu đơn"})
+            revenue, _ = agent.answer({**question, "id": "r", "question": "doanh thu tháng này bao nhiêu"})
+            self.assertEqual(count, {"id": "c", "type": "number", "answer": 2})
+            self.assertEqual(revenue, {"id": "r", "type": "number", "answer": 400})
+
 
 class CashTests(unittest.TestCase):
     def test_cash_uses_collection_time_and_excludes_shift_end(self):
