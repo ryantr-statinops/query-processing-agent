@@ -11,6 +11,7 @@ The project aims to build a harness that turns raw business data and a Vietnames
 3. [Reranking, decision policies, and model training](03-methods.md) defines each method, its objective, and when RL is worth testing.
 4. [Implementation and evaluation plan](04-workplan.md) specifies the experiment sequence, metrics, milestones, and submission checklist.
 5. [Package architecture](05-package-architecture.md) maps the installed `datamate` layers and their dependency direction.
+6. [Baseline runtime and training workflow](06-runtime-workflow.md) shows what the checked-in code does, how to run it, and how to read its progress and outputs.
 
 ## Design hypothesis
 

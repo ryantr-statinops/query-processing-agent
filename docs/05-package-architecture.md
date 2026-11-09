@@ -27,6 +27,8 @@
 
 The train candidate collector calls the same candidate pipeline and then uses `evaluation.labels` to attach training rewards. This keeps reference-based scoring outside inference while avoiding two separate implementations of SQL generation and execution.
 
+See the [runtime and training workflow](06-runtime-workflow.md) for the exact handoff between collection, fitting, evaluation, and inference, including the current policy behavior.
+
 ## Development checks
 
 Use `uv sync --locked` to install the package and dependencies. Run `uv run python -m datamate --help` to inspect the inference CLI, and `uv run python -m unittest discover -s tests -v` for unit and smoke tests. The grouped manifest is stored at `configs/splits/seed_2026.json`.
