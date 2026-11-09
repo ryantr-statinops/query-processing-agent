@@ -157,6 +157,18 @@ class CustomerIdentityTests(unittest.TestCase):
         self.assertEqual(result["rows"][0]["cancelled_orders"], 1)
 
 
+class FormattingTests(unittest.TestCase):
+    def test_ranked_table_orders_ties_and_limits_short_lists(self):
+        from datamate.application.formatting import ranked_table
+
+        result = ranked_table([{"id": "b", "amount": 8}, {"id": "c", "amount": 8},
+                               {"id": "a", "amount": 2}], ["id", "amount"], limit=2, tie_breaker="id")
+        self.assertEqual(result, {"type": "table", "columns": ["id", "amount"],
+                                  "rows": [{"id": "b", "amount": 8}, {"id": "c", "amount": 8}]})
+        self.assertEqual(ranked_table([{"id": "a", "amount": 1}], ["id", "amount"], limit=5)["rows"],
+                         [{"id": "a", "amount": 1}])
+
+
 class IntentTests(unittest.TestCase):
     def test_near_match_and_stable_tie(self):
         from datamate.ranking.intents import IntentIndex
