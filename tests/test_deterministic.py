@@ -49,6 +49,16 @@ class SalesTests(unittest.TestCase):
         self.assertEqual(revenue_total(orders, lines, Period(date(2026, 9, 1), date(2026, 9, 1))),
                          {"type": "number", "answer": 600})
 
+    def test_revenue_group_share_keeps_unassigned_revenue_in_denominator(self):
+        import polars as pl
+        from datamate.application.sales import revenue_by_group
+
+        orders = pl.DataFrame({"order_id": ["a", "b"], "day": [date(2026, 9, 1)] * 2,
+                               "status": ["completed", "completed"], "customer_group": ["VIP", None]})
+        lines = pl.DataFrame({"order_id": ["a", "b"], "amount": [25, 75]})
+        result = revenue_by_group(orders, lines, Period(date(2026, 9, 1), date(2026, 9, 1)), "customer_group")
+        self.assertEqual(result["rows"], [{"group": "VIP", "revenue": 25, "share_percent": 25.0}])
+
 
 class DeterministicAgentTests(unittest.TestCase):
     def test_agent_executes_purchase_question_and_abstains_outside_scope(self):

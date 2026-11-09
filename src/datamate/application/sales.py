@@ -34,3 +34,21 @@ def revenue_total(orders: pl.DataFrame, lines: pl.DataFrame, period: Period,
     revenue_lines = lines.join(allowed, on="order_id", how="inner")
     amount = revenue_lines.select(pl.col("amount").sum()).item()
     return numeric_answer(amount or 0, money=True)
+
+
+def revenue_by_group(orders: pl.DataFrame, lines: pl.DataFrame, period: Period, group: str,
+                     *, coverage: Period | None = None) -> dict:
+    """Group eligible line revenue; group share uses whole-shop revenue as denominator."""
+    if group not in orders.columns:
+        raise UnsupportedQuestion("sales_group_field_missing")
+    allowed = eligible_orders(orders, period, coverage=coverage)
+    joined = lines.join(allowed.select("order_id", group), on="order_id", how="inner")
+    if joined["amount"].null_count():
+        raise UnsupportedQuestion("invalid_sales_line_amount")
+    denominator = joined.select(pl.col("amount").sum()).item() or 0
+    grouped = joined.filter(pl.col(group).is_not_null()).group_by(group).agg(pl.col("amount").sum().alias("revenue"))
+    rows = []
+    for label, amount in grouped.sort(group).iter_rows():
+        share = (amount / denominator * 100) if denominator else 0
+        rows.append({"group": label, "revenue": int(amount), "share_percent": round(float(share), 2)})
+    return {"type": "table", "columns": ["group", "revenue", "share_percent"], "rows": rows}
