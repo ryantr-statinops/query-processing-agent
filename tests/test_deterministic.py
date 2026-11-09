@@ -217,6 +217,17 @@ class SupplierReportTests(unittest.TestCase):
         self.assertEqual(net_purchased_quantity(purchases, sales, period, period)["rows"][0]["net_quantity"], 19)
 
 
+class InventoryTests(unittest.TestCase):
+    def test_end_of_day_stock_includes_replenishment_on_as_of_day(self):
+        import polars as pl
+        from datamate.application.inventory import stock_as_of
+
+        moves = pl.DataFrame({"product_id": ["p", "p"], "day": [date(2026, 9, 1), date(2026, 9, 2)],
+                             "quantity_delta": [-3, 5], "value_delta": [-30, 50]})
+        self.assertEqual(stock_as_of(moves, date(2026, 9, 2))["rows"],
+                         [{"product_id": "p", "quantity": 2, "stock_value": 20}])
+
+
 class IntentTests(unittest.TestCase):
     def test_near_match_and_stable_tie(self):
         from datamate.ranking.intents import IntentIndex
