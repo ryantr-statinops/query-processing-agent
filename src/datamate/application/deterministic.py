@@ -3,6 +3,7 @@
 from datetime import date
 from pathlib import Path
 
+from datamate.application.evidence import InsufficientEvidence
 from datamate.application.periods import resolve_period
 from datamate.application.plans import QuestionPlan, Unresolved
 from datamate.application.purchases import answer_purchase_total
@@ -54,6 +55,9 @@ class DeterministicAgent:
             result = answer_purchase_total(self._catalog(str(question.get("business_id", ""))), text,
                                            as_of)
             return {"id": question_id, **result}, trace
+        except InsufficientEvidence as error:
+            trace["error"] = f"{type(error).__name__}: {error}"[:500]
+            return {"id": question_id, "type": "unanswerable", "reason": str(error)}, trace
         except (OSError, ValueError, TypeError, KeyError) as error:
             trace["error"] = f"{type(error).__name__}: {error}"[:500]
             return {"id": question_id, "type": "abstain"}, trace
