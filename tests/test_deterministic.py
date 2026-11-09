@@ -21,3 +21,15 @@ class IntentTests(unittest.TestCase):
         self.assertEqual(index.rank("tông tiền phiếu nhập hàng bnhiu")[0].intent, "receipts")
         tied = IntentIndex((("first", "cùng chữ"), ("second", "cùng chữ")))
         self.assertEqual([match.intent for match in tied.rank("cùng chữ")], ["first", "second"])
+
+
+    def test_requires_supported_operation_and_parameters(self):
+        from datamate.application.routing import select_plan
+        from datamate.ranking.intents import IntentIndex
+
+        index = IntentIndex((("purchase", "tổng tiền nhập hàng trong tháng"),))
+        parse = {"purchase": lambda text: QuestionPlan("purchase", "number")
+                 if "tổng tiền" in text and "tháng này" in text else None}
+        self.assertIsInstance(select_plan("nhà cung cấp nhập hàng nào nhiều nhất", index, parse)[0], Unresolved)
+        self.assertIsInstance(select_plan("tổng tiền nhập hàng", index, parse)[0], Unresolved)
+        self.assertEqual(select_plan("tổng tiền nhập hàng tháng này", index, parse)[0].intent, "purchase")
