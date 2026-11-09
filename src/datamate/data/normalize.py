@@ -35,9 +35,9 @@ def status_value(column: str, *, note: bool = False) -> pl.Expr:
     value = clean(column).str.to_lowercase()
     return (
         pl.when(value.str.contains(r"hu[ỷy]|hủy|cancel")).then(pl.lit("cancelled"))
-        .when(value.str.contains(r"trả hàng|hàng trả về|đã trả|đổi trả|returned")).then(pl.lit("returned"))
-        .when(value.str.contains(r"đang giao|shipping")).then(pl.lit("shipping"))
-        .when(value.str.contains(r"hoàn thành|thành công|xong|đã nhập|đã giao|complete|delivered")).then(pl.lit("completed"))
+        .when(value.str.contains(r"trả hàng|trả lại|hoàn hàng|hàng trả về|đã trả|đổi trả|returned")).then(pl.lit("returned"))
+        .when(value.str.contains(r"đang giao|đang giao dịch|shipping")).then(pl.lit("shipping"))
+        .when(value.str.contains(r"hoàn thành|hoàn tất|thành công|đã lấy|xong|đã nhập|đã giao|complete|delivered")).then(pl.lit("completed"))
         .otherwise(pl.lit("completed") if note else None)
     )
 
@@ -52,6 +52,6 @@ def grouped_rows(frame: pl.DataFrame, key: str, fields: tuple[str, ...]) -> pl.D
             value = pl.col(field)
             if frame.schema[field] == pl.String:
                 value = value.str.strip_chars().replace("", None)
-            expressions.append(value.forward_fill().over(key).alias(field))
+            expressions.append(value.forward_fill().over(key).backward_fill().over(key).alias(field))
         frame = frame.with_columns(expressions)
     return frame.unique(maintain_order=True)

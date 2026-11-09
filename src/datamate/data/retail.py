@@ -6,12 +6,15 @@ from datamate.data.normalize import date_value, grouped_rows, number_value, stat
 from datamate.data.sources import Binding, SourceCatalog, bind_sources, sheet_year
 
 _ORDER_FIELDS = {
-    "order_id": ("mã hóa đơn", "số hóa đơn", "mã đơn hàng", "mã đơn", "số đơn"),
-    "day": ("thời gian", "ngày tháng", "ngày bán", "ngày đặt", "ngày giao dịch", "ngày"),
+    "order_id": ("mã hóa đơn", "số hóa đơn", "mã đơn hàng", "mã đơn", "số đơn", "mã bill",
+                 "mã phiếu", "số phiếu", "mã chứng từ", "mã giao dịch", "order id", "số ct", "ma don"),
+    "day": ("thời gian", "thời gian lập", "ngày tháng", "ngày bán", "ngày đặt", "ngày đặt hàng", "ngày lập",
+            "ngày giao dịch", "ngayban", "ngày"),
 }
 _ORDER_OPTIONAL = {
-    "status": ("trạng thái", "kết quả", "status"),
-    "amount": ("tổng tiền hàng", "tổng sau giảm giá", "tổng thanh toán", "tổng tiền"),
+    "status": ("trạng thái", "trạng thái đơn", "trạng thái đơn hàng", "trạng thái xử lý", "tình trạng",
+               "tình trạng đơn", "kết quả", "status", "xử lý", "ghi chú tt"),
+    "amount": ("tổng tiền hàng", "tổng sau giảm giá", "tổng thanh toán", "tổng tiền", "tong bill", "tien hang", "tongtien", "amount"),
     "customer_id": ("mã kh", "mã khách", "mã khách hàng"),
     "customer_name": ("khách hàng", "tên khách", "tên khách hàng"),
     "customer_group": ("nhóm khách hàng", "nhóm khách"),
@@ -20,7 +23,8 @@ _ORDER_OPTIONAL = {
     "payment_method": ("hình thức thanh toán", "phương thức thanh toán", "thanh toán"),
     "channel": ("kênh bán", "kênh", "nguồn bán"),
 }
-_LINE_FIELDS = {"order_id": _ORDER_FIELDS["order_id"], "amount": ("thành tiền", "trị giá", "tiền hàng")}
+_LINE_FIELDS = {"order_id": _ORDER_FIELDS["order_id"],
+                "amount": ("thành tiền", "trị giá", "tiền hàng", "tiền bán", "t.tiền", "tien hang", "tiền", "amount")}
 _LINE_OPTIONAL = {
     "line_id": ("stt", "số thứ tự", "mã dòng"),
     "product_id": ("mã hàng", "mã hàng hóa", "mã sản phẩm"),
@@ -74,6 +78,4 @@ def load_orders(catalog: SourceCatalog) -> pl.DataFrame:
 
 def load_sales_lines(catalog: SourceCatalog) -> pl.DataFrame:
     frame = _load(catalog, line_bindings(catalog), "sales_line")
-    return grouped_rows(frame, "order_id", tuple(field for field in
-                         ("line_id", "product_id", "product_name", "amount", "quantity", "quantity_base", "unit", "unit_price")
-                         if field in frame.columns))
+    return grouped_rows(frame, "order_id", ())

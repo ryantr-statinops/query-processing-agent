@@ -98,6 +98,27 @@ class SourceTests(unittest.TestCase):
         self.assertEqual(result.row(2)[1:3], (date(2026, 9, 9), Decimal("1625600.000000")))
         self.assertEqual(result.row(2)[4], "completed")
 
+    def test_retail_aliases_and_status_synonyms_bind_orders(self):
+        from datetime import date
+        from datamate.data.retail import load_orders
+        from datamate.data.sources import SourceCatalog
+
+        with TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / "sales.csv").write_text(
+                "Mã bill,Ngày giao dịch,Tình trạng đơn,Amount\n"
+                "0007,2026-09-01,Đang giao dịch,1200\n"
+                "0008,2026-09-02,Đã hoàn hàng,500\n"
+                "0009,2026-09-03,đã lấy,700\n",
+                encoding="utf-8",
+            )
+            orders = load_orders(SourceCatalog(root))
+
+        self.assertEqual(orders.get_column("order_id").to_list(), ["0007", "0008", "0009"])
+        self.assertEqual(orders.get_column("day").to_list(), [date(2026, 9, 1), date(2026, 9, 2), date(2026, 9, 3)])
+        self.assertEqual(orders.get_column("status").to_list(), ["shipping", "returned", "completed"])
+        self.assertEqual(orders.get_column("amount").to_list(), [1200, 500, 700])
+
 
     def test_grouped_rows_do_not_fill_across_orders(self):
         import polars as pl

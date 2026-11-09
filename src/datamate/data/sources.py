@@ -82,7 +82,7 @@ def excel_sources(path: Path):
     workbook = fastexcel.read_excel(path)
     for name in workbook.sheet_names:
         candidates = []
-        for header_row in range(6):
+        for header_row in range(1):
             try:
                 sheet = workbook.load_sheet(name, header_row=header_row, n_rows=0, dtypes="string")
                 columns = tuple(column.name for column in sheet.available_columns())
@@ -90,6 +90,15 @@ def excel_sources(path: Path):
                 continue
             score = _header_score(columns)
             candidates.append((score, -header_row, header_row, columns))
+        if not candidates or candidates[0][0] < 3:
+            for header_row in range(1, 6):
+                try:
+                    sheet = workbook.load_sheet(name, header_row=header_row, n_rows=0, dtypes="string")
+                    columns = tuple(column.name for column in sheet.available_columns())
+                except (ValueError, IndexError):
+                    continue
+                score = _header_score(columns)
+                candidates.append((score, -header_row, header_row, columns))
         if candidates:
             _, _, header_row, columns = max(candidates)
             yield Source(path, name, columns, header_row)
