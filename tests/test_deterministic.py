@@ -37,6 +37,18 @@ class SalesTests(unittest.TestCase):
         self.assertEqual(count_orders(orders, Period(date(2026, 9, 1), date(2026, 9, 1))),
                          {"type": "number", "answer": 2})
 
+    def test_revenue_sums_lines_but_not_order_discount_or_shipping(self):
+        import polars as pl
+        from datamate.application.sales import revenue_total
+
+        orders = pl.DataFrame({"order_id": ["a", "b", "c"],
+                               "day": [date(2026, 9, 1)] * 3,
+                               "status": ["completed", "returned", "shipping"],
+                               "order_discount": [100, 0, 0], "shipping_fee": [50, 0, 0]})
+        lines = pl.DataFrame({"order_id": ["a", "a", "b", "c"], "amount": [300, 200, 999, 100]})
+        self.assertEqual(revenue_total(orders, lines, Period(date(2026, 9, 1), date(2026, 9, 1))),
+                         {"type": "number", "answer": 600})
+
 
 class IntentTests(unittest.TestCase):
     def test_near_match_and_stable_tie(self):

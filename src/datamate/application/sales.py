@@ -21,3 +21,16 @@ def eligible_orders(orders: pl.DataFrame, period: Period, *, coverage: Period | 
 
 def count_orders(orders: pl.DataFrame, period: Period, *, coverage: Period | None = None) -> dict:
     return numeric_answer(eligible_orders(orders, period, coverage=coverage).height)
+
+
+def revenue_total(orders: pl.DataFrame, lines: pl.DataFrame, period: Period,
+                 *, coverage: Period | None = None) -> dict:
+    """Sum already-discounted line totals for eligible orders only."""
+    if not {"order_id", "amount"} <= set(lines.columns):
+        raise UnsupportedQuestion("sales_line_fields_missing")
+    if lines["order_id"].null_count() or lines["amount"].null_count():
+        raise UnsupportedQuestion("invalid_sales_line_identity_or_amount")
+    allowed = eligible_orders(orders, period, coverage=coverage).select("order_id")
+    revenue_lines = lines.join(allowed, on="order_id", how="inner")
+    amount = revenue_lines.select(pl.col("amount").sum()).item()
+    return numeric_answer(amount or 0, money=True)
