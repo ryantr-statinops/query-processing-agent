@@ -89,3 +89,27 @@ def comparison_periods(text: str, as_of: date) -> tuple[Period, Period] | None:
         return primary, Period(year_back(primary.start), year_back(primary.end))
     baseline = resolve_period(baseline_text, as_of)
     return (primary, baseline) if baseline else None
+
+
+def tet_period(text: str, as_of: date, calendar_path: Path) -> Period | None:
+    if not re.search(r"\btết\b", text):
+        return None
+    match = re.search(r"\btết\s*(?:năm\s*)?(\d{4})", text)
+    year = int(match[1]) if match else as_of.year
+    bounds = {(year - 1, 12, 23): None, (year, 1, 10): None}
+    for row in _calendar_rows(str(calendar_path.resolve())):
+        if row.get("lunar_leap", "").casefold() not in {"", "0", "false"}:
+            continue
+        try:
+            key = tuple(int(row[field]) for field in ("lunar_year", "lunar_month", "lunar_day"))
+            if key in bounds:
+                bounds[key] = date.fromisoformat(row["date"])
+        except (KeyError, ValueError):
+            continue
+    start, end = bounds.values()
+    return Period(start, end) if start and end and start <= end else None
+
+
+def before_tet(period: Period) -> Period:
+    length = (period.end - period.start).days + 1
+    return Period(period.start - timedelta(days=length), period.start - timedelta(days=1))

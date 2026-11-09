@@ -64,3 +64,17 @@ class PeriodTests(unittest.TestCase):
         current, previous = comparison_periods("doanh thu tháng này so với tháng trước", today)
         self.assertEqual(current, Period(date(2026, 3, 1), today))
         self.assertEqual(previous, Period(date(2026, 2, 1), date(2026, 2, 28)))
+
+
+    def test_tet_uses_both_lunar_years(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from datamate.application.periods import before_tet, tet_period
+
+        with TemporaryDirectory() as folder:
+            calendar = Path(folder) / "calendar.csv"
+            calendar.write_text("date,lunar_year,lunar_month,lunar_day,lunar_leap\n"
+                                "2026-02-10,2025,12,23,false\n2026-02-26,2026,1,10,false\n")
+            period = tet_period("dịp tết năm 2026", date(2026, 3, 1), calendar)
+            self.assertEqual(period, Period(date(2026, 2, 10), date(2026, 2, 26)))
+            self.assertEqual(before_tet(period).end, date(2026, 2, 9))
