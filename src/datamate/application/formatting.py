@@ -20,4 +20,15 @@ def ranked_table(rows: Sequence[Mapping], columns: Sequence[str], *, limit: int,
         else:
             materialized.sort(key=lambda row: row[tie_breaker])
     selected = [{column: row[column] for column in columns} for row in materialized[:limit]]
-    return {"type": "table", "columns": list(columns), "rows": selected}
+    return table_answer(columns, selected)
+
+
+def table_answer(columns: Sequence[str], rows: Sequence[Mapping | Sequence]) -> dict:
+    """Serialize internal rows to the competition's typed table answer shape."""
+    output = []
+    for row in rows:
+        values = [row[column] for column in columns] if isinstance(row, Mapping) else list(row)
+        if len(values) != len(columns):
+            raise UnsupportedQuestion("invalid_result_row_width")
+        output.append(values)
+    return {"type": "table", "answer": {"columns": list(columns), "rows": output}}

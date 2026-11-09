@@ -181,10 +181,10 @@ class FormattingTests(unittest.TestCase):
 
         result = ranked_table([{"id": "b", "amount": 8}, {"id": "c", "amount": 8},
                                {"id": "a", "amount": 2}], ["id", "amount"], limit=2, tie_breaker="id")
-        self.assertEqual(result, {"type": "table", "columns": ["id", "amount"],
-                                  "rows": [{"id": "b", "amount": 8}, {"id": "c", "amount": 8}]})
-        self.assertEqual(ranked_table([{"id": "a", "amount": 1}], ["id", "amount"], limit=5)["rows"],
-                         [{"id": "a", "amount": 1}])
+        self.assertEqual(result, {"type": "table", "answer": {"columns": ["id", "amount"],
+                                  "rows": [["b", 8], ["c", 8]]}})
+        self.assertEqual(ranked_table([{"id": "a", "amount": 1}], ["id", "amount"], limit=5)["answer"]["rows"],
+                         [["a", 1]])
 
 
 class DebtTests(unittest.TestCase):
