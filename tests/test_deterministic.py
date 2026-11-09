@@ -25,6 +25,20 @@ class PurchaseTests(unittest.TestCase):
         self.assertEqual(purchase_total(frame, Period(date(2026, 9, 1), date(2026, 9, 7))),
                          {"type": "number", "answer": 89526400})
 
+    def test_purchase_loader_combines_matching_split_sources(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from datamate.application.purchases import answer_purchase_total
+        from datamate.data.sources import SourceCatalog
+
+        with TemporaryDirectory() as folder:
+            root = Path(folder)
+            header = "Mã nhập hàng,Thời gian,Cần trả NCC,Trạng thái\n"
+            (root / "DanhSachNhapHang_2025.csv").write_text(header + "001,01/01/2025,100,Hoàn thành\n", encoding="utf-8")
+            (root / "DanhSachNhapHang_2026.csv").write_text(header + "002,01/01/2026,200,Hoàn thành\n", encoding="utf-8")
+            answer = answer_purchase_total(SourceCatalog(root), "Tháng 1/2025 tổng giá trị phiếu nhập", date(2026, 1, 1))
+            self.assertEqual(answer, {"type": "number", "answer": 100})
+
 
 class SalesTests(unittest.TestCase):
     def test_order_count_deduplicates_and_excludes_cancelled_or_returned(self):

@@ -2,7 +2,6 @@
 
 from datetime import date
 from decimal import Decimal
-from pathlib import Path
 
 import polars as pl
 
@@ -23,11 +22,11 @@ _OPTIONAL = {
 }
 
 
-def purchase_binding(catalog: SourceCatalog) -> Binding:
+def purchase_bindings(catalog: SourceCatalog) -> list[Binding]:
     matches = bind_sources(catalog.sources, _FIELDS, ("danhsachnhaphang", "sophieunhap", "phieunhap"), _OPTIONAL)
     if not matches:
         raise InsufficientEvidence("purchase_table_or_columns_missing")
-    return matches[0]
+    return matches
 
 
 def normalize_purchases(frame: pl.DataFrame, source) -> pl.DataFrame:
@@ -64,8 +63,9 @@ def answer_purchase_total(catalog: SourceCatalog, question: str, as_of: date) ->
     period = resolve_period(question, as_of)
     if period is None:
         raise UnsupportedQuestion("unsupported_purchase_period")
-    binding = purchase_binding(catalog)
-    frame = catalog.load(binding, normalize_purchases)
+    bindings = purchase_bindings(catalog)
+    frames = [catalog.load(binding, normalize_purchases) for binding in bindings]
+    frame = pl.concat(frames, how="diagonal_relaxed") if len(frames) > 1 else frames[0]
     coverage = None
     if catalog.description:
         import re
@@ -73,5 +73,7 @@ def answer_purchase_total(catalog: SourceCatalog, question: str, as_of: date) ->
         found = re.search(r"(?:đến hết|tới hết|đến ngày|cập nhật đến)\s+(\d{1,2}/\d{1,2}/\d{4})", catalog.description, re.I)
         if found:
             day, month, year = map(int, found[1].split("/"))
-            coverage = Period(date(year, month, 1), date(year, month, day))
+            first_day = frame["day"].min()
+            if first_day is not None:
+                coverage = Period(first_day, date(year, month, day))
     return purchase_total(frame, period, coverage=coverage)

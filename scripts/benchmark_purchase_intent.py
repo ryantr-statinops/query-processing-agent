@@ -22,11 +22,13 @@ if __name__ == "__main__":
 
 import numpy as np
 import polars as pl
-from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from threadpoolctl import threadpool_limits
 
+from datamate.application.purchases import answer_purchase_total
+from datamate.data.sources import SourceCatalog
 from datamate.evaluation.labels import label_match
+from datamate.ranking.intents import IntentIndex
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -102,15 +104,12 @@ def sum_receipts(frame, bounds):
 class ReceiptCache:
     def __init__(self, root):
         self.root = root
-        self.tables = {}
+        self.catalogs = {}
 
-    def table(self, business):
-        if business not in self.tables:
-            workbook = self.root / business / "DanhSachNhapHang.xlsx"
-            frame = pl.read_excel(workbook, sheet_id=1, engine="calamine",
-                                  columns=["Thời gian", "Cần trả NCC", "Trạng thái"])
-            self.tables[business] = normalize_receipts(frame)
-        return self.tables[business]
+    def catalog(self, business):
+        if business not in self.catalogs:
+            self.catalogs[business] = SourceCatalog(self.root / business)
+        return self.catalogs[business]
 
 
 def nearest_intent(vector, index):
@@ -120,9 +119,8 @@ def nearest_intent(vector, index):
 
 
 def tfidf_router():
-    vectorizer = TfidfVectorizer(analyzer="char_wb", ngram_range=(2, 5))
-    index = vectorizer.fit_transform([text for _, text in PROTOTYPES])
-    return lambda question: nearest_intent(vectorizer.transform([question]), index)
+    index = IntentIndex(PROTOTYPES)
+    return lambda question: index.rank(question)[0].intent
 
 
 def phobert_router(model_dir, segmenter_dir):
@@ -170,7 +168,8 @@ def answer_one(question, route, cache):
     bounds = month_bounds(question["question"], date.fromisoformat(question["as_of_date"])) if intent == PURCHASE else None
     answer = {"type": "abstain"}
     if bounds is not None:
-        answer = {"type": "number", "answer": sum_receipts(cache.table(question["business_id"]), bounds)}
+        answer = answer_purchase_total(cache.catalog(question["business_id"]), question["question"],
+                                       date.fromisoformat(question["as_of_date"]))
     return {"id": question["id"], "business_id": question["business_id"], "in_scope": question["in_scope"],
             "intent": intent, "answer": answer, "routing_ms": routing_ms,
             "data_ms": elapsed_ms(data_start) if bounds is not None else None, "total_ms": elapsed_ms(start)}
@@ -203,7 +202,7 @@ def benchmark(route, sample, references, data_root):
     cache = ReceiptCache(data_root)
     first = answer_one(next(q for q in sample if q["id"] == "q_001883280e83"), route, cache)
     for business in BUSINESSES:
-        cache.table(business)
+        cache.catalog(business)
     for q in sample[:5]:
         answer_one(q, route, cache)
     rows = []
