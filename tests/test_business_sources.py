@@ -31,3 +31,19 @@ class SourceTests(unittest.TestCase):
 
         self.assertEqual(sheet_year(Source(Path("sales.xlsx"), "09.2026", ("Ngày",))), 2026)
         self.assertIsNone(sheet_year(Source(Path("sales.xlsx"), "Sheet1", ("Ngày",))))
+
+
+    def test_sqlite_preserves_source_and_quotes_names(self):
+        import sqlite3
+        from datamate.data.sources import sqlite_sources, load_sqlite
+
+        with TemporaryDirectory() as folder:
+            path = Path(folder) / "pos.sqlite"
+            with sqlite3.connect(path) as database:
+                database.execute('CREATE TABLE "receipt detail" ("item code" TEXT)')
+                database.execute('INSERT INTO "receipt detail" VALUES (?)', ("001",))
+            database.close()
+            before = path.read_bytes()
+            binding, = bind_sources(list(sqlite_sources(path)), {"id": ("item code",)}, ())
+            self.assertEqual(load_sqlite(binding).row(0), ("001",))
+            self.assertEqual(path.read_bytes(), before)

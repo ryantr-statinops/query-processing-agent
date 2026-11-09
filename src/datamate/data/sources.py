@@ -95,3 +95,34 @@ def sheet_year(source: Source) -> int | None:
     if match := re.search(r"\b(20\d{2})\b", source.table or ""):
         return int(match[1])
     return None
+
+
+def _identifier(value: str) -> str:
+    return '"' + value.replace('"', '""') + '"'
+
+
+def _sqlite(path: Path):
+    from contextlib import closing
+    import sqlite3
+
+    return closing(sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True))
+
+
+def sqlite_sources(path: Path):
+    with _sqlite(path) as database:
+        names = database.execute("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
+        for name, in names:
+            if not name.startswith("sqlite_"):
+                columns = database.execute(f"PRAGMA table_info({_identifier(name)})")
+                yield Source(path, name, tuple(row[1] for row in columns))
+
+
+def load_sqlite(binding: Binding):
+    import polars as pl
+
+    columns = list(binding.fields.values())
+    projection = ", ".join(_identifier(column) for column in columns)
+    table = _identifier(binding.source.table or "")
+    with _sqlite(binding.source.path) as database:
+        rows = database.execute(f"SELECT {projection} FROM {table}").fetchall()
+    return pl.DataFrame(rows, schema=columns, orient="row", infer_schema_length=None)
