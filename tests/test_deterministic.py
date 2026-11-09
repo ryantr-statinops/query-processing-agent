@@ -239,6 +239,19 @@ class InventoryTests(unittest.TestCase):
         self.assertEqual(result["rows"], [{"product_id": "a", "name": "A"}])
 
 
+class PricingTests(unittest.TestCase):
+    def test_price_uses_recorded_pre_discount_unit_price(self):
+        import polars as pl
+        from datamate.application.pricing import average_list_price, price_increase_effect
+
+        period = Period(date(2026, 9, 1), date(2026, 9, 30))
+        current = pl.DataFrame({"day": [date(2026, 9, 1)], "unit_price": [12], "quantity_base": [10],
+                                "line_total_after_discount": [100]})
+        previous = pl.DataFrame({"unit_price": [10], "quantity_base": [10]})
+        self.assertEqual(average_list_price(current, period)["answer"], 12)
+        self.assertEqual(price_increase_effect(previous, current)["answer"], 20)
+
+
 class IntentTests(unittest.TestCase):
     def test_near_match_and_stable_tie(self):
         from datamate.ranking.intents import IntentIndex
