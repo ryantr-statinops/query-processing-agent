@@ -59,3 +59,17 @@ def bind_sources(sources: list[Source], required: dict[str, tuple[str, ...]],
     if len(ordered) > 1 and ranks.get(ordered[0][0][1]) == ranks.get(ordered[1][0][1]):
         raise AmbiguousSource("multiple_tables_match")
     return ordered[0][1]
+
+
+def csv_source(path: Path) -> Source:
+    import csv
+
+    with path.open(encoding="utf-8-sig", errors="replace", newline="") as stream:
+        headers = next(csv.reader(stream), [])
+    return Source(path, None, tuple(headers))
+
+
+def load_csv(binding: Binding):
+    import polars as pl
+
+    return pl.read_csv(binding.source.path, columns=list(binding.fields.values()), infer_schema=False)

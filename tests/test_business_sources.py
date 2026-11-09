@@ -14,3 +14,13 @@ class SourceTests(unittest.TestCase):
         self.assertEqual(bind_sources([first], {"missing": ("x",)}, ()), [])
         with self.assertRaises(AmbiguousSource):
             bind_sources([first, other], fields, ())
+
+
+    def test_csv_preserves_codes_and_raw_money(self):
+        from datamate.data.sources import csv_source, load_csv
+
+        with TemporaryDirectory() as folder:
+            path = Path(folder) / "sales.csv"
+            path.write_text('id,amount,other\n001,"12,300",x\n', encoding="utf-8")
+            binding, = bind_sources([csv_source(path)], {"id": ("id",), "amount": ("amount",)}, ())
+            self.assertEqual(load_csv(binding).row(0), ("001", "12,300"))
