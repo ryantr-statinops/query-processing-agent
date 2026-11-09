@@ -25,3 +25,16 @@ def outstanding_as_of(invoices: pl.DataFrame, payments: pl.DataFrame, as_of: dat
     age = (as_of - min(row[0] for row in owing.select("day").iter_rows())).days if owing.height else 0
     return {"type": "table", "columns": ["outstanding", "orders_with_debt", "oldest_debt_days"],
             "rows": [{"outstanding": int(total), "orders_with_debt": owing.height, "oldest_debt_days": age}]}
+
+
+def debt_activity(invoices: pl.DataFrame, payments: pl.DataFrame, period: Period) -> dict:
+    """Count debt issued in-period and collections by collection date."""
+    if not {"day", "amount"} <= set(invoices.columns) or not {"day", "amount"} <= set(payments.columns):
+        raise UnsupportedQuestion("debt_activity_fields_missing")
+    issued = invoices.filter(pl.col("day").is_between(period.start, period.end))["amount"].sum() or 0
+    received = payments.filter(pl.col("day").is_between(period.start, period.end))
+    if "excluded" in received.columns:
+        received = received.filter(~pl.col("excluded").fill_null(False))
+    collected = received["amount"].sum() or 0
+    return {"type": "table", "columns": ["new_debt", "collections"],
+            "rows": [{"new_debt": int(issued), "collections": int(collected)}]}

@@ -180,6 +180,15 @@ class DebtTests(unittest.TestCase):
                                  "amount": [60, 10], "excluded": [False, True]})
         self.assertEqual(outstanding_as_of(invoices, payments, date(2026, 9, 5))["rows"][0]["outstanding"], 120)
 
+    def test_debt_activity_uses_payment_date_for_prior_order_collection(self):
+        import polars as pl
+        from datamate.application.debt import debt_activity
+
+        invoices = pl.DataFrame({"day": [date(2026, 8, 1), date(2026, 9, 2)], "amount": [100, 80]})
+        payments = pl.DataFrame({"day": [date(2026, 9, 3)], "amount": [60]})
+        result = debt_activity(invoices, payments, Period(date(2026, 9, 1), date(2026, 9, 30)))
+        self.assertEqual(result["rows"][0], {"new_debt": 80, "collections": 60})
+
 
 class IntentTests(unittest.TestCase):
     def test_near_match_and_stable_tie(self):
