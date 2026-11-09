@@ -78,4 +78,8 @@ def load_orders(catalog: SourceCatalog) -> pl.DataFrame:
 
 def load_sales_lines(catalog: SourceCatalog) -> pl.DataFrame:
     frame = _load(catalog, line_bindings(catalog), "sales_line")
-    return grouped_rows(frame, "order_id", ())
+    frame = grouped_rows(frame, "order_id", ())
+    if "product_name" in frame.columns:
+        summary_line = pl.col("product_name").cast(pl.String).str.strip_chars().str.to_lowercase().str.starts_with("tổng ngày")
+        frame = frame.filter(~summary_line.fill_null(False))
+    return frame

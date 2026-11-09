@@ -119,6 +119,23 @@ class SourceTests(unittest.TestCase):
         self.assertEqual(orders.get_column("status").to_list(), ["shipping", "returned", "completed"])
         self.assertEqual(orders.get_column("amount").to_list(), [1200, 500, 700])
 
+    def test_sales_loader_drops_daily_summary_rows(self):
+        from datamate.data.retail import load_sales_lines
+        from datamate.data.sources import SourceCatalog
+
+        with TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / "sales_lines.csv").write_text(
+                "Mã đơn hàng,Thành tiền,Tên hàng hóa\n"
+                "0001,100,Sản phẩm A\n"
+                "0002,900,TỔNG NGÀY 01/04\n",
+                encoding="utf-8",
+            )
+            lines = load_sales_lines(SourceCatalog(root))
+
+        self.assertEqual(lines.get_column("order_id").to_list(), ["0001"])
+        self.assertEqual(lines.get_column("amount").to_list(), [100])
+
 
     def test_grouped_rows_do_not_fill_across_orders(self):
         import polars as pl
