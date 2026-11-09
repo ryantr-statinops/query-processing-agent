@@ -107,6 +107,19 @@ class MetricTests(unittest.TestCase):
         self.assertEqual(average(2, 3)["answer"], 1)
 
 
+class ProductReportTests(unittest.TestCase):
+    def test_rank_uses_base_quantity_and_excludes_service_fee(self):
+        import polars as pl
+        from datamate.application.product_reports import rank_products
+
+        orders = pl.DataFrame({"order_id": ["o1", "o2"], "day": [date(2026, 9, 1)] * 2,
+                               "status": ["completed", "completed"]})
+        lines = pl.DataFrame({"order_id": ["o1", "o1", "o2"], "product_id": ["a", "fee", "a"],
+                              "product_name": ["Milk", "Phí phục vụ", "Milk"], "quantity_base": [24, 100, 12]})
+        result = rank_products(orders, lines, Period(date(2026, 9, 1), date(2026, 9, 1)), limit=2)
+        self.assertEqual(result["rows"][0], {"product_id": "a", "value": 36, "product_name": "Milk"})
+
+
 class IntentTests(unittest.TestCase):
     def test_near_match_and_stable_tie(self):
         from datamate.ranking.intents import IntentIndex
