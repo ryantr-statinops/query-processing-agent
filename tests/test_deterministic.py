@@ -227,6 +227,17 @@ class InventoryTests(unittest.TestCase):
         self.assertEqual(stock_as_of(moves, date(2026, 9, 2))["rows"],
                          [{"product_id": "p", "quantity": 2, "stock_value": 20}])
 
+    def test_unsold_requires_a_pre_period_sale_and_no_sale_inside_period(self):
+        import polars as pl
+        from datamate.application.inventory import unsold_products
+
+        orders = pl.DataFrame({"order_id": ["old", "current"], "day": [date(2026, 8, 1), date(2026, 9, 2)],
+                              "status": ["completed", "completed"]})
+        lines = pl.DataFrame({"order_id": ["old", "current"], "product_id": ["a", "b"]})
+        products = pl.DataFrame({"product_id": ["a", "b", "new"], "name": ["A", "B", "New"]})
+        result = unsold_products(orders, lines, products, Period(date(2026, 9, 1), date(2026, 9, 30)))
+        self.assertEqual(result["rows"], [{"product_id": "a", "name": "A"}])
+
 
 class IntentTests(unittest.TestCase):
     def test_near_match_and_stable_tie(self):
