@@ -16,7 +16,10 @@ class GroupedEvaluationTests(unittest.TestCase):
         questions = [{"id": "a", "business_id": "biz_dev"}, {"id": "b", "business_id": "biz_dev"}]
         labels = {"a": {"id": "a", "type": "number", "answer": 1},
                   "b": {"id": "b", "type": "number", "answer": 0}}
-        report = evaluate_grouped(Agent(), questions, labels)
+        progress = []
+        report = evaluate_grouped(Agent(), questions, labels,
+                                 progress=lambda done, total, elapsed: progress.append((done, total)))
         self.assertEqual(report["overall"]["correct"], 1)
         self.assertEqual(report["overall"]["abstain"], 1)
         self.assertEqual(report["groups"]["biz_dev"]["questions"], 2)
+        self.assertEqual(progress, [(2, 2)])

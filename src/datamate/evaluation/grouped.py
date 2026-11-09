@@ -1,15 +1,17 @@
 """Grouped development metrics for the deterministic question agent."""
 
 from collections import defaultdict
-from time import perf_counter_ns
+from time import perf_counter, perf_counter_ns
 
 import numpy as np
 
 from datamate.evaluation.labels import label_match, pa_reward
 
 
-def evaluate_grouped(agent, questions: list[dict], references: dict[str, dict], group_key: str = "business_id"):
+def evaluate_grouped(agent, questions: list[dict], references: dict[str, dict], group_key: str = "business_id",
+                     progress=None):
     rows = []
+    started_all = perf_counter()
     for question in questions:
         started = perf_counter_ns()
         answer, trace = agent.answer(question)
@@ -18,6 +20,8 @@ def evaluate_grouped(agent, questions: list[dict], references: dict[str, dict], 
         rows.append({"id": question["id"], group_key: question[group_key], "answer": answer,
                      "correct": label_match(answer, reference), "pa_reward": pa_reward(answer, reference),
                      "elapsed_ms": elapsed_ms, "trace": trace})
+        if progress is not None and (len(rows) % 50 == 0 or len(rows) == len(questions)):
+            progress(len(rows), len(questions), perf_counter() - started_all)
     groups = defaultdict(list)
     for row in rows:
         groups[row[group_key]].append(row)

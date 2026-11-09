@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -34,7 +35,10 @@ def main() -> int:
     output.mkdir(parents=True, exist_ok=False)
     agent = DeterministicAgent(train)
     try:
-        result = evaluate_grouped(agent, questions, references)
+        def report_progress(done: int, total: int, elapsed: float) -> None:
+            print(f"Evaluated {done}/{total} development questions in {elapsed:.1f}s", file=sys.stderr, flush=True)
+
+        result = evaluate_grouped(agent, questions, references, progress=report_progress)
     finally:
         for catalog in agent.catalogs.values():
             catalog.tables.clear()
