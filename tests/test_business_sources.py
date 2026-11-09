@@ -102,10 +102,11 @@ class SourceTests(unittest.TestCase):
         import polars as pl
         from datamate.data.normalize import status_value
 
-        statuses = pl.DataFrame({"status": ["ok", "Đang vận chuyển", "Chờ giao", "Đang xử lý"]})
+        statuses = pl.DataFrame({"status": ["ok", "Đang vận chuyển", "Chờ giao", "Đang xử lý",
+                                             "Hoàn trả", "Không giao được"]})
         result = statuses.with_columns(status_value("status").alias("normalized"))
         self.assertEqual(result.get_column("normalized").to_list(),
-                         ["completed", "shipping", "shipping", "shipping"])
+                         ["completed", "shipping", "shipping", "shipping", "returned", "cancelled"])
 
     def test_retail_aliases_and_status_synonyms_bind_orders(self):
         from datetime import date
