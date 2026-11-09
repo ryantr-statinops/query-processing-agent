@@ -6,7 +6,7 @@ from datamate.data.normalize import date_value, grouped_rows, number_value, stat
 from datamate.data.sources import Binding, SourceCatalog, bind_sources, sheet_year
 
 _ORDER_FIELDS = {
-    "order_id": ("mã hóa đơn", "số hóa đơn", "mã đơn hàng", "mã đơn", "số đơn", "mã bill",
+    "order_id": ("mã hóa đơn", "số hóa đơn", "mã đơn hàng", "mã đơn", "số đơn", "mã bill", "mã gd",
                  "mã phiếu", "số phiếu", "mã chứng từ", "mã giao dịch", "order id", "số ct", "ma don"),
     "day": ("thời gian", "thời gian lập", "ngày tháng", "ngày bán", "ngày đặt", "ngày đặt hàng", "ngày lập",
             "ngày giao dịch", "ngayban", "ngày"),
@@ -24,7 +24,8 @@ _ORDER_OPTIONAL = {
     "channel": ("kênh bán", "kênh", "nguồn bán"),
 }
 _LINE_FIELDS = {"order_id": _ORDER_FIELDS["order_id"],
-                "amount": ("thành tiền", "trị giá", "tiền hàng", "tiền bán", "t.tiền", "tien hang", "tiền", "amount")}
+    "amount": ("thành tiền", "trị giá", "tiền hàng", "tiền bán", "tổng tiền", "tổng", "t.tiền",
+                "tien hang", "tiền", "amount")}
 _LINE_OPTIONAL = {
     "line_id": ("stt", "số thứ tự", "mã dòng"),
     "product_id": ("mã hàng", "mã hàng hóa", "mã sản phẩm"),

@@ -145,6 +145,24 @@ class SourceTests(unittest.TestCase):
         self.assertEqual(lines.get_column("order_id").to_list(), ["0001"])
         self.assertEqual(lines.get_column("amount").to_list(), [100])
 
+    def test_retail_loaders_bind_transaction_id_and_total_aliases(self):
+        from datamate.data.retail import load_orders, load_sales_lines
+        from datamate.data.sources import SourceCatalog
+
+        with TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / "ban_hang.csv").write_text(
+                "Mã GD,Ngày,trang_thai,Tổng,Sản phẩm\n"
+                "001,01/09/2026,Hoàn thành,300,Sản phẩm A\n",
+                encoding="utf-8",
+            )
+            catalog = SourceCatalog(root)
+            orders = load_orders(catalog)
+            lines = load_sales_lines(catalog)
+
+        self.assertEqual(orders.get_column("order_id").to_list(), ["001"])
+        self.assertEqual(lines.get_column("amount").to_list(), [300])
+
 
     def test_grouped_rows_do_not_fill_across_orders(self):
         import polars as pl
