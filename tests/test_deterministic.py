@@ -95,6 +95,18 @@ class CashTests(unittest.TestCase):
                          {"type": "number", "answer": 110})
 
 
+class MetricTests(unittest.TestCase):
+    def test_rates_changes_and_average_define_edges_and_round_half_up(self):
+        from datamate.application.evidence import InsufficientEvidence
+        from datamate.application.metrics import average, period_change, rate
+
+        with self.assertRaises(InsufficientEvidence):
+            rate(1, 0)
+        self.assertEqual(period_change(50, 100)["rows"][0], {"difference": -50, "growth_percent": -50.0})
+        self.assertIsNone(period_change(2, 0)["rows"][0]["growth_percent"])
+        self.assertEqual(average(2, 3)["answer"], 1)
+
+
 class IntentTests(unittest.TestCase):
     def test_near_match_and_stable_tie(self):
         from datamate.ranking.intents import IntentIndex
