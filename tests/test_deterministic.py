@@ -83,6 +83,18 @@ class DeterministicAgentTests(unittest.TestCase):
             self.assertEqual(unsupported, {"id": "q2", "type": "abstain"})
 
 
+class CashTests(unittest.TestCase):
+    def test_cash_uses_collection_time_and_excludes_shift_end(self):
+        import polars as pl
+        from datamate.application.cash import cash_collected
+
+        payments = pl.DataFrame({"day": [date(2026, 9, 1)] * 3,
+                                 "hour": [6, 13, 14], "amount": [10, 100, 900],
+                                 "kind": ["sale", "debt", "sale"]})
+        self.assertEqual(cash_collected(payments, Period(date(2026, 9, 1), date(2026, 9, 1)), "ca sáng"),
+                         {"type": "number", "answer": 110})
+
+
 class IntentTests(unittest.TestCase):
     def test_near_match_and_stable_tie(self):
         from datamate.ranking.intents import IntentIndex
