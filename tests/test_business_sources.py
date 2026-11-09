@@ -74,6 +74,12 @@ class SourceTests(unittest.TestCase):
         self.assertEqual(evidence.sector, "repair")
         self.assertIsNone(detect_sector([]))
 
+    def test_header_row_score_prefers_semantic_headers_over_title_rows(self):
+        from datamate.data.sources import _header_score
+
+        self.assertGreater(_header_score(("Ngày", "Mã đơn hàng", "Thành tiền", "Trạng thái")),
+                           _header_score(("SỔ CHI TIẾT BÁN HÀNG", "__UNNAMED__1")))
+
 
     def test_normalizes_values_without_mutating_codes(self):
         from datetime import date
@@ -81,12 +87,16 @@ class SourceTests(unittest.TestCase):
         import polars as pl
         from datamate.data.normalize import date_value, number_value, status_value
 
-        original = pl.DataFrame({"code": ["0001", "0002"], "date": ["7/9", "2026-09-08 08:10"],
-                                 "total": ["89,526,400", "2.301,50"], "note": ["Đã huỷ", "khách lấy"]})
+        original = pl.DataFrame({"code": ["0001", "0002", "0003"],
+                                 "date": ["7/9", "2026-09-08 08:10", "2026-09-09"],
+                                 "total": ["89,526,400", "2.301,50", "1,6256tr"],
+                                 "note": ["Đã huỷ", "khách lấy", "Thành công"]})
         result = original.with_columns(date_value("date", 2026).alias("date"),
                                        number_value("total").alias("total"), status_value("note", note=True).alias("status"))
         self.assertEqual(result.row(0), ("0001", date(2026, 9, 7), Decimal("89526400"), "Đã huỷ", "cancelled"))
         self.assertEqual(result.row(1)[1:3], (date(2026, 9, 8), Decimal("2301.50")))
+        self.assertEqual(result.row(2)[1:3], (date(2026, 9, 9), Decimal("1625600.000000")))
+        self.assertEqual(result.row(2)[4], "completed")
 
 
     def test_grouped_rows_do_not_fill_across_orders(self):
@@ -97,3 +107,16 @@ class SourceTests(unittest.TestCase):
                               "amount": [1, 2, 2, 2]})
         result = grouped_rows(frame, "id", ("status",))
         self.assertEqual(result.rows(), [("1", "hủy", 1), ("1", "hủy", 2), ("2", None, 2)])
+
+    def test_grouped_rows_preserve_normalized_date_and_decimal_types(self):
+        from datetime import date
+        from decimal import Decimal
+        import polars as pl
+        from datamate.data.normalize import grouped_rows
+
+        frame = pl.DataFrame({"id": ["a", None], "day": [date(2026, 9, 1), None],
+                              "amount": [Decimal("10.00"), None]})
+        result = grouped_rows(frame, "id", ("day", "amount"))
+        self.assertEqual(result.schema["day"], pl.Date)
+        self.assertEqual(result.schema["amount"], frame.schema["amount"])
+        self.assertEqual(result["amount"].to_list(), [Decimal("10.00")])

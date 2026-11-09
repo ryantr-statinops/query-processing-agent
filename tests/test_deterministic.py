@@ -138,8 +138,12 @@ class DeterministicAgentTests(unittest.TestCase):
             question = {"business_id": "biz_test", "as_of_date": "2026-09-02"}
             count, _ = agent.answer({**question, "id": "c", "question": "tháng này có bao nhiêu đơn"})
             revenue, _ = agent.answer({**question, "id": "r", "question": "doanh thu tháng này bao nhiêu"})
+            filtered, _ = agent.answer({**question, "id": "f", "question": "doanh thu nhóm khách sỉ tháng này bao nhiêu"})
+            cancelled, _ = agent.answer({**question, "id": "x", "question": "số đơn đã hủy tháng này là bao nhiêu"})
             self.assertEqual(count, {"id": "c", "type": "number", "answer": 2})
             self.assertEqual(revenue, {"id": "r", "type": "number", "answer": 400})
+            self.assertEqual(filtered["type"], "abstain")
+            self.assertEqual(cancelled["type"], "abstain")
 
 
 class CashTests(unittest.TestCase):

@@ -16,6 +16,7 @@ class Source:
     path: Path
     table: str | None
     columns: tuple[str, ...]
+    header_row: int = 0
 
     @property
     def family(self) -> str:
@@ -80,15 +81,34 @@ def excel_sources(path: Path):
 
     workbook = fastexcel.read_excel(path)
     for name in workbook.sheet_names:
-        sheet = workbook.load_sheet(name, n_rows=0, dtypes="string")
-        yield Source(path, name, tuple(column.name for column in sheet.available_columns()))
+        candidates = []
+        for header_row in range(6):
+            try:
+                sheet = workbook.load_sheet(name, header_row=header_row, n_rows=0, dtypes="string")
+                columns = tuple(column.name for column in sheet.available_columns())
+            except (ValueError, IndexError):
+                continue
+            score = _header_score(columns)
+            candidates.append((score, -header_row, header_row, columns))
+        if candidates:
+            _, _, header_row, columns = max(candidates)
+            yield Source(path, name, columns, header_row)
+
+
+def _header_score(columns: tuple[str, ...]) -> int:
+    signals = ("mahoadon", "madonhang", "ngay", "thoigian", "trangthai", "tenhang", "tensanpham",
+               "soluong", "thanhtien", "tongtien", "giaban", "giavon", "nhacungcap", "so phieu",
+               "mahang", "khachhang", "nhanvien", "nhomhang", "sophieu", "congviec", "bienso")
+    return sum(any(signal.replace(" ", "") in schema_key(column) for signal in signals)
+               for column in columns if not column.startswith("__UNNAMED__"))
 
 
 def load_excel(binding: Binding):
     import polars as pl
 
     return pl.read_excel(binding.source.path, sheet_name=binding.source.table, engine="calamine",
-                         columns=list(binding.fields.values()), raise_if_empty=False)
+                         columns=list(binding.fields.values()), read_options={"header_row": binding.source.header_row},
+                         raise_if_empty=False)
 
 
 def sheet_year(source: Source) -> int | None:

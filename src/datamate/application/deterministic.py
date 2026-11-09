@@ -35,6 +35,8 @@ def _sales_count_plan(text: str, as_of: date) -> QuestionPlan | None:
         return None
     if not any(term in text for term in ("bao nhiêu đơn", "số đơn", "đếm đơn", "đếm số hóa đơn")):
         return None
+    if any(term in text for term in ("hủy", "huỷ", "trả hàng", "tỷ lệ", "phần trăm")):
+        return None
     if any(term in text for term in ("mặt hàng", "sản phẩm", "khách", "nhân viên", "theo ")):
         return None
     period = resolve_period(text, as_of)
@@ -44,7 +46,9 @@ def _sales_count_plan(text: str, as_of: date) -> QuestionPlan | None:
 def _sales_revenue_plan(text: str, as_of: date) -> QuestionPlan | None:
     if not any(term in text for term in ("doanh thu", "tiền bán", "tổng tiền hàng")):
         return None
-    if any(term in text for term in ("theo ", "so với", "từng tháng", "lần lượt", "tiền mặt", "chuyển khoản")):
+    if any(term in text for term in ("theo ", "so với", "từng tháng", "lần lượt", "tiền mặt", "chuyển khoản",
+                                     "bình quân", "trung bình", "cao nhất", "thấp nhất", "tỷ lệ", "phần trăm",
+                                     "nhóm hàng", "nhóm khách", "mặt hàng", "sản phẩm", "khách hàng")):
         return None
     if any(term in text for term in ("nhập hàng", "phiếu nhập")):
         return None
