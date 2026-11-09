@@ -120,6 +120,18 @@ class ProductReportTests(unittest.TestCase):
         self.assertEqual(result["rows"][0], {"product_id": "a", "value": 36, "product_name": "Milk"})
 
 
+class CustomerIdentityTests(unittest.TestCase):
+    def test_customer_codes_win_and_name_fallback_groups_only_normalized_names(self):
+        import polars as pl
+        from datamate.application.customers import with_customer_key
+
+        coded = with_customer_key(pl.DataFrame({"customer_id": ["001", "002", None],
+                                                 "customer_name": ["Same", "Same", "Khách lẻ"]}))
+        self.assertEqual(coded["customer_key"].to_list(), ["001", "002", None])
+        named = with_customer_key(pl.DataFrame({"customer_name": ["  An   Bình ", "an bình", "Khách lẻ"]}))
+        self.assertEqual(named["customer_key"].to_list(), ["an bình", "an bình", None])
+
+
 class IntentTests(unittest.TestCase):
     def test_near_match_and_stable_tie(self):
         from datamate.ranking.intents import IntentIndex
