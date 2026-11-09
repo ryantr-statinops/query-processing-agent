@@ -47,3 +47,21 @@ class SourceTests(unittest.TestCase):
             binding, = bind_sources(list(sqlite_sources(path)), {"id": ("item code",)}, ())
             self.assertEqual(load_sqlite(binding).row(0), ("001",))
             self.assertEqual(path.read_bytes(), before)
+
+
+    def test_cache_is_bounded_and_scoped(self):
+        from datamate.data.sources import SourceCatalog
+
+        with TemporaryDirectory() as folder:
+            for label in ("first", "second"):
+                root = Path(folder) / label
+                root.mkdir()
+                for name in ("a", "b"):
+                    (root / (name + ".csv")).write_text(f"id\n{label}-{name}\n", encoding="utf-8")
+            first, second = (SourceCatalog(Path(folder) / label, capacity=1) for label in ("first", "second"))
+            binding = lambda catalog, name: bind_sources(catalog.sources, {"id": ("id",)}, (name,))[0]
+            before = first.load(binding(first, "a"))
+            self.assertIs(first.load(binding(first, "a")), before)
+            self.assertEqual(second.load(binding(second, "a")).item(), "second-a")
+            first.load(binding(first, "b"))
+            self.assertIsNot(first.load(binding(first, "a")), before)

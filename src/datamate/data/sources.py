@@ -126,3 +126,38 @@ def load_sqlite(binding: Binding):
     with _sqlite(binding.source.path) as database:
         rows = database.execute(f"SELECT {projection} FROM {table}").fetchall()
     return pl.DataFrame(rows, schema=columns, orient="row", infer_schema_length=None)
+
+
+class SourceCatalog:
+    def __init__(self, business_dir: Path, capacity: int = 48):
+        from collections import OrderedDict
+
+        if capacity < 1:
+            raise ValueError("Cache capacity must be positive")
+        self.capacity = capacity
+        self.tables = OrderedDict()
+        self.sources: list[Source] = []
+        for path in sorted(business_dir.iterdir()):
+            if not path.is_file():
+                continue
+            suffix = path.suffix.lower()
+            if suffix == ".csv":
+                self.sources.append(csv_source(path))
+            elif suffix in {".xlsx", ".xls", ".xlsb"}:
+                self.sources.extend(excel_sources(path))
+            elif suffix in {".sqlite", ".sqlite3", ".db"}:
+                self.sources.extend(sqlite_sources(path))
+        readme = business_dir / "README.md"
+        self.description = readme.read_text(encoding="utf-8-sig", errors="replace") if readme.is_file() else ""
+
+    def load(self, binding: Binding, normalize=None):
+        key = (binding.source, tuple(binding.fields.items()), normalize)
+        if key not in self.tables:
+            suffix = binding.source.path.suffix.lower()
+            reader = load_csv if suffix == ".csv" else load_excel if suffix in {".xlsx", ".xls", ".xlsb"} else load_sqlite
+            frame = reader(binding).rename({column: field for field, column in binding.fields.items()})
+            self.tables[key] = normalize(frame, binding.source) if normalize is not None else frame
+            if len(self.tables) > self.capacity:
+                self.tables.popitem(last=False)
+        self.tables.move_to_end(key)
+        return self.tables[key]
