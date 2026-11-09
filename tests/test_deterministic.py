@@ -439,3 +439,12 @@ class RepairTests(unittest.TestCase):
         self.assertEqual(count_repair_visits(visits)["answer"], 3)
         self.assertEqual(service_visit_counts(visits)["rows"], [{"work": "nhớt láp", "visits": 1},
                                                                  {"work": "nhớt máy", "visits": 1}])
+
+    def test_warranty_rate_uses_paid_denominator_and_repeat_uses_plate(self):
+        import polars as pl
+        from datamate.application.repair import repeat_vehicles, warranty_rate
+
+        visits = pl.DataFrame({"visit_id": ["1", "2", "3"], "plate": ["A", "A", "B"],
+                               "amount": [100, 0, 50], "is_warranty": [False, True, False]})
+        self.assertEqual(warranty_rate(visits)["answer"], 50.0)
+        self.assertEqual(repeat_vehicles(visits)["rows"], [{"plate": "A", "visits": 2}])
