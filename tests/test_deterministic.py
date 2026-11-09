@@ -55,3 +55,12 @@ class PeriodTests(unittest.TestCase):
         self.assertEqual(resolve_period("tuần này", today), Period(today, today))
         self.assertEqual(resolve_period("tuần rồi", today), Period(date(2026, 8, 31), date(2026, 9, 6)))
         self.assertEqual(resolve_period("3 ngày gần nhất", today), Period(date(2026, 9, 5), today))
+
+
+    def test_aligns_partial_month_comparisons(self):
+        from datamate.application.periods import comparison_periods
+
+        today = date(2026, 3, 31)
+        current, previous = comparison_periods("doanh thu tháng này so với tháng trước", today)
+        self.assertEqual(current, Period(date(2026, 3, 1), today))
+        self.assertEqual(previous, Period(date(2026, 2, 1), date(2026, 2, 28)))

@@ -72,3 +72,20 @@ def relative_period(text: str, as_of: date) -> Period | None:
 
 def resolve_period(text: str, as_of: date) -> Period | None:
     return explicit_period(text, as_of) or relative_period(text, as_of)
+
+
+def comparison_periods(text: str, as_of: date) -> tuple[Period, Period] | None:
+    primary_text, separator, baseline_text = text.partition("so với")
+    if not separator or (primary := resolve_period(primary_text, as_of)) is None:
+        return None
+    if "tháng này" in primary_text and "tháng trước" in baseline_text:
+        previous = as_of.replace(day=1) - timedelta(days=1)
+        return primary, Period(previous.replace(day=1), previous.replace(day=min(as_of.day, previous.day)))
+    if "cùng kỳ năm ngoái" in baseline_text or "cùng kỳ năm trước" in baseline_text:
+        def year_back(day: date) -> date:
+            year = day.year - 1
+            return day.replace(year=year, day=min(day.day, monthrange(year, day.month)[1]))
+
+        return primary, Period(year_back(primary.start), year_back(primary.end))
+    baseline = resolve_period(baseline_text, as_of)
+    return (primary, baseline) if baseline else None
