@@ -119,6 +119,18 @@ class ProductReportTests(unittest.TestCase):
         result = rank_products(orders, lines, Period(date(2026, 9, 1), date(2026, 9, 1)), limit=2)
         self.assertEqual(result["rows"][0], {"product_id": "a", "value": 36, "product_name": "Milk"})
 
+    def test_staff_and_busiest_windows_use_valid_orders(self):
+        import polars as pl
+        from datamate.application.staff_reports import busiest_windows, rank_staff
+
+        orders = pl.DataFrame({"staff_id": ["s1", "s1", "s2"], "order_id": ["o1", "o2", "o3"],
+                               "day": [date(2026, 9, 1), date(2026, 9, 2), date(2026, 9, 1)],
+                               "hour": [8, 9, 8], "status": ["completed", "completed", "cancelled"],
+                               "amount": [10, 20, 999]})
+        self.assertEqual(rank_staff(orders, Period(date(2026, 9, 1), date(2026, 9, 2)), "revenue")["rows"][0]["staff_id"], "s1")
+        self.assertEqual(busiest_windows(orders, Period(date(2026, 9, 1), date(2026, 9, 2)), by="hour")["rows"][0],
+                         {"hour": 8, "orders": 1})
+
 
 class CustomerIdentityTests(unittest.TestCase):
     def test_customer_codes_win_and_name_fallback_groups_only_normalized_names(self):
