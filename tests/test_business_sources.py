@@ -65,3 +65,17 @@ class SourceTests(unittest.TestCase):
             self.assertEqual(second.load(binding(second, "a")).item(), "second-a")
             first.load(binding(first, "b"))
             self.assertIsNot(first.load(binding(first, "a")), before)
+
+
+    def test_normalizes_values_without_mutating_codes(self):
+        from datetime import date
+        from decimal import Decimal
+        import polars as pl
+        from datamate.data.normalize import date_value, number_value, status_value
+
+        original = pl.DataFrame({"code": ["0001", "0002"], "date": ["7/9", "2026-09-08 08:10"],
+                                 "total": ["89,526,400", "2.301,50"], "note": ["Đã huỷ", "khách lấy"]})
+        result = original.with_columns(date_value("date", 2026).alias("date"),
+                                       number_value("total").alias("total"), status_value("note", note=True).alias("status"))
+        self.assertEqual(result.row(0), ("0001", date(2026, 9, 7), Decimal("89526400"), "Đã huỷ", "cancelled"))
+        self.assertEqual(result.row(1)[1:3], (date(2026, 9, 8), Decimal("2301.50")))
