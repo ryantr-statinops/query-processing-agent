@@ -26,6 +26,18 @@ class PurchaseTests(unittest.TestCase):
                          {"type": "number", "answer": 89526400})
 
 
+class SalesTests(unittest.TestCase):
+    def test_order_count_deduplicates_and_excludes_cancelled_or_returned(self):
+        import polars as pl
+        from datamate.application.sales import count_orders
+
+        orders = pl.DataFrame({"order_id": ["a", "a", "b", "c", "d"],
+                               "day": [date(2026, 9, 1)] * 5,
+                               "status": ["completed", "completed", "shipping", "cancelled", "returned"]})
+        self.assertEqual(count_orders(orders, Period(date(2026, 9, 1), date(2026, 9, 1))),
+                         {"type": "number", "answer": 2})
+
+
 class IntentTests(unittest.TestCase):
     def test_near_match_and_stable_tie(self):
         from datamate.ranking.intents import IntentIndex
