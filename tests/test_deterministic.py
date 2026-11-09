@@ -190,6 +190,21 @@ class DebtTests(unittest.TestCase):
         self.assertEqual(result["rows"][0], {"new_debt": 80, "collections": 60})
 
 
+class SupplierReportTests(unittest.TestCase):
+    def test_supplier_spend_and_receipt_count_are_distinct_metrics(self):
+        import polars as pl
+        from datamate.application.purchase_reports import rank_suppliers
+
+        receipts = pl.DataFrame({"receipt_id": ["1", "2", "3", "4"],
+                                 "supplier_id": ["a", "a", "b", "c"],
+                                 "day": [date(2026, 9, 1)] * 4,
+                                 "status": ["completed", "completed", "completed", "cancelled"],
+                                 "amount": [100, 100, 150, 999]})
+        period = Period(date(2026, 9, 1), date(2026, 9, 1))
+        self.assertEqual(rank_suppliers(receipts, period, "spend")["rows"][0]["supplier_id"], "a")
+        self.assertEqual(rank_suppliers(receipts, period, "receipts")["rows"][0]["supplier_id"], "a")
+
+
 class IntentTests(unittest.TestCase):
     def test_near_match_and_stable_tie(self):
         from datamate.ranking.intents import IntentIndex
