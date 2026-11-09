@@ -169,6 +169,18 @@ class FormattingTests(unittest.TestCase):
                          [{"id": "a", "amount": 1}])
 
 
+class DebtTests(unittest.TestCase):
+    def test_receivables_and_collection_period_include_prior_invoice(self):
+        import polars as pl
+        from datamate.application.debt import outstanding_as_of
+
+        invoices = pl.DataFrame({"order_id": ["old", "new"], "day": [date(2026, 8, 1), date(2026, 9, 2)],
+                                 "amount": [100, 80]})
+        payments = pl.DataFrame({"order_id": ["old", "new"], "day": [date(2026, 9, 3), date(2026, 9, 4)],
+                                 "amount": [60, 10], "excluded": [False, True]})
+        self.assertEqual(outstanding_as_of(invoices, payments, date(2026, 9, 5))["rows"][0]["outstanding"], 120)
+
+
 class IntentTests(unittest.TestCase):
     def test_near_match_and_stable_tie(self):
         from datamate.ranking.intents import IntentIndex
