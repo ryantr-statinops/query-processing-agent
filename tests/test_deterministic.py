@@ -252,6 +252,18 @@ class PricingTests(unittest.TestCase):
         self.assertEqual(price_increase_effect(previous, current)["answer"], 20)
 
 
+class ProfitTests(unittest.TestCase):
+    def test_gross_profit_uses_line_recorded_cost(self):
+        import polars as pl
+        from datamate.application.profit import gross_profit
+
+        period = Period(date(2026, 9, 1), date(2026, 9, 30))
+        lines = pl.DataFrame({"day": [date(2026, 9, 2)], "amount": [100], "quantity": [2],
+                              "cost_per_unit": [30], "product_id": ["p"]})
+        gross = gross_profit(lines, period)["total"]
+        self.assertEqual(gross, 40)
+
+
 class IntentTests(unittest.TestCase):
     def test_near_match_and_stable_tie(self):
         from datamate.ranking.intents import IntentIndex
