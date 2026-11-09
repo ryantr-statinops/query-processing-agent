@@ -414,3 +414,16 @@ class BabyShopTests(unittest.TestCase):
                                "gross": [100, 200], "order_discount": [10, 0], "voucher": [5, 0],
                                "points": [5, 0], "shipping": [8, 0]})
         self.assertEqual(invoice_totals(orders)["customer_payable"].to_list(), [88])
+
+    def test_member_report_uses_signup_date_and_keeps_never_buyers(self):
+        import polars as pl
+        from datamate.application.baby_shop import member_summary, product_sizes
+
+        members = pl.DataFrame({"customer_id": ["a", "b", "c"], "product_id": ["p1", "p2", "p3"],
+                                "registered_day": [date(2026, 9, 1), date(2026, 9, 2), date(2026, 8, 1)],
+                                "size_number": ["2", None, "4"], "size_label": [None, "M", None]})
+        orders = pl.DataFrame({"customer_id": ["a"], "status": ["completed"]})
+        period = Period(date(2026, 9, 1), date(2026, 9, 30))
+        self.assertEqual(member_summary(members, orders, period)["rows"][0],
+                         {"registered_members": 2, "new_members_with_sales": 1, "never_bought": 2})
+        self.assertEqual(product_sizes(members)["size"].to_list(), ["2", "M", "4"])
