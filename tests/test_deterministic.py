@@ -470,3 +470,13 @@ class PhoneTests(unittest.TestCase):
         payments = pl.DataFrame({"installment_id": ["today"], "paid_day": [date(2026, 9, 6)], "amount": [40]})
         result = installment_balances(schedule, payments, date(2026, 9, 7))["rows"][0]
         self.assertEqual(result, {"outstanding": 160, "overdue": 100, "overdue_installments": 1})
+
+    def test_model_capacity_and_quarter_warranty_use_imei(self):
+        import polars as pl
+        from datamate.application.phones import phone_model, warranty_rate_by_quarter
+
+        self.assertEqual(phone_model("Phone X 4G 128GB"), ("phone x", "128GB"))
+        period = Period(date(2026, 7, 1), date(2026, 9, 30))
+        sales = pl.DataFrame({"imei": ["1", "2"], "sale_day": [date(2026, 8, 1)] * 2})
+        claims = pl.DataFrame({"imei": ["1"], "claim_day": [date(2026, 9, 1)]})
+        self.assertEqual(warranty_rate_by_quarter(sales, claims, period)["answer"], 50.0)
