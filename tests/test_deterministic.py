@@ -382,3 +382,13 @@ class PharmacyTests(unittest.TestCase):
         self.assertEqual(sales_by_prescription(lines, products)["rows"],
                          [{"prescription": False, "revenue": 200}, {"prescription": True, "revenue": 100}])
         self.assertEqual(len(sales_by_ingredient(lines, products)["rows"]), 2)
+
+    def test_lot_expiry_uses_positive_remaining_quantity_and_remaining_cost(self):
+        import polars as pl
+        from datamate.application.pharmacy import expiring_lots
+
+        lots = pl.DataFrame({"product_id": ["a", "b", "c"], "lot_id": ["1", "2", "3"],
+                             "expiry": [date(2026, 9, 10), date(2026, 9, 9), date(2026, 9, 12)],
+                             "remaining_quantity": [4, 3, 0], "unit_cost": [10, 20, 1]})
+        result = expiring_lots(lots, date(2026, 9, 9), 2)
+        self.assertEqual([row["remaining_cost"] for row in result["rows"]], [60, 40])
