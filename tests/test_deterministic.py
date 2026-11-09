@@ -356,6 +356,18 @@ class IntentTests(unittest.TestCase):
         self.assertIsInstance(select_plan("tổng tiền nhập hàng", index, parse)[0], Unresolved)
         self.assertEqual(select_plan("tổng tiền nhập hàng tháng này", index, parse)[0].intent, "purchase")
 
+    def test_simple_sales_handlers_abstain_on_unimplemented_modifiers(self):
+        from datamate.application.deterministic import _sales_count_plan, _sales_revenue_plan
+
+        as_of = date(2026, 9, 7)
+        self.assertIsNotNone(_sales_count_plan("đếm số đơn tháng này", as_of))
+        self.assertIsNone(_sales_count_plan("đếm số đơn bán trong ca sáng tháng này", as_of))
+        self.assertIsNone(_sales_count_plan("số đơn chênh lệch giữa tuần này và tuần trước", as_of))
+        self.assertIsNotNone(_sales_revenue_plan("doanh thu tháng này của cửa hàng", as_of))
+        self.assertIsNone(_sales_revenue_plan("doanh thu của Cold brew trong tháng này", as_of))
+        self.assertIsNone(_sales_revenue_plan("doanh thu thuốc kê đơn chiếm bao nhiêu phần trăm", as_of))
+        self.assertIsNone(_sales_revenue_plan("doanh thu các đơn qua điện thoại tháng này", as_of))
+
 
 class PeriodTests(unittest.TestCase):
     def test_explicit_periods(self):
