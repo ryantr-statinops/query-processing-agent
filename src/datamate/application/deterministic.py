@@ -16,6 +16,17 @@ _DESCRIPTIONS = (
 )
 
 
+def _purchase_plan(text: str, as_of: date) -> QuestionPlan | None:
+    if not any(term in text for term in ("nhập hàng", "phiếu nhập", "nhập đầu kỳ")):
+        return None
+    if any(term in text for term in ("nhà cung cấp", "ncc", "xếp hạng", "nào nhiều nhất", "nhập nhiều nhất")):
+        return None
+    if not any(term in text for term in ("tổng", "bao nhiêu tiền", "hết bao nhiêu", "giá trị")):
+        return None
+    period = resolve_period(text, as_of)
+    return QuestionPlan("purchase_total", "number", period) if period is not None else None
+
+
 class DeterministicAgent:
     """Cache each business source catalog and abstain outside implemented rules."""
 
@@ -44,10 +55,7 @@ class DeterministicAgent:
             if not isinstance(text, str):
                 raise ValueError("question_text_required")
             as_of = date.fromisoformat(question["as_of_date"])
-            parsers = {"purchase_total": lambda normalized: (
-                QuestionPlan("purchase_total", "number", period)
-                if (period := resolve_period(normalized, as_of)) is not None else None
-            )}
+            parsers = {"purchase_total": lambda normalized: _purchase_plan(normalized, as_of)}
             plan, match = select_plan(text, self.index, parsers)
             if isinstance(plan, Unresolved) or match is None:
                 return {"id": question_id, "type": "abstain"}, trace

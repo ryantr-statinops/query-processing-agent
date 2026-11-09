@@ -99,6 +99,10 @@ class DeterministicAgentTests(unittest.TestCase):
                                            "question": "tháng 1/2025 tổng tiền phiếu nhập hàng",
                                            "as_of_date": "2026-09-07"})
             self.assertEqual(unavailable["type"], "unanswerable")
+            ranking, _ = agent.answer({"id": "q4", "business_id": "biz_test",
+                                       "question": "nhà cung cấp nào nhập nhiều nhất tháng này",
+                                       "as_of_date": "2026-09-07"})
+            self.assertEqual(ranking, {"id": "q4", "type": "abstain"})
 
 
 class CashTests(unittest.TestCase):
