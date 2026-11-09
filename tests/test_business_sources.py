@@ -24,3 +24,10 @@ class SourceTests(unittest.TestCase):
             path.write_text('id,amount,other\n001,"12,300",x\n', encoding="utf-8")
             binding, = bind_sources([csv_source(path)], {"id": ("id",), "amount": ("amount",)}, ())
             self.assertEqual(load_csv(binding).row(0), ("001", "12,300"))
+
+
+    def test_sheet_year(self):
+        from datamate.data.sources import sheet_year
+
+        self.assertEqual(sheet_year(Source(Path("sales.xlsx"), "09.2026", ("Ngày",))), 2026)
+        self.assertIsNone(sheet_year(Source(Path("sales.xlsx"), "Sheet1", ("Ngày",))))

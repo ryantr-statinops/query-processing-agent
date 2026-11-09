@@ -73,3 +73,25 @@ def load_csv(binding: Binding):
     import polars as pl
 
     return pl.read_csv(binding.source.path, columns=list(binding.fields.values()), infer_schema=False)
+
+
+def excel_sources(path: Path):
+    import fastexcel
+
+    workbook = fastexcel.read_excel(path)
+    for name in workbook.sheet_names:
+        sheet = workbook.load_sheet(name, n_rows=0, dtypes="string")
+        yield Source(path, name, tuple(column.name for column in sheet.available_columns()))
+
+
+def load_excel(binding: Binding):
+    import polars as pl
+
+    return pl.read_excel(binding.source.path, sheet_name=binding.source.table, engine="calamine",
+                         columns=list(binding.fields.values()), raise_if_empty=False)
+
+
+def sheet_year(source: Source) -> int | None:
+    if match := re.search(r"\b(20\d{2})\b", source.table or ""):
+        return int(match[1])
+    return None
