@@ -204,6 +204,18 @@ class SupplierReportTests(unittest.TestCase):
         self.assertEqual(rank_suppliers(receipts, period, "spend")["rows"][0]["supplier_id"], "a")
         self.assertEqual(rank_suppliers(receipts, period, "receipts")["rows"][0]["supplier_id"], "a")
 
+    def test_purchase_price_is_weighted_and_net_quantity_uses_base_units(self):
+        import polars as pl
+        from datamate.application.purchase_reports import net_purchased_quantity, weighted_purchase_price
+
+        period = Period(date(2026, 9, 1), date(2026, 9, 30))
+        purchases = pl.DataFrame({"day": [date(2026, 9, 1)], "amount": [240], "quantity_base": [24],
+                                  "product_id": ["p"], "unit_base": ["piece"], "source_unit": ["case"]})
+        sales = pl.DataFrame({"day": [date(2026, 9, 2)], "quantity_base": [5], "product_id": ["p"],
+                              "unit_base": ["piece"], "source_unit": ["piece"]})
+        self.assertEqual(weighted_purchase_price(purchases, period)["answer"], 10)
+        self.assertEqual(net_purchased_quantity(purchases, sales, period, period)["rows"][0]["net_quantity"], 19)
+
 
 class IntentTests(unittest.TestCase):
     def test_near_match_and_stable_tie(self):
