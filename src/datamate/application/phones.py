@@ -15,3 +15,19 @@ def phone_sale_totals(orders: pl.DataFrame) -> dict:
                           pl.col("trade_in_value").sum().alias("trade_in_value")).row(0, named=True)
     row = {key: int(value or 0) for key, value in totals.items()}
     return {"type": "table", "columns": list(row), "rows": [row]}
+
+
+def installment_balances(schedule: pl.DataFrame, payments: pl.DataFrame, as_of) -> dict:
+    if not {"installment_id", "due_day", "amount"} <= set(schedule.columns):
+        raise UnsupportedQuestion("installment_schedule_fields_missing")
+    if not {"installment_id", "paid_day", "amount"} <= set(payments.columns):
+        raise UnsupportedQuestion("installment_payment_fields_missing")
+    paid = payments.filter(pl.col("paid_day") <= as_of).group_by("installment_id").agg(
+        pl.col("amount").sum().alias("paid"))
+    balances = schedule.join(paid, on="installment_id", how="left").with_columns(
+        (pl.col("amount") - pl.col("paid").fill_null(0)).clip(lower_bound=0).alias("balance"))
+    overdue = balances.filter((pl.col("due_day") < as_of) & (pl.col("balance") > 0))
+    outstanding = balances.filter(pl.col("balance") > 0)
+    return {"type": "table", "columns": ["outstanding", "overdue", "overdue_installments"],
+            "rows": [{"outstanding": int(outstanding["balance"].sum() or 0),
+                      "overdue": int(overdue["balance"].sum() or 0), "overdue_installments": overdue.height}]}

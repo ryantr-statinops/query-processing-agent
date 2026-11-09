@@ -460,3 +460,13 @@ class PhoneTests(unittest.TestCase):
                                "trade_in_value": [20, 0]})
         self.assertEqual(phone_sale_totals(orders)["rows"][0],
                          {"revenue": 100, "customer_payable": 80, "trade_in_value": 20})
+
+    def test_installment_due_today_is_not_overdue_and_prepayment_reduces_balance(self):
+        import polars as pl
+        from datamate.application.phones import installment_balances
+
+        schedule = pl.DataFrame({"installment_id": ["today", "old"],
+                                 "due_day": [date(2026, 9, 7), date(2026, 9, 1)], "amount": [100, 100]})
+        payments = pl.DataFrame({"installment_id": ["today"], "paid_day": [date(2026, 9, 6)], "amount": [40]})
+        result = installment_balances(schedule, payments, date(2026, 9, 7))["rows"][0]
+        self.assertEqual(result, {"outstanding": 160, "overdue": 100, "overdue_installments": 1})
