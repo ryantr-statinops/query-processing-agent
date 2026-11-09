@@ -98,6 +98,15 @@ class SourceTests(unittest.TestCase):
         self.assertEqual(result.row(2)[1:3], (date(2026, 9, 9), Decimal("1625600.000000")))
         self.assertEqual(result.row(2)[4], "completed")
 
+    def test_normalizes_common_in_progress_and_ok_statuses(self):
+        import polars as pl
+        from datamate.data.normalize import status_value
+
+        statuses = pl.DataFrame({"status": ["ok", "Đang vận chuyển", "Chờ giao", "Đang xử lý"]})
+        result = statuses.with_columns(status_value("status").alias("normalized"))
+        self.assertEqual(result.get_column("normalized").to_list(),
+                         ["completed", "shipping", "shipping", "shipping"])
+
     def test_retail_aliases_and_status_synonyms_bind_orders(self):
         from datetime import date
         from datamate.data.retail import load_orders
