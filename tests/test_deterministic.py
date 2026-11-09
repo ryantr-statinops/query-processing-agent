@@ -131,6 +131,19 @@ class CustomerIdentityTests(unittest.TestCase):
         named = with_customer_key(pl.DataFrame({"customer_name": ["  An   Bình ", "an bình", "Khách lẻ"]}))
         self.assertEqual(named["customer_key"].to_list(), ["an bình", "an bình", None])
 
+    def test_customer_rank_requires_three_valid_orders_and_keeps_cancel_count(self):
+        import polars as pl
+        from datamate.application.customers import rank_customers
+
+        orders = pl.DataFrame({"customer_key": ["a", "a", "a", "a", "b", "b", "b"],
+                               "order_id": ["1", "2", "3", "4", "5", "6", "7"],
+                               "day": [date(2026, 9, 1)] * 7,
+                               "status": ["completed"] * 3 + ["cancelled"] + ["completed"] * 3,
+                               "amount": [10, 20, 30, 0, 1, 1, 1]})
+        result = rank_customers(orders, Period(date(2026, 9, 1), date(2026, 9, 1)), "cancelled_orders")
+        self.assertEqual(result["rows"][0]["customer_key"], "a")
+        self.assertEqual(result["rows"][0]["cancelled_orders"], 1)
+
 
 class IntentTests(unittest.TestCase):
     def test_near_match_and_stable_tie(self):
