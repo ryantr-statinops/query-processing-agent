@@ -33,3 +33,15 @@ class IntentTests(unittest.TestCase):
         self.assertIsInstance(select_plan("nhà cung cấp nhập hàng nào nhiều nhất", index, parse)[0], Unresolved)
         self.assertIsInstance(select_plan("tổng tiền nhập hàng", index, parse)[0], Unresolved)
         self.assertEqual(select_plan("tổng tiền nhập hàng tháng này", index, parse)[0].intent, "purchase")
+
+
+class PeriodTests(unittest.TestCase):
+    def test_explicit_periods(self):
+        from datamate.application.periods import explicit_period
+
+        today = date(2026, 2, 15)
+        self.assertEqual(explicit_period("từ 01/02/2026 đến 03/02/2026", today),
+                         Period(date(2026, 2, 1), date(2026, 2, 3)))
+        self.assertEqual(explicit_period("tháng 9", today).start, date(2025, 9, 1))
+        self.assertEqual(explicit_period("quý 4/2025", today).end, date(2025, 12, 31))
+        self.assertIsNone(explicit_period("ngày 31/02/2026", today))
