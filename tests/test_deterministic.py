@@ -403,3 +403,14 @@ class ConstructionTests(unittest.TestCase):
                                    "delivery_day": [date(2026, 9, 1), date(2026, 9, 2), date(2026, 9, 3)],
                                    "status": ["delivered", "delivered", "pending"]})
         self.assertEqual(count_deliveries(deliveries, date(2026, 9, 2))["answer"], 2)
+
+
+class BabyShopTests(unittest.TestCase):
+    def test_invoice_total_applies_discounts_and_shipping_only_to_valid_orders(self):
+        import polars as pl
+        from datamate.application.baby_shop import invoice_totals
+
+        orders = pl.DataFrame({"order_id": ["a", "b"], "status": ["completed", "cancelled"],
+                               "gross": [100, 200], "order_discount": [10, 0], "voucher": [5, 0],
+                               "points": [5, 0], "shipping": [8, 0]})
+        self.assertEqual(invoice_totals(orders)["customer_payable"].to_list(), [88])
