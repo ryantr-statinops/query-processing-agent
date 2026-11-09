@@ -369,3 +369,16 @@ class CafeTests(unittest.TestCase):
                                                    "quantity": [2], "amount": [100]}))
         self.assertEqual(result.select("base_item", "size", "toppings", "quantity", "amount").row(0),
                          ("Trà sữa", "L", ["trân châu"], 2, 100))
+
+
+class PharmacyTests(unittest.TestCase):
+    def test_prescription_revenue_and_combination_ingredient_key(self):
+        import polars as pl
+        from datamate.application.pharmacy import sales_by_ingredient, sales_by_prescription
+
+        lines = pl.DataFrame({"product_id": ["a", "b"], "amount": [100, 200]})
+        products = pl.DataFrame({"product_id": ["a", "b"], "prescription": [True, False],
+                                 "ingredient": ["X", "X + Y"]})
+        self.assertEqual(sales_by_prescription(lines, products)["rows"],
+                         [{"prescription": False, "revenue": 200}, {"prescription": True, "revenue": 100}])
+        self.assertEqual(len(sales_by_ingredient(lines, products)["rows"]), 2)
