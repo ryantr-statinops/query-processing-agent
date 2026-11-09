@@ -11,3 +11,13 @@ class PlanTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             Period(day, date(2025, 12, 31))
         self.assertEqual(Unresolved("ambiguous_period").reason, "ambiguous_period")
+
+
+class IntentTests(unittest.TestCase):
+    def test_near_match_and_stable_tie(self):
+        from datamate.ranking.intents import IntentIndex
+
+        index = IntentIndex((("orders", "đếm số đơn hàng"), ("receipts", "tổng tiền phiếu nhập hàng")))
+        self.assertEqual(index.rank("tông tiền phiếu nhập hàng bnhiu")[0].intent, "receipts")
+        tied = IntentIndex((("first", "cùng chữ"), ("second", "cùng chữ")))
+        self.assertEqual([match.intent for match in tied.rank("cùng chữ")], ["first", "second"])
