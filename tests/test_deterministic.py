@@ -427,3 +427,15 @@ class BabyShopTests(unittest.TestCase):
         self.assertEqual(member_summary(members, orders, period)["rows"][0],
                          {"registered_members": 2, "new_members_with_sales": 1, "never_bought": 2})
         self.assertEqual(product_sizes(members)["size"].to_list(), ["2", "M", "4"])
+
+
+class RepairTests(unittest.TestCase):
+    def test_warranty_visits_are_not_charged_service_counts(self):
+        import polars as pl
+        from datamate.application.repair import count_repair_visits, service_visit_counts
+
+        visits = pl.DataFrame({"visit_id": ["v1", "v2", "v3"], "work": ["nhot may", "nhớt láp", "nhot may"],
+                              "amount": [100, 80, 0]})
+        self.assertEqual(count_repair_visits(visits)["answer"], 3)
+        self.assertEqual(service_visit_counts(visits)["rows"], [{"work": "nhớt láp", "visits": 1},
+                                                                 {"work": "nhớt máy", "visits": 1}])
