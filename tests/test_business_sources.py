@@ -184,6 +184,42 @@ class SourceTests(unittest.TestCase):
         self.assertEqual(lines.get_column("quantity").to_list(), [1, None, 2])
         self.assertEqual(lines.get_column("product_name").to_list(), ["Sản phẩm A", "Sản phẩm B", "Sản phẩm C"])
 
+    def test_retail_schema_matrix_binds_documented_sales_exports(self):
+        from datamate.data.retail import load_orders, load_sales_lines
+        from datamate.data.sources import SourceCatalog
+
+        fixtures = (
+            ("Mã đơn hàng,Ngày đặt hàng,Trạng thái đơn hàng,Tên sản phẩm,Tổng tiền,Số lượng sản phẩm\n"
+             "001,2026-09-01,Hoàn thành,Sản phẩm A,1250,1\n", "001", 1250),
+            ("Mã GD,Ngày,trang_thai,Tổng,Sản phẩm\n"
+             "002,01/09/2026,Hoàn thành,2300,Sản phẩm B\n", "002", 2300),
+            ("Mã đơn hàng,Ngày,Tên hàng hóa,Đơn vị tính,Số lượng,Đơn giá,Thành tiền,Trạng thái\n"
+             "003,2026-09-03,Sản phẩm C,cái,2,900,1800,Đang giao\n", "003", 1800),
+        )
+
+        with TemporaryDirectory() as folder:
+            root = Path(folder)
+            for index, (contents, expected_id, expected_amount) in enumerate(fixtures):
+                with self.subTest(schema=index):
+                    business = root / str(index)
+                    business.mkdir()
+                    (business / "sales.csv").write_text(contents, encoding="utf-8")
+                    catalog = SourceCatalog(business)
+                    self.assertEqual(load_orders(catalog).get_column("order_id").to_list(), [expected_id])
+                    self.assertEqual(load_sales_lines(catalog).get_column("amount").to_list(), [expected_amount])
+
+            unsupported = root / "without_order_id"
+            unsupported.mkdir()
+            (unsupported / "sales.csv").write_text(
+                "Ngày tháng,Thành tiền (đ),Ten hang,Trạng thái đơn\n01/09/2026,450,Hàng A,Hoàn thành\n",
+                encoding="utf-8",
+            )
+            catalog = SourceCatalog(unsupported)
+            with self.assertRaises(FileNotFoundError):
+                load_orders(catalog)
+            with self.assertRaises(FileNotFoundError):
+                load_sales_lines(catalog)
+
 
     def test_grouped_rows_do_not_fill_across_orders(self):
         import polars as pl
