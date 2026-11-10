@@ -28,7 +28,19 @@ This file separates tested calculation helpers from end-to-end question support.
 
 ## Cutover blockers
 
-- The current `DeterministicAgent` routes only the purchase-total shape. Other handlers are not reachable from the question runner.
+- The current `DeterministicAgent` routes purchase totals, basic sales-order counts, and unfiltered whole-shop revenue. Most other handlers are not reachable from the question runner.
 - Table-producing handlers still return internal row dictionaries. The typed table serializer exists but is not wired through all handlers and the runner.
 - Rulebook edge cases that require real source joins need source-specific fixtures before they can be marked covered.
 - Do not switch the submission entrypoint or remove the legacy pipeline until these gaps are closed and grouped development evaluation is recorded.
+
+## Grouped development baseline
+
+The full development split from the checked-in `seed_2026` manifest was evaluated at commit `746310b` on 2026-11-10. The run used the locked local environment, offline mode, and one CPU thread for BLAS and Polars. No holdout or public-test labels were used.
+
+| Questions | Correct | Wrong | Abstain | Coverage | PA total | Latency p50 / p95 |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 2,446 | 121 | 81 | 2,244 | 8.26% | 40 | 1.50 / 1,390.25 ms |
+
+The three focus businesses scored `biz_108`: 7 correct, 0 wrong, 112 abstain; `biz_119`: 6 correct, 1 wrong, 111 abstain; `biz_128`: 16 correct, 1 wrong, 101 abstain. The most frequent traced failures were invalid source dates (24), invalid sales-line identity or amount (13), and missing sales-order sources (10). These counts identify the next data-integration work; they do not imply that every untraced wrong answer has been classified.
+
+The per-question output and complete group metrics are local-only at `artifacts/grouped_dev_746310b_baseline/`. Generated artifacts and competition data must remain out of Git.
