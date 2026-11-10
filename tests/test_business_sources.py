@@ -164,6 +164,26 @@ class SourceTests(unittest.TestCase):
         self.assertEqual(orders.get_column("order_id").to_list(), ["001"])
         self.assertEqual(lines.get_column("amount").to_list(), [300])
 
+    def test_sales_line_group_fill_preserves_blank_amount_and_quantity(self):
+        from datamate.data.retail import load_sales_lines
+        from datamate.data.sources import SourceCatalog
+
+        with TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / "sales_lines.csv").write_text(
+                "Mã đơn hàng,Thành tiền,Tên hàng hóa,Số lượng\n"
+                "0001,100,Sản phẩm A,1\n"
+                ",,Sản phẩm B,\n"
+                "0002,200,Sản phẩm C,2\n",
+                encoding="utf-8",
+            )
+            lines = load_sales_lines(SourceCatalog(root))
+
+        self.assertEqual(lines.get_column("order_id").to_list(), ["0001", "0001", "0002"])
+        self.assertEqual(lines.get_column("amount").to_list(), [100, None, 200])
+        self.assertEqual(lines.get_column("quantity").to_list(), [1, None, 2])
+        self.assertEqual(lines.get_column("product_name").to_list(), ["Sản phẩm A", "Sản phẩm B", "Sản phẩm C"])
+
 
     def test_grouped_rows_do_not_fill_across_orders(self):
         import polars as pl

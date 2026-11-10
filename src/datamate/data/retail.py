@@ -78,6 +78,11 @@ def load_orders(catalog: SourceCatalog) -> pl.DataFrame:
 
 
 def load_sales_lines(catalog: SourceCatalog) -> pl.DataFrame:
+    """Restore grouped order IDs and exact-row deduplication only.
+
+    A blank amount or quantity belongs to that line and must not be copied
+    from the previous product row in the same order.
+    """
     frame = _load(catalog, line_bindings(catalog), "sales_line")
     frame = grouped_rows(frame, "order_id", ())
     if "product_name" in frame.columns:
