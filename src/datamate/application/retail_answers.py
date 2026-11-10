@@ -8,6 +8,7 @@ from datamate.application.formatting import table_answer
 from datamate.application.sales import (count_orders, count_orders_by_shift, eligible_orders,
                                         revenue_by_group, revenue_total)
 from datamate.application.cash import cash_collected
+from datamate.application.metrics import period_change
 from datamate.data.payments import load_payments
 from datamate.data.retail import load_orders, load_sales_lines
 from datamate.data.sources import SourceCatalog
@@ -83,3 +84,17 @@ def answer_cash_by_shift(catalog: SourceCatalog, period: Period, shift: str) -> 
         return cash_collected(load_payments(catalog), period, shift)
     except FileNotFoundError as error:
         raise InsufficientEvidence(str(error)) from error
+
+
+def answer_revenue_change(catalog: SourceCatalog, current: Period, previous: Period, metric: str) -> dict:
+    current_total = answer_revenue(catalog, current)["answer"]
+    previous_total = answer_revenue(catalog, previous)["answer"]
+    change = period_change(current_total, previous_total)["rows"][0]
+    if metric == "percent":
+        growth = change["growth_percent"]
+        if growth is None:
+            raise InsufficientEvidence("zero_comparison_denominator")
+        return numeric_answer(growth, percent=True)
+    if metric == "difference":
+        return numeric_answer(change["difference"], money=True)
+    raise InsufficientEvidence("unsupported_revenue_change_metric")

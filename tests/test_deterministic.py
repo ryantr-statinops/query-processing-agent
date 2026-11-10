@@ -299,6 +299,63 @@ class DeterministicAgentTests(unittest.TestCase):
         self.assertEqual(morning, {"id": "cash1", "type": "number", "answer": 300})
         self.assertEqual(afternoon, {"id": "cash2", "type": "number", "answer": 900})
 
+    def test_agent_routes_period_revenue_difference_and_growth(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from datamate.application.deterministic import DeterministicAgent
+
+        with TemporaryDirectory() as folder:
+            business = Path(folder) / "data" / "biz_test"
+            business.mkdir(parents=True)
+            (business / "DanhSachHoaDon.csv").write_text(
+                "M\u00e3 h\u00f3a \u0111\u01a1n,Th\u1eddi gian,Tr\u1ea1ng th\u00e1i\n"
+                "001,01/08/2026,Ho\u00e0n th\u00e0nh\n"
+                "002,01/09/2026,Ho\u00e0n th\u00e0nh\n"
+                "003,02/09/2026,Ho\u00e0n th\u00e0nh\n"
+                "004,02/09/2026,\u0110\u00e3 h\u1ee7y\n",
+                encoding="utf-8",
+            )
+            (business / "DanhSachHoaDonChiTiet.csv").write_text(
+                "M\u00e3 h\u00f3a \u0111\u01a1n,M\u00e3 h\u00e0ng,Th\u00e0nh ti\u1ec1n\n"
+                "001,A,200\n002,B,100\n003,C,50\n004,D,999\n",
+                encoding="utf-8",
+            )
+            agent = DeterministicAgent(Path(folder))
+            base = {"business_id": "biz_test", "as_of_date": "2026-09-02"}
+            difference, _ = agent.answer({**base, "id": "diff", "question":
+                                          "doanh thu th\u00e1ng n\u00e0y ch\u00eanh l\u1ec7ch bao nhi\u00eau so v\u1edbi th\u00e1ng tr\u01b0\u1edbc"})
+            growth, _ = agent.answer({**base, "id": "growth", "question":
+                                      "doanh thu th\u00e1ng n\u00e0y t\u0103ng bao nhi\u00eau ph\u1ea7n tr\u0103m so v\u1edbi th\u00e1ng tr\u01b0\u1edbc"})
+
+        self.assertEqual(difference, {"id": "diff", "type": "number", "answer": -50})
+        self.assertEqual(growth, {"id": "growth", "type": "percent", "answer": -25})
+
+    def test_agent_abstains_growth_when_comparison_period_is_zero(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from datamate.application.deterministic import DeterministicAgent
+
+        with TemporaryDirectory() as folder:
+            business = Path(folder) / "data" / "biz_test"
+            business.mkdir(parents=True)
+            (business / "DanhSachHoaDon.csv").write_text(
+                "M\u00e3 h\u00f3a \u0111\u01a1n,Th\u1eddi gian,Tr\u1ea1ng th\u00e1i\n"
+                "000,01/08/2026,Ho\u00e0n th\u00e0nh\n001,01/09/2026,Ho\u00e0n th\u00e0nh\n",
+                encoding="utf-8",
+            )
+            (business / "DanhSachHoaDonChiTiet.csv").write_text(
+                "M\u00e3 h\u00f3a \u0111\u01a1n,M\u00e3 h\u00e0ng,Th\u00e0nh ti\u1ec1n\n000,Z,0\n001,A,50\n",
+                encoding="utf-8",
+            )
+            agent = DeterministicAgent(Path(folder))
+            answer, trace = agent.answer({"id": "zero", "business_id": "biz_test",
+                                          "question": "doanh thu th\u00e1ng n\u00e0y t\u0103ng bao nhi\u00eau ph\u1ea7n tr\u0103m so v\u1edbi th\u00e1ng tr\u01b0\u1edbc",
+                                          "as_of_date": "2026-09-02"})
+
+        self.assertEqual(answer["type"], "unanswerable")
+        self.assertEqual(answer["reason"], "zero_comparison_denominator")
+        self.assertIn("zero_comparison_denominator", trace["error"])
+
 
 class CashTests(unittest.TestCase):
     def test_cash_uses_collection_time_and_excludes_shift_end(self):

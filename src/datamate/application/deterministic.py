@@ -4,12 +4,13 @@ from datetime import date
 from pathlib import Path
 
 from datamate.application.evidence import InsufficientEvidence
-from datamate.application.periods import resolve_period, shift_hours
+from datamate.application.periods import comparison_periods, resolve_period, shift_hours
 from datamate.application.plans import QuestionPlan, Unresolved
 from datamate.application.purchases import answer_purchase_total
 from datamate.application.retail_answers import (answer_order_count, answer_product_revenue,
                                                  answer_order_count_by_shift, answer_cash_by_shift,
-                                                 answer_revenue, answer_revenue_by_group)
+                                                 answer_revenue, answer_revenue_by_group,
+                                                 answer_revenue_change)
 from datamate.application.routing import select_plan
 from datamate.data.sources import SourceCatalog
 from datamate.ranking.intents import IntentIndex
@@ -19,6 +20,7 @@ _DESCRIPTIONS = (
     ("sales_count", "đếm số đơn hàng hóa đơn bán ra trong kỳ có bao nhiêu đơn"),
     ("sales_shift_count", "đếm số đơn hàng theo ca sáng ca chiều trong kỳ"),
     ("cash_by_shift", "tiền thu thu nợ thu được theo ca sáng ca chiều trong kỳ"),
+    ("sales_period_change", "so sánh doanh thu kỳ này với kỳ trước chênh lệch tăng trưởng phần trăm"),
     ("sales_revenue", "doanh thu tiền bán tổng thành tiền các dòng hàng trong kỳ"),
     ("sales_product_revenue", "doanh thu tiền bán thành tiền của một sản phẩm mặt hàng trong kỳ"),
     ("sales_group_revenue", "doanh thu theo nhóm khách kênh bán hình thức thanh toán trong kỳ"),
@@ -73,6 +75,17 @@ def _cash_by_shift_plan(text: str, as_of: date) -> QuestionPlan | None:
         return None
     period = resolve_period(text, as_of)
     return QuestionPlan("cash_by_shift", "number", period, entity=shift) if period is not None else None
+
+
+def _sales_period_change_plan(text: str, as_of: date) -> QuestionPlan | None:
+    if not any(term in text for term in ("doanh thu", "tiền bán", "tổng tiền hàng")):
+        return None
+    periods = comparison_periods(text, as_of)
+    if periods is None:
+        return None
+    percent = any(term in text for term in ("%", "phần trăm", "tỷ lệ", "tỉ lệ", "tăng trưởng"))
+    return QuestionPlan("sales_period_change", "percent" if percent else "number",
+                        periods[0], comparison=periods[1], entity="percent" if percent else "difference")
 
 
 def _sales_revenue_plan(text: str, as_of: date) -> QuestionPlan | None:
@@ -158,6 +171,7 @@ class DeterministicAgent:
                        "sales_count": lambda normalized: _sales_count_plan(normalized, as_of),
                        "sales_shift_count": lambda normalized: _sales_shift_count_plan(normalized, as_of),
                        "cash_by_shift": lambda normalized: _cash_by_shift_plan(normalized, as_of),
+                       "sales_period_change": lambda normalized: _sales_period_change_plan(normalized, as_of),
                        "sales_revenue": lambda normalized: _sales_revenue_plan(normalized, as_of),
                        "sales_product_revenue": lambda normalized: _sales_product_revenue_plan(normalized, as_of),
                        "sales_group_revenue": lambda normalized: _sales_group_revenue_plan(normalized, as_of)}
@@ -175,6 +189,8 @@ class DeterministicAgent:
                                                      int(hours["start_hour"]), int(hours["end_hour"]))
             elif plan.intent == "cash_by_shift":
                 result = answer_cash_by_shift(catalog, plan.period, plan.entity)
+            elif plan.intent == "sales_period_change":
+                result = answer_revenue_change(catalog, plan.period, plan.comparison, plan.entity)
             elif plan.intent == "sales_product_revenue":
                 result = answer_product_revenue(catalog, text, plan.period)
             elif plan.intent == "sales_group_revenue":
