@@ -204,6 +204,41 @@ class DeterministicAgentTests(unittest.TestCase):
         self.assertEqual(alternate_spelling, {"id": "p3", "type": "number", "answer": 100})
         self.assertEqual(unknown, {"id": "p2", "type": "abstain"})
 
+    def test_agent_routes_grouped_revenue_with_whole_shop_share_denominator(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from datamate.application.deterministic import DeterministicAgent
+
+        with TemporaryDirectory() as folder:
+            business = Path(folder) / "data" / "biz_test"
+            business.mkdir(parents=True)
+            (business / "orders.csv").write_text(
+                "Mã hóa đơn,Thời gian,Trạng thái,Nhóm khách hàng,Hình thức thanh toán,Kênh bán\n"
+                "001,01/09/2026,Hoàn thành,VIP,Tiền mặt,Tại quầy\n"
+                "002,01/09/2026,Hoàn thành,,,Điện thoại\n"
+                "003,01/09/2026,Đã hủy,VIP,COD,Tại quầy\n",
+                encoding="utf-8",
+            )
+            (business / "lines.csv").write_text(
+                "Mã hóa đơn,Mã hàng,Thành tiền\n001,A,100\n002,B,300\n003,C,500\n",
+                encoding="utf-8",
+            )
+            agent = DeterministicAgent(Path(folder))
+            base = {"business_id": "biz_test", "as_of_date": "2026-09-02"}
+            customers, _ = agent.answer({**base, "id": "g1",
+                                         "question": "Doanh thu theo nhóm khách tháng này"})
+            payment, _ = agent.answer({**base, "id": "g2",
+                                       "question": "Doanh thu theo hình thức thanh toán tháng này"})
+            channel, _ = agent.answer({**base, "id": "g3",
+                                       "question": "Doanh thu theo kênh bán tháng này"})
+
+        self.assertEqual(customers, {"id": "g1", "type": "table", "answer": {
+            "columns": ["group", "revenue", "share_percent"], "rows": [["VIP", 100, 25.0]]}})
+        self.assertEqual(payment["type"], "table")
+        self.assertEqual(payment["answer"]["rows"], [["Tiền mặt", 100, 25.0]])
+        self.assertEqual(channel["type"], "table")
+        self.assertEqual(channel["answer"]["rows"], [["Tại quầy", 100, 25.0], ["Điện thoại", 300, 75.0]])
+
 
 class CashTests(unittest.TestCase):
     def test_cash_uses_collection_time_and_excludes_shift_end(self):

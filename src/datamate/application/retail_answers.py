@@ -4,7 +4,8 @@ import polars as pl
 
 from datamate.application.evidence import InsufficientEvidence, UnsupportedQuestion, numeric_answer
 from datamate.application.plans import Period
-from datamate.application.sales import count_orders, eligible_orders, revenue_total
+from datamate.application.formatting import table_answer
+from datamate.application.sales import count_orders, eligible_orders, revenue_by_group, revenue_total
 from datamate.data.retail import load_orders, load_sales_lines
 from datamate.data.sources import SourceCatalog
 
@@ -57,3 +58,11 @@ def answer_product_revenue(catalog: SourceCatalog, question: str, period: Period
     selected = product_lines.join(allowed, on="order_id", how="inner")
     total = selected.select(pl.col("amount").sum()).item()
     return numeric_answer(total or 0, money=True)
+
+
+def answer_revenue_by_group(catalog: SourceCatalog, period: Period, group: str) -> dict:
+    try:
+        result = revenue_by_group(load_orders(catalog), load_sales_lines(catalog), period, group)
+    except FileNotFoundError as error:
+        raise InsufficientEvidence(str(error)) from error
+    return table_answer(result["columns"], result["rows"])
