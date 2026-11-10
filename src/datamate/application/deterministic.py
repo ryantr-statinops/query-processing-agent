@@ -7,7 +7,7 @@ from datamate.application.evidence import InsufficientEvidence
 from datamate.application.periods import resolve_period
 from datamate.application.plans import QuestionPlan, Unresolved
 from datamate.application.purchases import answer_purchase_total
-from datamate.application.retail_answers import answer_order_count, answer_revenue
+from datamate.application.retail_answers import answer_order_count, answer_product_revenue, answer_revenue
 from datamate.application.routing import select_plan
 from datamate.data.sources import SourceCatalog
 from datamate.ranking.intents import IntentIndex
@@ -16,6 +16,7 @@ _DESCRIPTIONS = (
     ("purchase_total", "tổng tiền tổng giá trị số tiền các phiếu nhập hàng trong kỳ"),
     ("sales_count", "đếm số đơn hàng hóa đơn bán ra trong kỳ có bao nhiêu đơn"),
     ("sales_revenue", "doanh thu tiền bán tổng thành tiền các dòng hàng trong kỳ"),
+    ("sales_product_revenue", "doanh thu tiền bán thành tiền của một sản phẩm mặt hàng trong kỳ"),
 )
 
 
@@ -64,6 +65,21 @@ def _sales_revenue_plan(text: str, as_of: date) -> QuestionPlan | None:
     return QuestionPlan("sales_revenue", "number", period) if period is not None else None
 
 
+def _sales_product_revenue_plan(text: str, as_of: date) -> QuestionPlan | None:
+    if not any(term in text for term in ("doanh thu", "tiền bán", "tổng tiền hàng")):
+        return None
+    if "của" not in text or any(term in text for term in ("của cửa hàng", "của shop")):
+        return None
+    if any(term in text for term in ("theo ", "so với", "tỷ lệ", "tỉ lệ", "phần trăm", "%", "chiếm",
+                                     "nhóm", "khách", "tiền mặt", "chuyển khoản", "cod", "ví điện tử",
+                                     "quầy", "điện thoại", "ca ", "nhân viên", "cao nhất", "thấp nhất")):
+        return None
+    if any(term in text for term in ("nhập hàng", "phiếu nhập")):
+        return None
+    period = resolve_period(text, as_of)
+    return QuestionPlan("sales_product_revenue", "number", period) if period is not None else None
+
+
 class DeterministicAgent:
     """Cache each business source catalog and abstain outside implemented rules."""
 
@@ -94,7 +110,8 @@ class DeterministicAgent:
             as_of = date.fromisoformat(question["as_of_date"])
             parsers = {"purchase_total": lambda normalized: _purchase_plan(normalized, as_of),
                        "sales_count": lambda normalized: _sales_count_plan(normalized, as_of),
-                       "sales_revenue": lambda normalized: _sales_revenue_plan(normalized, as_of)}
+                       "sales_revenue": lambda normalized: _sales_revenue_plan(normalized, as_of),
+                       "sales_product_revenue": lambda normalized: _sales_product_revenue_plan(normalized, as_of)}
             plan, match = select_plan(text, self.index, parsers)
             if isinstance(plan, Unresolved) or match is None or plan.period is None:
                 return {"id": question_id, "type": "abstain"}, trace
@@ -103,6 +120,8 @@ class DeterministicAgent:
                 result = answer_purchase_total(catalog, text, as_of)
             elif plan.intent == "sales_count":
                 result = answer_order_count(catalog, plan.period)
+            elif plan.intent == "sales_product_revenue":
+                result = answer_product_revenue(catalog, text, plan.period)
             else:
                 result = answer_revenue(catalog, plan.period)
             return {"id": question_id, **result}, trace

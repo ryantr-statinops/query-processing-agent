@@ -169,6 +169,41 @@ class DeterministicAgentTests(unittest.TestCase):
             self.assertEqual(filtered["type"], "abstain")
             self.assertEqual(cancelled["type"], "abstain")
 
+    def test_agent_routes_product_revenue_and_requires_a_matched_product_name(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from datamate.application.deterministic import DeterministicAgent
+
+        with TemporaryDirectory() as folder:
+            business = Path(folder) / "data" / "biz_test"
+            business.mkdir(parents=True)
+            (business / "orders.csv").write_text(
+                "Mã hóa đơn,Thời gian,Trạng thái\n"
+                "001,01/09/2026,Hoàn thành\n"
+                "002,01/09/2026,Đã hủy\n"
+                "003,02/09/2026,Đang giao\n",
+                encoding="utf-8",
+            )
+            (business / "lines.csv").write_text(
+                "Mã hóa đơn,Mã hàng,Tên hàng hóa,Thành tiền\n"
+                "001,A,Cafe Đen (M),100\n"
+                "002,A,Cafe Đen (M),500\n"
+                "003,B,Cafe Sữa,200\n",
+                encoding="utf-8",
+            )
+            agent = DeterministicAgent(Path(folder))
+            question = {"business_id": "biz_test", "as_of_date": "2026-09-02"}
+            revenue, _ = agent.answer({**question, "id": "p1",
+                                       "question": "Doanh thu của cafe đen (m) tháng này bao nhiêu?"})
+            alternate_spelling, _ = agent.answer({**question, "id": "p3",
+                                                  "question": "Doanh thu của CAFE DEN M tháng này bao nhiêu?"})
+            unknown, _ = agent.answer({**question, "id": "p2",
+                                       "question": "Doanh thu của latte tháng này bao nhiêu?"})
+
+        self.assertEqual(revenue, {"id": "p1", "type": "number", "answer": 100})
+        self.assertEqual(alternate_spelling, {"id": "p3", "type": "number", "answer": 100})
+        self.assertEqual(unknown, {"id": "p2", "type": "abstain"})
+
 
 class CashTests(unittest.TestCase):
     def test_cash_uses_collection_time_and_excludes_shift_end(self):
