@@ -5,7 +5,8 @@ import polars as pl
 from datamate.application.evidence import InsufficientEvidence, UnsupportedQuestion, numeric_answer
 from datamate.application.plans import Period
 from datamate.application.formatting import table_answer
-from datamate.application.sales import count_orders, eligible_orders, revenue_by_group, revenue_total
+from datamate.application.sales import (count_orders, count_orders_by_shift, eligible_orders,
+                                        revenue_by_group, revenue_total)
 from datamate.data.retail import load_orders, load_sales_lines
 from datamate.data.sources import SourceCatalog
 
@@ -13,6 +14,13 @@ from datamate.data.sources import SourceCatalog
 def answer_order_count(catalog: SourceCatalog, period: Period) -> dict:
     try:
         return count_orders(load_orders(catalog), period)
+    except FileNotFoundError as error:
+        raise InsufficientEvidence(str(error)) from error
+
+
+def answer_order_count_by_shift(catalog: SourceCatalog, period: Period, start_hour: int, end_hour: int) -> dict:
+    try:
+        return count_orders_by_shift(load_orders(catalog), period, start_hour, end_hour)
     except FileNotFoundError as error:
         raise InsufficientEvidence(str(error)) from error
 

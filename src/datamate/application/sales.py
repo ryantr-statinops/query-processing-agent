@@ -23,6 +23,15 @@ def count_orders(orders: pl.DataFrame, period: Period, *, coverage: Period | Non
     return numeric_answer(eligible_orders(orders, period, coverage=coverage).height)
 
 
+def count_orders_by_shift(orders: pl.DataFrame, period: Period, start_hour: int, end_hour: int,
+                          *, coverage: Period | None = None) -> dict:
+    if "hour" not in orders.columns or orders["hour"].null_count():
+        raise UnsupportedQuestion("sales_order_hour_missing")
+    scoped = eligible_orders(orders, period, coverage=coverage)
+    shifted = scoped.filter(pl.col("hour").is_between(start_hour, end_hour, closed="left"))
+    return numeric_answer(shifted.height)
+
+
 def revenue_total(orders: pl.DataFrame, lines: pl.DataFrame, period: Period,
                  *, coverage: Period | None = None) -> dict:
     """Sum already-discounted line totals for eligible orders only."""

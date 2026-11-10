@@ -2,7 +2,7 @@
 
 import polars as pl
 
-from datamate.data.normalize import date_value, grouped_rows, number_value, status_value
+from datamate.data.normalize import date_value, grouped_rows, hour_value, number_value, status_value
 from datamate.data.sources import Binding, SourceCatalog, bind_sources, sheet_year
 
 _ORDER_FIELDS = {
@@ -65,6 +65,8 @@ def _load(catalog: SourceCatalog, bindings: list[Binding], kind: str) -> pl.Data
                 expressions.append(number_value("quantity").alias("quantity"))
             if "quantity_base" in frame.columns:
                 expressions.append(number_value("quantity_base").alias("quantity_base"))
+            if "hour" in frame.columns:
+                expressions.append(hour_value("hour").alias("hour"))
             return frame.with_columns(expressions) if expressions else frame
         frames.append(catalog.load(binding, normalize))
     return pl.concat(frames, how="diagonal_relaxed") if len(frames) > 1 else frames[0]
@@ -73,7 +75,7 @@ def _load(catalog: SourceCatalog, bindings: list[Binding], kind: str) -> pl.Data
 def load_orders(catalog: SourceCatalog) -> pl.DataFrame:
     frame = _load(catalog, order_bindings(catalog), "sales_order")
     return grouped_rows(frame, "order_id", tuple(field for field in
-                         ("day", "status", "amount", "customer_id", "customer_name", "customer_group", "staff_id")
+                         ("day", "status", "amount", "customer_id", "customer_name", "customer_group", "staff_id", "hour")
                          if field in frame.columns))
 
 

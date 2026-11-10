@@ -4,11 +4,12 @@ from datetime import date
 from pathlib import Path
 
 from datamate.application.evidence import InsufficientEvidence
-from datamate.application.periods import resolve_period
+from datamate.application.periods import resolve_period, shift_hours
 from datamate.application.plans import QuestionPlan, Unresolved
 from datamate.application.purchases import answer_purchase_total
 from datamate.application.retail_answers import (answer_order_count, answer_product_revenue,
-                                                 answer_revenue, answer_revenue_by_group)
+                                                 answer_order_count_by_shift, answer_revenue,
+                                                 answer_revenue_by_group)
 from datamate.application.routing import select_plan
 from datamate.data.sources import SourceCatalog
 from datamate.ranking.intents import IntentIndex
@@ -16,6 +17,7 @@ from datamate.ranking.intents import IntentIndex
 _DESCRIPTIONS = (
     ("purchase_total", "tổng tiền tổng giá trị số tiền các phiếu nhập hàng trong kỳ"),
     ("sales_count", "đếm số đơn hàng hóa đơn bán ra trong kỳ có bao nhiêu đơn"),
+    ("sales_shift_count", "đếm số đơn hàng theo ca sáng ca chiều trong kỳ"),
     ("sales_revenue", "doanh thu tiền bán tổng thành tiền các dòng hàng trong kỳ"),
     ("sales_product_revenue", "doanh thu tiền bán thành tiền của một sản phẩm mặt hàng trong kỳ"),
     ("sales_group_revenue", "doanh thu theo nhóm khách kênh bán hình thức thanh toán trong kỳ"),
@@ -46,6 +48,18 @@ def _sales_count_plan(text: str, as_of: date) -> QuestionPlan | None:
         return None
     period = resolve_period(text, as_of)
     return QuestionPlan("sales_count", "number", period) if period is not None else None
+
+
+def _sales_shift_count_plan(text: str, as_of: date) -> QuestionPlan | None:
+    hours = shift_hours(text)
+    if hours is None:
+        return None
+    normalized = text.replace("ca sáng", "").replace("ca chiều", "")
+    base = _sales_count_plan(normalized, as_of)
+    if base is None:
+        return None
+    return QuestionPlan("sales_shift_count", "number", base.period,
+                        filters=(("start_hour", str(hours[0])), ("end_hour", str(hours[1]))))
 
 
 def _sales_revenue_plan(text: str, as_of: date) -> QuestionPlan | None:
@@ -129,6 +143,7 @@ class DeterministicAgent:
             as_of = date.fromisoformat(question["as_of_date"])
             parsers = {"purchase_total": lambda normalized: _purchase_plan(normalized, as_of),
                        "sales_count": lambda normalized: _sales_count_plan(normalized, as_of),
+                       "sales_shift_count": lambda normalized: _sales_shift_count_plan(normalized, as_of),
                        "sales_revenue": lambda normalized: _sales_revenue_plan(normalized, as_of),
                        "sales_product_revenue": lambda normalized: _sales_product_revenue_plan(normalized, as_of),
                        "sales_group_revenue": lambda normalized: _sales_group_revenue_plan(normalized, as_of)}
@@ -140,6 +155,10 @@ class DeterministicAgent:
                 result = answer_purchase_total(catalog, text, as_of)
             elif plan.intent == "sales_count":
                 result = answer_order_count(catalog, plan.period)
+            elif plan.intent == "sales_shift_count":
+                hours = dict(plan.filters)
+                result = answer_order_count_by_shift(catalog, plan.period,
+                                                     int(hours["start_hour"]), int(hours["end_hour"]))
             elif plan.intent == "sales_product_revenue":
                 result = answer_product_revenue(catalog, text, plan.period)
             elif plan.intent == "sales_group_revenue":

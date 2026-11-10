@@ -31,6 +31,14 @@ def number_value(column: str) -> pl.Expr:
     return (normalized.cast(pl.Decimal(28, 6), strict=False) * multiplier.cast(pl.Decimal(28, 6)))
 
 
+def hour_value(column: str) -> pl.Expr:
+    text = clean(column)
+    from_time = text.str.extract(r"(?:^|[ T])(\d{1,2})(?::\d{2}){1,2}", 1).cast(pl.Int64, strict=False)
+    numeric = text.cast(pl.Int64, strict=False)
+    value = pl.coalesce(from_time, numeric)
+    return pl.when(value.is_between(0, 23, closed="both")).then(value).otherwise(None)
+
+
 def status_value(column: str, *, note: bool = False) -> pl.Expr:
     value = clean(column).str.to_lowercase()
     return (

@@ -239,6 +239,41 @@ class DeterministicAgentTests(unittest.TestCase):
         self.assertEqual(channel["type"], "table")
         self.assertEqual(channel["answer"]["rows"], [["Tại quầy", 100, 25.0], ["Điện thoại", 300, 75.0]])
 
+    def test_agent_counts_sales_by_creation_shift_with_half_open_boundaries(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from datamate.application.deterministic import DeterministicAgent
+
+        with TemporaryDirectory() as folder:
+            business = Path(folder) / "data" / "biz_test"
+            business.mkdir(parents=True)
+            (business / "orders.csv").write_text(
+                "Mã đơn hàng,Ngày đặt hàng,Trạng thái đơn hàng,Giờ tạo\n"
+                "001,01/09/2026,Hoàn thành,06:59\n"
+                "002,01/09/2026,Hoàn thành,13:59\n"
+                "003,01/09/2026,Hoàn thành,14:00\n"
+                "004,01/09/2026,Đã hủy,21:59\n",
+                encoding="utf-8",
+            )
+            agent = DeterministicAgent(Path(folder))
+            base = {"business_id": "biz_test", "as_of_date": "2026-09-02"}
+            morning, _ = agent.answer({**base, "id": "s1",
+                                      "question": "đếm số đơn bán trong ca sáng tháng này"})
+            afternoon, _ = agent.answer({**base, "id": "s2",
+                                         "question": "đếm số đơn bán trong ca chiều tháng này"})
+            base["business_id"] = "missing_hour"
+            Path(folder, "data", "missing_hour").mkdir()
+            (Path(folder) / "data" / "missing_hour" / "orders.csv").write_text(
+                "Mã đơn hàng,Ngày đặt hàng,Trạng thái đơn hàng\n001,01/09/2026,Hoàn thành\n",
+                encoding="utf-8",
+            )
+            unavailable, _ = agent.answer({**base, "id": "s3",
+                                          "question": "đếm số đơn bán trong ca sáng tháng này"})
+
+        self.assertEqual(morning, {"id": "s1", "type": "number", "answer": 2})
+        self.assertEqual(afternoon, {"id": "s2", "type": "number", "answer": 1})
+        self.assertEqual(unavailable, {"id": "s3", "type": "abstain"})
+
 
 class CashTests(unittest.TestCase):
     def test_cash_uses_collection_time_and_excludes_shift_end(self):
