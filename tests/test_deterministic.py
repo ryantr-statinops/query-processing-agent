@@ -92,6 +92,30 @@ class SalesTests(unittest.TestCase):
 
 
 class DeterministicAgentTests(unittest.TestCase):
+    def test_agent_distinguishes_missing_source_from_invalid_source_dates(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from datamate.application.deterministic import DeterministicAgent
+
+        with TemporaryDirectory() as folder:
+            root = Path(folder)
+            missing = root / "data" / "missing"
+            malformed = root / "data" / "malformed"
+            missing.mkdir(parents=True)
+            malformed.mkdir(parents=True)
+            (malformed / "orders.csv").write_text(
+                "Mã hóa đơn,Thời gian,Trạng thái\n001,not-a-date,Hoàn thành\n",
+                encoding="utf-8",
+            )
+            agent = DeterministicAgent(root)
+            question = {"as_of_date": "2026-09-07", "question": "tháng này có bao nhiêu đơn"}
+            no_source, _ = agent.answer({**question, "id": "missing", "business_id": "missing"})
+            invalid_date, trace = agent.answer({**question, "id": "invalid", "business_id": "malformed"})
+
+        self.assertEqual(no_source["type"], "unanswerable")
+        self.assertEqual(invalid_date, {"id": "invalid", "type": "abstain"})
+        self.assertIn("invalid_source_dates", trace["error"])
+
     def test_agent_executes_purchase_question_and_abstains_outside_scope(self):
         from pathlib import Path
         from tempfile import TemporaryDirectory
