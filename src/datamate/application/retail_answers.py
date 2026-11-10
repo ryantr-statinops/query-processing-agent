@@ -7,6 +7,8 @@ from datamate.application.plans import Period
 from datamate.application.formatting import table_answer
 from datamate.application.sales import (count_orders, count_orders_by_shift, eligible_orders,
                                         revenue_by_group, revenue_total)
+from datamate.application.cash import cash_collected
+from datamate.data.payments import load_payments
 from datamate.data.retail import load_orders, load_sales_lines
 from datamate.data.sources import SourceCatalog
 
@@ -74,3 +76,10 @@ def answer_revenue_by_group(catalog: SourceCatalog, period: Period, group: str) 
     except FileNotFoundError as error:
         raise InsufficientEvidence(str(error)) from error
     return table_answer(result["columns"], result["rows"])
+
+
+def answer_cash_by_shift(catalog: SourceCatalog, period: Period, shift: str) -> dict:
+    try:
+        return cash_collected(load_payments(catalog), period, shift)
+    except FileNotFoundError as error:
+        raise InsufficientEvidence(str(error)) from error

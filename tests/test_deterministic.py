@@ -274,6 +274,31 @@ class DeterministicAgentTests(unittest.TestCase):
         self.assertEqual(afternoon, {"id": "s2", "type": "number", "answer": 1})
         self.assertEqual(unavailable, {"id": "s3", "type": "abstain"})
 
+    def test_agent_routes_cash_collections_by_receipt_time(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from datamate.application.deterministic import DeterministicAgent
+
+        with TemporaryDirectory() as folder:
+            business = Path(folder) / "data" / "biz_test"
+            business.mkdir(parents=True)
+            (business / "thanh_toan.csv").write_text(
+                "Thời gian thu,Tiền,Mã phiếu thu,Số HĐ\n"
+                "2026-09-01 06:59:00,100,P1,O1\n"
+                "2026-09-01 13:59:00,200,P2,O2\n"
+                "2026-09-01 14:00:00,900,P3,O3\n",
+                encoding="utf-8",
+            )
+            agent = DeterministicAgent(Path(folder))
+            base = {"business_id": "biz_test", "as_of_date": "2026-09-02"}
+            morning, _ = agent.answer({**base, "id": "cash1",
+                                      "question": "tiền thu ca sáng tháng này bao nhiêu"})
+            afternoon, _ = agent.answer({**base, "id": "cash2",
+                                         "question": "tiền thu ca chiều tháng này bao nhiêu"})
+
+        self.assertEqual(morning, {"id": "cash1", "type": "number", "answer": 300})
+        self.assertEqual(afternoon, {"id": "cash2", "type": "number", "answer": 900})
+
 
 class CashTests(unittest.TestCase):
     def test_cash_uses_collection_time_and_excludes_shift_end(self):
