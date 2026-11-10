@@ -36,7 +36,7 @@ def status_value(column: str, *, note: bool = False) -> pl.Expr:
     return (
         pl.when(value.str.contains(r"(?:^|\W)hu[ỷy](?:$|\W)|hủy|cancel|không giao được|giao thất bại")).then(pl.lit("cancelled"))
         .when(value.str.contains(r"trả hàng|trả lại|hoàn hàng|hoàn trả|hàng trả về|đã trả|đổi trả|returned")).then(pl.lit("returned"))
-        .when(value.str.contains(r"đang giao|đang giao dịch|đang vận chuyển|chờ giao|đang xử lý|shipping")).then(pl.lit("shipping"))
+        .when(value.str.contains(r"đang giao|đang gửi|đang giao dịch|đang vận chuyển|chờ giao|đang xử lý|shipping")).then(pl.lit("shipping"))
         .when(value.str.contains(r"hoàn thành|hoàn tất|thành công|đã lấy|xong|đã nhập|đã giao|complete|delivered|^ok$|^ok\b")).then(pl.lit("completed"))
         .otherwise(pl.lit("completed") if note else None)
     )
