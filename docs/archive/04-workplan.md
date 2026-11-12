@@ -34,7 +34,7 @@ For each run, log the run ID, commit, dataset and split hashes, prompt, model an
 
 ## Proposed schedule
 
-All dates are in November 2026, GMT+7. See the competition deadlines and the release-time discrepancy in the [challenge brief](01-competition.md).
+All dates are in November 2026, GMT+7. See the competition deadlines and the release-time discrepancy in the [challenge brief](../01-competition.md).
 
 | Dates | Work | Milestone |
 | --- | --- | --- |

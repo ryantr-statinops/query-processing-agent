@@ -1,6 +1,8 @@
 # Baseline runtime and training workflow
 
-This page describes the checked-in text-to-SQL baseline. The team can run it as a reference while evaluating other approaches. The [harness design](02-harness.md) and [methods notes](03-methods.md) cover proposed extensions.
+> Historical note: this page describes the removed text-to-SQL solver. Its module paths and CLI instructions are not runnable in the current repository. The active design proposal is in [the current harness overview](../02-harness.md).
+
+The [archived methods notes](03-methods.md) describe proposed extensions to that solver.
 
 ```mermaid
 flowchart TD
@@ -18,15 +20,15 @@ flowchart TD
 
 ## 1. What happens to one question
 
-1. **Load the right business.** The question supplies `id`, `business_id`, `question`, and `as_of_date`. The [catalog](../src/datamate/data/catalog.py) loads CSV, Excel, and SQLite data from `data/<business_id>/` into in-memory tables, normalizes identifiers, and registers the tables with DataFusion. Catalogs are reused within a run.
-2. **Prepare the prompt.** The [candidate pipeline](../src/datamate/application/candidates.py) takes a bounded schema with sample values, relevant calendar context, the split rulebook, and the business README when present. The catalog orders schema entries by token overlap with the question. The prompt gives Qwen `as_of_date` so it can resolve expressions such as “last month.”
-3. **Generate candidates.** The [GGUF adapter](../src/datamate/generation/local_gguf.py) asks Qwen for JSON with `sql` and `type`. The default budget allows up to three sequential attempts with different instructions. The pipeline skips duplicate SQL and responses with neither SQL nor `type=unanswerable`, so the saved candidate count can be lower than the attempt count.
-4. **Execute and build answers.** The [executor](../src/datamate/execution/sql.py) accepts one read-only `SELECT` or CTE per candidate. The [answer adapter](../src/datamate/application/answers.py) converts the SQL result to the requested answer type. A candidate can fail during SQL execution or answer conversion. A generated `unanswerable` candidate takes a separate path that needs no SQL.
-5. **Extract candidate features.** The [feature extractor](../src/datamate/ranking/features.py) records signals such as SQL validity, result shape, joins, date filters, and agreement between candidates. The same feature code is used when collecting train examples and when answering new questions.
+1. **Load the right business.** The question supplies `id`, `business_id`, `question`, and `as_of_date`. The removed catalog module loaded CSV, Excel, and SQLite data from `data/<business_id>/` into in-memory tables, normalized identifiers, and registered the tables with DataFusion.
+2. **Prepare the prompt.** The removed candidate pipeline selected a bounded schema, sample values, calendar context, split rulebook and business README. It ordered schema entries by token overlap and passed `as_of_date` to Qwen for relative date resolution.
+3. **Generate candidates.** The removed GGUF adapter asked Qwen for JSON with `sql` and `type`, with up to three sequential attempts. It skipped duplicate SQL and responses with neither SQL nor `type=unanswerable`.
+4. **Execute and build answers.** The removed executor accepted one read-only `SELECT` or CTE per candidate. An answer adapter converted SQL results to typed answers; execution and conversion could fail independently.
+5. **Extract candidate features.** The removed feature extractor recorded SQL validity, result shape, joins, date filters and agreement between candidates.
 
 ## 2. Collect examples, then fit the models
 
-**Collection** uses the existing Qwen weights to generate examples for a separate model. The [collector](../scripts/collect_candidates.py) reads `train/questions.jsonl`, runs the shared pipeline, and compares candidate answers with `train/answers.jsonl` using the [local evaluator](../src/datamate/evaluation/labels.py). It writes one JSONL record per question, including questions with zero retained candidates.
+**Collection** used the Qwen weights to generate examples for a separate model. The [collector script](../../scripts/collect_candidates.py) reads `train/questions.jsonl`, runs the old pipeline and compares candidate answers with `train/answers.jsonl` using a local evaluator that has since been removed. It writes one JSONL record per question, including questions with zero retained candidates.
 
 | Field | What it records |
 | --- | --- |
@@ -39,9 +41,9 @@ flowchart TD
 
 For example, suppose the reference says five cups of peach tea were sold. A candidate that sums the quantity for peach tea and returns `5` gets label `1`. A candidate that counts two order lines instead gets label `0`, even if its SQL executes successfully. This is the difference the reranker tries to learn from candidate features.
 
-**Fitting and evaluation** start when the [experiment script](../scripts/evaluate_experiment.py) reads the saved traces. The script fits a logistic-regression reranker on candidate features and correctness labels. If the fit examples contain fewer than two label classes, the reranker falls back to heuristic scores. The optional policy fits regressors on candidate traces to estimate the value of submitting or requesting another candidate, with abstention valued at zero.
+**Fitting and evaluation** used the [experiment script](../../scripts/evaluate_experiment.py) to read saved traces and fit a logistic-regression reranker and optional candidate policy. This script depends on the removed package and is not a current runnable workflow.
 
-The [seed-2026 manifest](../configs/splits/seed_2026.json) keeps all questions from one business in the same group. Collecting all 3,000 questions supplies traces for both development and holdout. Four grouped out-of-fold (OOF) runs compare strategies within the 24 development businesses. The final fit uses those 24 businesses, and the script scores the six holdout businesses separately. The script uses the holdout comparison as a check when enabling artifacts. Keep public test results out of fitting and configuration selection.
+The [seed-2026 manifest](../../configs/splits/seed_2026.json) keeps all questions from one business in the same group. The archived workflow collected all 3,000 questions and compared strategies within development folds. Its holdout numbers are historical and must not be presented as current system performance. Keep public-test results out of fitting and configuration selection.
 
 The metrics report compares the first retained candidate, heuristic selection from the larger pool, reranking, and policy replay. The report calls the first strategy `greedy_n1`, although the first retained candidate can come from a later generation attempt. The primary score is Penalized Accuracy (PA), calculated as `(correct − wrong) / total questions`. The report also includes `oracle_at_3`, the fraction of questions with at least one correct candidate in the saved pool. Use this alongside the selected-answer results to distinguish missing correct candidates from selection errors. The evaluator writes `artifacts/reranker.joblib` and `artifacts/policy.joblib`. A file contains `None` when its component does not meet the script's enablement criteria.
 
@@ -81,8 +83,8 @@ To stop collection, interrupt the terminal running the collector. Complete recor
 
 ## 4. Produce an inference submission
 
-The argument-free [predict.sh](../predict.sh) runs `python -m datamate` inside the evaluator. It reads `/data/questions.jsonl` and the business packages under `/data/data/`, and writes typed answers to `/result/submission.jsonl`. Diagnostics go under `/result/logs/`. Inference uses the question and business data without reference answers. The runner accepts optional reranker and policy artifacts through `DATAMATE_RERANKER_PATH` and `DATAMATE_POLICY_PATH`.
+The argument-free [`predict.sh`](../../predict.sh) ran `python -m datamate` inside the evaluator. It read `/data/questions.jsonl` and business packages under `/data/data/`, then wrote typed answers to `/result/submission.jsonl` and diagnostics under `/result/logs/`. The current script still points to a module that has been removed, so this is a historical contract rather than a working runner.
 
 The agent returns the first candidate with a usable answer in the selected order. The order is generation order when no reranker is loaded. The agent returns `abstain` if no candidate provides a usable answer or if processing raises an exception. The current inference policy callback controls whether to keep generating. Its `abstain` action can stop generation, but final answer selection still takes the first usable candidate. Offline policy replay handles `abstain` explicitly, so its score does not establish equivalent end-to-end inference behavior.
 
-See [package architecture](05-package-architecture.md) for ownership by module and the [workplan](04-workplan.md) for checks before freezing a submission.
+See the [archived package architecture](05-package-architecture.md) and [archived workplan](04-workplan.md) for the old implementation design and milestones.
