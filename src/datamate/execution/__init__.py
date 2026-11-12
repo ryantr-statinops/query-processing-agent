@@ -1,1 +1,0 @@
-"""Safe query execution adapters."""

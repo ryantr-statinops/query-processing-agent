@@ -1,0 +1,218 @@
+{
+  "title": "Representative training questions",
+  "version": 1,
+  "status": "initial selection; review against any previously agreed list",
+  "source": "train/questions.jsonl and train/answers.jsonl",
+  "selection_note": "A small cross-business set covering common and structurally varied query patterns. Gold answers are copied from train labels; focus tags are for data exploration, not extra labels.",
+  "questions": [
+    {
+      "id": "q_001883280e83",
+      "business_id": "biz_128",
+      "question": "tháng này tổng giá trị các phiếu nhập hàng là bao nhiu",
+      "as_of_date": "2026-09-07",
+      "reference": {
+        "type": "number",
+        "answer": 89526400,
+        "alias": []
+      },
+      "focus": [
+        "purchase_total",
+        "relative_period",
+        "number"
+      ]
+    },
+    {
+      "id": "q_00195e1e4049",
+      "business_id": "biz_124",
+      "question": "Thuốc có hoạt chất Natri clorid tháng này bán được tổng cộng bao nhiêu tiền?",
+      "as_of_date": "2026-05-25",
+      "reference": {
+        "type": "number",
+        "answer": 2954200,
+        "alias": []
+      },
+      "focus": [
+        "pharmacy_active_ingredient",
+        "entity_filter",
+        "number"
+      ]
+    },
+    {
+      "id": "q_00558c1410ef",
+      "business_id": "biz_105",
+      "question": "tỉ lệ huỷ đơn tháng 6/2025 là nhiêu %",
+      "as_of_date": "2026-06-24",
+      "reference": {
+        "type": "percent",
+        "answer": 2.08,
+        "alias": []
+      },
+      "focus": [
+        "cancellation_rate",
+        "percentage",
+        "explicit_month"
+      ]
+    },
+    {
+      "id": "q_00d4d6380d03",
+      "business_id": "biz_114",
+      "question": "thang 6/2025 hang nao chay nhat",
+      "as_of_date": "2026-06-21",
+      "reference": {
+        "type": "string",
+        "answer": "Gạch ống 8x8x18 Tuynel",
+        "alias": []
+      },
+      "focus": [
+        "ranking",
+        "informal_vietnamese",
+        "string"
+      ]
+    },
+    {
+      "id": "q_0174cb13db2a",
+      "business_id": "biz_118",
+      "question": "tháng này cửa hàng đã chở giao bao nhiêu đợt hàng cho khách nhỉ",
+      "as_of_date": "2026-09-10",
+      "reference": {
+        "type": "number",
+        "answer": 290,
+        "alias": []
+      },
+      "focus": [
+        "delivery_events",
+        "relative_period",
+        "number"
+      ]
+    },
+    {
+      "id": "q_0194d8d10f17",
+      "business_id": "biz_111",
+      "question": "Tính đến hết ngày 19/08/2026, có bao nhiêu khách còn nợ cửa hàng?",
+      "as_of_date": "2026-08-19",
+      "reference": {
+        "type": "number",
+        "answer": 35,
+        "alias": []
+      },
+      "focus": [
+        "receivables",
+        "as_of_date",
+        "entity_count"
+      ]
+    },
+    {
+      "id": "q_019ec94d9799",
+      "business_id": "biz_106",
+      "question": "3 mặt hàng bán chạy nhất tuần này là những mặt hàng nào?",
+      "as_of_date": "2026-08-19",
+      "reference": {
+        "type": "list",
+        "answer": [
+          "Cà phê sữa (M)",
+          "Trà đào cam sả (M)",
+          "Cà phê đen (M)"
+        ],
+        "alias": [
+          [
+            "SP0003"
+          ],
+          [
+            "SP0017"
+          ],
+          [
+            "SP0001"
+          ]
+        ]
+      },
+      "focus": [
+        "top_k_ranking",
+        "relative_period",
+        "list_with_aliases"
+      ]
+    },
+    {
+      "id": "q_01a252a82858",
+      "business_id": "biz_104",
+      "question": "Ngày 14/07/2025 cửa hàng bán Cà phê muối (L) với đơn giá bao nhiêu một ly?",
+      "as_of_date": "2026-06-02",
+      "reference": {
+        "type": "number",
+        "answer": 41000,
+        "alias": []
+      },
+      "focus": [
+        "historical_price",
+        "explicit_date",
+        "number"
+      ]
+    },
+    {
+      "id": "q_0183529f9d61",
+      "business_id": "biz_124",
+      "question": "dthu 3 tháng liền nhau kết thúc ở tháng 6/2025 là bao nhiêu mỗi tháng, từ tháng cũ đến tháng mới",
+      "as_of_date": "2026-05-25",
+      "reference": {
+        "type": "list",
+        "answer": [
+          287435200,
+          346554700,
+          309693800
+        ],
+        "alias": []
+      },
+      "focus": [
+        "period_series",
+        "ordered_list"
+      ]
+    },
+    {
+      "id": "q_00a6e23cbacf",
+      "business_id": "biz_109",
+      "question": "Trong tháng 1/2025, Mì Omachi sườn hầm nhập vào giá bình quân một thùng là bao nhiêu ạ?",
+      "as_of_date": "2026-08-05",
+      "reference": {
+        "type": "number",
+        "answer": 200556,
+        "alias": []
+      },
+      "focus": [
+        "weighted_average_purchase_price",
+        "unit_conversion",
+        "number"
+      ]
+    },
+    {
+      "id": "q_0088f7a0afc5",
+      "business_id": "biz_119",
+      "question": "Tháng 7/2025 mặt hàng Otrivin 0,1% xịt mũi chai 10ml bán được tổng cộng bao nhiêu chai?",
+      "as_of_date": "2026-07-13",
+      "reference": {
+        "type": "number",
+        "answer": 77,
+        "alias": []
+      },
+      "focus": [
+        "pharmacy_product_quantity",
+        "entity_resolution",
+        "number"
+      ]
+    },
+    {
+      "id": "q_00c4e64fe706",
+      "business_id": "biz_106",
+      "question": "Tháng 5/2025 cửa hàng bán đc tổng cộng bao nhiêu tiền?",
+      "as_of_date": "2026-09-14",
+      "reference": {
+        "type": "number",
+        "answer": 271866000,
+        "alias": []
+      },
+      "focus": [
+        "sales_total",
+        "explicit_month",
+        "number"
+      ]
+    }
+  ]
+}

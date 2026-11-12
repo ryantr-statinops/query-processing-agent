@@ -1,1 +1,0 @@
-"""DataMate query processing components."""
