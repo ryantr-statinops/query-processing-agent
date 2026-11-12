@@ -1,29 +1,24 @@
-# DataMate · Zalo AI Challenge 2026
+# DataMate documentation
 
-**Planning draft · November 5, 2026 (GMT+7)**
+This repository is in a rebuild phase. Documents under **Current project** describe challenge requirements, local data and the proposed agent architecture. Archived pages preserve design drafts or measurements for the removed solver; they are not instructions for the new runtime.
 
-The project aims to build a harness that turns raw business data and a Vietnamese question into a valid DataMate submission. The same harness will measure how retrieval, reranking, and policy learning affect performance on businesses held out from model development.
+## Current project
 
-## Reading order
+1. [Challenge rules and answer contract](01-competition.md)
+2. [Data inventory](data-inventory.md)
+3. [Initial schema catalog](data-schema-catalog.md)
+4. [Agentic RAG architecture proposal](architecture/agentic-rag.md)
+5. [Harness responsibilities and evidence flow](02-harness.md)
+6. [Team rebuild plan](plan/rebuild.md)
 
-1. [Challenge scope, scoring, and rules](01-competition.md) covers inputs, outputs, deadlines, and Docker constraints.
-2. [Agent harness design](02-harness.md) breaks the pipeline into testable components and walks through a question from raw data to answer.
-3. [Reranking, decision policies, and model training](03-methods.md) defines each method, its objective, and when RL is worth testing.
-4. [Implementation and evaluation plan](04-workplan.md) specifies the experiment sequence, metrics, milestones, and submission checklist.
-5. [Package architecture](05-package-architecture.md) maps the installed `datamate` layers and their dependency direction.
-6. [Baseline runtime and training workflow](06-runtime-workflow.md) shows what the checked-in code does, how to run it, and how to read its progress and outputs.
+The team-specific execution briefs are in `docs/plan/01-data-catalog.md` through `docs/plan/05-evaluation-integration.md`.
 
-## Design hypothesis
+## Archived material
 
-An end-to-end harness is feasible within the competition schedule if the offline baseline runs early and the team has compute for a Docker rehearsal. The baseline retrieves the relevant schema and rules, generates one SQL query, executes it with read-only access, and exports a typed answer for local scoring. Later work should follow the failure modes measured on that baseline. Expected score and runtime remain open until the team runs the official kit and profiles inference.
+See [archive index](archive/README.md) for superseded methods, workplan, package layout and runtime notes, plus the historical rulebook coverage audit. Do not use archived package paths or scores as current implementation status.
 
-The quantitative research question is **how to make decisions under uncertainty and a compute budget**. Measure whether the generator produces a correct candidate, whether the verifier selects it when it is available, and whether the decision policy knows when to answer, gather more evidence, or abstain. When comparing verifiers, keep the candidate pool fixed so changes in generation do not affect the comparison.
+## Documentation policy
 
-## First working session
-
-1. Get the official kit from the **Data** tab. Record the release or archive hash, open the rulebook and evaluator, and inspect a sample of each available file format.
-2. Assign training businesses to development, calibration, and holdout groups before choosing examples or building prompts.
-3. Pick one lookup and one single-table aggregate from the development group. Write the SQL by hand, record the execution trace, serialize the answers, and check both with the evaluator. Test a labeled `unanswerable` question and the `abstain` action separately.
-4. Replace the handwritten queries with one generation from a local model and score the same cases again.
-
-The architecture page documents the current package layout; the methods and workplan pages describe the experiment design and remaining evaluation steps.
+- Mark proposed architecture separately from implemented behavior.
+- Keep source data, gold answers, model weights and generated experiment outputs out of Git.
+- Update implementation and run instructions only after the relevant runtime command has been verified.
