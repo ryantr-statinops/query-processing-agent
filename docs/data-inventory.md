@@ -73,4 +73,4 @@ Snapshot generated from the local competition package. Source files are left unc
 - Inspect source schemas and data quality without modifying competition files.
 - Compare derived answers with `train/answers.jsonl` and record discrepancies for investigation.
 - Keep business-level development/holdout grouping from `configs/splits/seed_2026.json` when selecting examples or comparing experiments.
-- `configs/representative_questions.json` contains an initial 12-question selection copied from train questions and labels. Review its IDs against any previously agreed list, then trace each question to source sheets/tables and rulebook clauses.
+- `configs/representative_questions.json` contains 60 training questions: two per business, copied from train questions and labels. The set covers all observed answer types; trace each question to source sheets/tables and rulebook clauses.
