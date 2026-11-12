@@ -1,9 +1,9 @@
 {
   "title": "Representative training questions",
   "version": 1,
-  "status": "initial selection; review against any previously agreed list",
+  "status": "60-question exploration set; two questions per training business",
   "source": "train/questions.jsonl and train/answers.jsonl",
-  "selection_note": "A small cross-business set covering common and structurally varied query patterns. Gold answers are copied from train labels; focus tags are for data exploration, not extra labels.",
+  "selection_note": "Two questions per business, selected to cover recurring query patterns and answer types. Gold answers are copied from train labels; focus tags guide data exploration and are not extra labels.",
   "questions": [
     {
       "id": "q_001883280e83",
@@ -212,6 +212,951 @@
         "sales_total",
         "explicit_month",
         "number"
+      ]
+    },
+    {
+      "id": "q_20aa992c0d3f",
+      "business_id": "biz_101",
+      "question": "thang 5/2026 ngay nao cua hang ban dc nhieu tien nhat",
+      "as_of_date": "2026-08-24",
+      "reference": {
+        "type": "date",
+        "answer": "2026-05-09",
+        "alias": []
+      },
+      "focus": [
+        "date_answer",
+        "daily_revenue_ranking"
+      ]
+    },
+    {
+      "id": "q_0c8f3e07768f",
+      "business_id": "biz_101",
+      "question": "e so don hang quy 4/2025 la bao nhiu vay",
+      "as_of_date": "2026-08-24",
+      "reference": {
+        "type": "number",
+        "answer": 4032,
+        "alias": []
+      },
+      "focus": [
+        "order_count",
+        "relative_period"
+      ]
+    },
+    {
+      "id": "q_27313f77a2fe",
+      "business_id": "biz_102",
+      "question": "Cho hỏi trong tháng 12/2025, xét theo doanh thu, ngày nào bán đắt nhất?",
+      "as_of_date": "2026-06-16",
+      "reference": {
+        "type": "date",
+        "answer": "2025-12-29",
+        "alias": []
+      },
+      "focus": [
+        "date_answer",
+        "daily_revenue_ranking"
+      ]
+    },
+    {
+      "id": "q_112c84a433a5",
+      "business_id": "biz_102",
+      "question": "Doanh thu tháng 5/2026 tăng hay giảm bao nhiêu phần trăm so với tháng trước?",
+      "as_of_date": "2026-06-16",
+      "reference": {
+        "type": "percent",
+        "answer": -1.79,
+        "alias": []
+      },
+      "focus": [
+        "percentage_change",
+        "period_comparison"
+      ]
+    },
+    {
+      "id": "q_0a0038f69d4e",
+      "business_id": "biz_103",
+      "question": "Từ tháng 8/2025 tới tháng 10/2025, tháng nào cửa hàng bán được nhiều tiền nhất?",
+      "as_of_date": "2026-07-09",
+      "reference": {
+        "type": "date",
+        "answer": "2025-10",
+        "alias": []
+      },
+      "focus": [
+        "period_comparison",
+        "date_answer"
+      ]
+    },
+    {
+      "id": "q_b4a4c7135e0a",
+      "business_id": "biz_103",
+      "question": "Từ tháng 11/2025 qua tháng 12/2025 rồi tháng 1/2026, doanh thu có tăng liên tục không?",
+      "as_of_date": "2026-07-09",
+      "reference": {
+        "type": "boolean",
+        "answer": true,
+        "alias": []
+      },
+      "focus": [
+        "trend_boolean",
+        "three_periods"
+      ]
+    },
+    {
+      "id": "q_3a28ee2a98fd",
+      "business_id": "biz_107",
+      "question": "Tháng 9/2025 ngày nào cửa hàng bán được nhiều tiền nhất?",
+      "as_of_date": "2026-07-22",
+      "reference": {
+        "type": "date",
+        "answer": "2025-09-05",
+        "alias": []
+      },
+      "focus": [
+        "date_answer",
+        "daily_revenue_ranking"
+      ]
+    },
+    {
+      "id": "q_0fb7868ac463",
+      "business_id": "biz_107",
+      "question": "Cho tôi biết doanh thu hôm qua.",
+      "as_of_date": "2026-04-18",
+      "reference": {
+        "type": "number",
+        "answer": 7490000,
+        "alias": []
+      },
+      "focus": [
+        "revenue_total",
+        "relative_period"
+      ]
+    },
+    {
+      "id": "q_15d171d26f64",
+      "business_id": "biz_108",
+      "question": "Cho mình hỏi trong tháng 4/2025, xét theo doanh thu, ngày nào bán đắt nhất?",
+      "as_of_date": "2026-05-29",
+      "reference": {
+        "type": "date",
+        "answer": "2025-04-30",
+        "alias": []
+      },
+      "focus": [
+        "date_answer",
+        "daily_revenue_ranking"
+      ]
+    },
+    {
+      "id": "q_23f99ee972ab",
+      "business_id": "biz_108",
+      "question": "Cho hỏi doanh thu nhóm hàng mì gói chiếm bao nhiêu phần trăm tổng doanh thu tháng 1 năm 2025?",
+      "as_of_date": "2026-05-29",
+      "reference": {
+        "type": "percent",
+        "answer": 3.53,
+        "alias": []
+      },
+      "focus": [
+        "category_share",
+        "percentage"
+      ]
+    },
+    {
+      "id": "q_269c0b4a7a90",
+      "business_id": "biz_110",
+      "question": "Doanh thu ngày nào cao nhất trong tháng 9 năm 2025?",
+      "as_of_date": "2026-07-03",
+      "reference": {
+        "type": "date",
+        "answer": "2025-09-01",
+        "alias": []
+      },
+      "focus": [
+        "date_answer",
+        "daily_revenue_ranking"
+      ]
+    },
+    {
+      "id": "q_0504f61cae69",
+      "business_id": "biz_110",
+      "question": "e bua qua cua hang ban duoc may don",
+      "as_of_date": "2025-10-03",
+      "reference": {
+        "type": "number",
+        "answer": 93,
+        "alias": []
+      },
+      "focus": [
+        "order_count",
+        "relative_period"
+      ]
+    },
+    {
+      "id": "q_7c42bbc16fde",
+      "business_id": "biz_112",
+      "question": "Doanh thu 3 tháng 5/2025, 6/2025, 7/2025 có tăng liên tục ko?",
+      "as_of_date": "2026-07-31",
+      "reference": {
+        "type": "boolean",
+        "answer": true,
+        "alias": []
+      },
+      "focus": [
+        "trend_boolean",
+        "three_periods"
+      ]
+    },
+    {
+      "id": "q_22f59bab1075",
+      "business_id": "biz_112",
+      "question": "Hết hôm nay trong kho còn bao nhiêu hộp Bánh croissant nguyên và bao nhiêu cái lẻ?",
+      "as_of_date": "2026-07-31",
+      "reference": {
+        "type": "unanswerable",
+        "answer": null,
+        "alias": []
+      },
+      "focus": [
+        "unanswerable",
+        "inventory",
+        "unit_conversion"
+      ]
+    },
+    {
+      "id": "q_0b8a4f2ec4e3",
+      "business_id": "biz_113",
+      "question": "revenue ngay nao cao nhat trong thang 10 nam 2025",
+      "as_of_date": "2026-08-09",
+      "reference": {
+        "type": "date",
+        "answer": "2025-10-04",
+        "alias": []
+      },
+      "focus": [
+        "date_answer",
+        "daily_revenue_ranking"
+      ]
+    },
+    {
+      "id": "q_79f9c340442f",
+      "business_id": "biz_113",
+      "question": "ê tháng 7/2025 hàng nào chạy nhất",
+      "as_of_date": "2026-08-09",
+      "reference": {
+        "type": "string",
+        "answer": "Xi măng Hà Tiên PCB40 bao 50kg",
+        "alias": []
+      },
+      "focus": [
+        "product_ranking",
+        "informal_vietnamese"
+      ]
+    },
+    {
+      "id": "q_57cd2bc2320b",
+      "business_id": "biz_115",
+      "question": "Ngày nào trong tháng 1/2026 dthu cao nhất?",
+      "as_of_date": "2026-05-16",
+      "reference": {
+        "type": "date",
+        "answer": "2026-01-12",
+        "alias": []
+      },
+      "focus": [
+        "date_answer",
+        "daily_revenue_ranking"
+      ]
+    },
+    {
+      "id": "q_0ef3574c2b44",
+      "business_id": "biz_115",
+      "question": "So với tháng liền trước, doanh thu tháng 3 năm 2026 thay đổi bao nhiêu %?",
+      "as_of_date": "2026-05-16",
+      "reference": {
+        "type": "percent",
+        "answer": 66.01,
+        "alias": []
+      },
+      "focus": [
+        "percentage_change",
+        "period_comparison"
+      ]
+    },
+    {
+      "id": "q_0496b83ca7c4",
+      "business_id": "biz_116",
+      "question": "Doanh thu ngày nào cao nhất trong tháng 7 năm 2026?",
+      "as_of_date": "2026-09-03",
+      "reference": {
+        "type": "date",
+        "answer": "2026-07-29",
+        "alias": []
+      },
+      "focus": [
+        "date_answer",
+        "daily_revenue_ranking"
+      ]
+    },
+    {
+      "id": "q_040c9dd7f4de",
+      "business_id": "biz_116",
+      "question": "Tháng 9/2025 top 5 hàng bán chạy nhất là gì?",
+      "as_of_date": "2026-09-03",
+      "reference": {
+        "type": "list",
+        "answer": [
+          "Xi măng Hà Tiên PCB40 bao 50kg",
+          "Gạch ống 8x8x18 Tuynel",
+          "Xi măng INSEE Power-S bao 50kg",
+          "Băng keo điện Nano 20 yard",
+          "Ống PVC Bình Minh D32 cây 4m"
+        ],
+        "alias": [
+          [
+            "SP0001"
+          ],
+          [
+            "SP0009"
+          ],
+          [
+            "SP0002"
+          ],
+          [
+            "SP0033"
+          ],
+          [
+            "SP0027",
+            "Ong PVC Binh Minh D32 cay 4m"
+          ]
+        ]
+      },
+      "focus": [
+        "top_k_ranking",
+        "list_answer"
+      ]
+    },
+    {
+      "id": "q_0db8d6ef55e9",
+      "business_id": "biz_117",
+      "question": "thang 5/2025 ngay nao cua hang ban duoc nhiu tien nhat",
+      "as_of_date": "2026-05-20",
+      "reference": {
+        "type": "date",
+        "answer": "2025-05-11",
+        "alias": []
+      },
+      "focus": [
+        "date_answer",
+        "daily_revenue_ranking"
+      ]
+    },
+    {
+      "id": "q_4333ad0589a1",
+      "business_id": "biz_117",
+      "question": "cho bảng 3 khách còn nợ nhìu nhất tính đến hết ngày 20/05/2026, kèm số tiền còn nợ",
+      "as_of_date": "2026-05-20",
+      "reference": {
+        "type": "unanswerable",
+        "answer": null,
+        "alias": []
+      },
+      "focus": [
+        "unanswerable",
+        "table_request",
+        "unsupported_evidence"
+      ]
+    },
+    {
+      "id": "q_046b75d6192e",
+      "business_id": "biz_120",
+      "question": "xem giup ngay nao trong thang 2/2025 dthu cao nhat",
+      "as_of_date": "2026-06-12",
+      "reference": {
+        "type": "date",
+        "answer": "2025-02-15",
+        "alias": []
+      },
+      "focus": [
+        "date_answer",
+        "daily_revenue_ranking"
+      ]
+    },
+    {
+      "id": "q_58b6ceccb433",
+      "business_id": "biz_120",
+      "question": "Cho hỏi tháng 2/2025, doanh thu các đơn bán qua Zalo OA và các đơn bán tại quầy mỗi loại bao nhiêu?",
+      "as_of_date": "2026-06-12",
+      "reference": {
+        "type": "list",
+        "answer": [
+          13167600,
+          240535800
+        ],
+        "alias": []
+      },
+      "focus": [
+        "channel_comparison",
+        "ordered_list"
+      ]
+    },
+    {
+      "id": "q_28ce28381db2",
+      "business_id": "biz_121",
+      "question": "trong các tháng 11/2025, 12/2025 và 1/2026, cửa hàng có dthu cao nhất vào tháng nào",
+      "as_of_date": "2026-09-20",
+      "reference": {
+        "type": "date",
+        "answer": "2025-12",
+        "alias": []
+      },
+      "focus": [
+        "period_comparison",
+        "date_answer"
+      ]
+    },
+    {
+      "id": "q_83ddbda300ed",
+      "business_id": "biz_121",
+      "question": "Xu hướng doanh thu 3 tháng 9/2025 → 10/2025 → 11/2025: có phải tháng 10/2025 cao hơn tháng 9/2025 và tháng 11/2025 cao hơn tháng 10/2025 ạ?",
+      "as_of_date": "2026-09-20",
+      "reference": {
+        "type": "boolean",
+        "answer": false,
+        "alias": []
+      },
+      "focus": [
+        "trend_boolean",
+        "three_periods"
+      ]
+    },
+    {
+      "id": "q_19c959df5c70",
+      "business_id": "biz_122",
+      "question": "Trong tháng 4/2025, xét theo dthu, ngày nào bán đắt nhất?",
+      "as_of_date": "2026-07-17",
+      "reference": {
+        "type": "date",
+        "answer": "2025-04-03",
+        "alias": []
+      },
+      "focus": [
+        "date_answer",
+        "lot_expiry",
+        "pharmacy"
+      ]
+    },
+    {
+      "id": "q_3614b8c3f2b9",
+      "business_id": "biz_122",
+      "question": "Doanh thu có tăng liên tục qua 3 tháng 12/2025, 1/2026, 2/2026 không?",
+      "as_of_date": "2026-07-17",
+      "reference": {
+        "type": "boolean",
+        "answer": false,
+        "alias": []
+      },
+      "focus": [
+        "trend_boolean",
+        "three_periods"
+      ]
+    },
+    {
+      "id": "q_09ac426d8fa6",
+      "business_id": "biz_123",
+      "question": "Lô Oresol 245 DHG hộp 20 gói gần hết hạn nhất có hạn dùng ngày nào?",
+      "as_of_date": "2026-06-28",
+      "reference": {
+        "type": "date",
+        "answer": "2029-04-20",
+        "alias": []
+      },
+      "focus": [
+        "date_answer",
+        "lot_expiry",
+        "pharmacy"
+      ]
+    },
+    {
+      "id": "q_0a76d3680594",
+      "business_id": "biz_123",
+      "question": "cho hỏi tính đến hết ngày 12/07/2025, 5 khách nào đang nợ nhiều nhất, mỗi người còn nợ bao nhiu",
+      "as_of_date": "2025-07-12",
+      "reference": {
+        "type": "table",
+        "answer": {
+          "columns": [
+            "khach_hang",
+            "so_tien_no"
+          ],
+          "rows": [
+            [
+              "Đỗ Đức An",
+              404500
+            ],
+            [
+              "Dương Tâm Bích",
+              158600
+            ],
+            [
+              "Phùng Hồng Nam",
+              126000
+            ],
+            [
+              "Bạch Dương Phúc",
+              116000
+            ],
+            [
+              "La Dương Thu",
+              92000
+            ]
+          ]
+        },
+        "alias": [
+          [
+            "KH0124"
+          ],
+          [
+            "KH0233"
+          ],
+          [
+            "KH0137"
+          ],
+          [
+            "KH0187"
+          ],
+          [
+            "KH0110"
+          ]
+        ]
+      },
+      "focus": [
+        "table_answer",
+        "debt_ranking",
+        "as_of_date"
+      ]
+    },
+    {
+      "id": "q_04ad09f4f1fc",
+      "business_id": "biz_125",
+      "question": "Cho hỏi doanh thu ngày nào cao nhất trong tháng 3 năm 2025?",
+      "as_of_date": "2026-05-11",
+      "reference": {
+        "type": "date",
+        "answer": "2025-03-01",
+        "alias": []
+      },
+      "focus": [
+        "date_answer",
+        "daily_revenue_ranking"
+      ]
+    },
+    {
+      "id": "q_0983ff49fa23",
+      "business_id": "biz_125",
+      "question": "so dia ma heo nuong nuoc mam ban duoc trong thang 11/2025 la bao nhieu",
+      "as_of_date": "2026-05-11",
+      "reference": {
+        "type": "number",
+        "answer": 67,
+        "alias": []
+      },
+      "focus": [
+        "quantity",
+        "unit_conversion"
+      ]
+    },
+    {
+      "id": "q_205821096a29",
+      "business_id": "biz_126",
+      "question": "trong thang 1/2026, xet theo dthu, ngay nao ban dat nhat",
+      "as_of_date": "2026-06-06",
+      "reference": {
+        "type": "date",
+        "answer": "2026-01-03",
+        "alias": []
+      },
+      "focus": [
+        "date_answer",
+        "daily_revenue_ranking"
+      ]
+    },
+    {
+      "id": "q_0da07cfbc55f",
+      "business_id": "biz_126",
+      "question": "doanh thu thang 9/2025 bnhiu",
+      "as_of_date": "2026-06-06",
+      "reference": {
+        "type": "number",
+        "answer": 561179000,
+        "alias": []
+      },
+      "focus": [
+        "revenue_total",
+        "explicit_month"
+      ]
+    },
+    {
+      "id": "q_0f6f50127e77",
+      "business_id": "biz_127",
+      "question": "Top 3 khách hàng có công nợ lớn nhất đến hết ngày 28/07/2026 và số nợ của từng người?",
+      "as_of_date": "2026-07-28",
+      "reference": {
+        "type": "table",
+        "answer": {
+          "columns": [
+            "khach_hang",
+            "so_tien_no"
+          ],
+          "rows": [
+            [
+              "Lâm Bảo Ngọc",
+              632000
+            ],
+            [
+              "Nghiêm Duy Linh",
+              620000
+            ],
+            [
+              "Lương Huy Quang",
+              360500
+            ]
+          ]
+        },
+        "alias": [
+          [
+            "KH0027"
+          ],
+          [
+            "KH0097"
+          ],
+          [
+            "KH0112"
+          ]
+        ]
+      },
+      "focus": [
+        "table_answer",
+        "debt_ranking",
+        "as_of_date"
+      ]
+    },
+    {
+      "id": "q_02b7cc8b174d",
+      "business_id": "biz_127",
+      "question": "Xem giúp tháng 2/2026 nhóm hải sản chiếm bao nhiêu % doanh thu?",
+      "as_of_date": "2026-07-28",
+      "reference": {
+        "type": "percent",
+        "answer": 9.37,
+        "alias": []
+      },
+      "focus": [
+        "category_share",
+        "percentage"
+      ]
+    },
+    {
+      "id": "q_8659862171ab",
+      "business_id": "biz_129",
+      "question": "xem giúp top 5 khách có công nợ lớn nhất đến hết ngày 14/08/2026 và số nợ của từng người",
+      "as_of_date": "2026-08-14",
+      "reference": {
+        "type": "table",
+        "answer": {
+          "columns": [
+            "khach_hang",
+            "so_tien_no"
+          ],
+          "rows": [
+            [
+              "Thân Thu Phương",
+              949334
+            ],
+            [
+              "Ngô Anh Phong",
+              415000
+            ],
+            [
+              "Nghiêm Hà Phương",
+              391000
+            ],
+            [
+              "Hứa An Giang",
+              356250
+            ],
+            [
+              "Châu Quân Tâm",
+              241000
+            ]
+          ]
+        },
+        "alias": [
+          [
+            "KH0104"
+          ],
+          [
+            "KH0050"
+          ],
+          [
+            "KH0150"
+          ],
+          [
+            "KH0125"
+          ],
+          [
+            "KH0048"
+          ]
+        ]
+      },
+      "focus": [
+        "table_answer",
+        "debt_ranking",
+        "as_of_date"
+      ]
+    },
+    {
+      "id": "q_214e94e42454",
+      "business_id": "biz_129",
+      "question": "ngày naof trong tháng 6/2025 dthu cao nhaats",
+      "as_of_date": "2026-08-14",
+      "reference": {
+        "type": "date",
+        "answer": "2025-06-07",
+        "alias": []
+      },
+      "focus": [
+        "date_answer",
+        "daily_revenue_ranking"
+      ]
+    },
+    {
+      "id": "q_70d78d0a36ff",
+      "business_id": "biz_130",
+      "question": "check giùm từ tháng 2/2025 đến tháng 4/2025, dthu tháng sau có luôn cao hơn tháng trc k hả",
+      "as_of_date": "2026-08-29",
+      "reference": {
+        "type": "boolean",
+        "answer": true,
+        "alias": []
+      },
+      "focus": [
+        "trend_boolean",
+        "three_periods"
+      ]
+    },
+    {
+      "id": "q_05a8b30443a1",
+      "business_id": "biz_130",
+      "question": "trong so khach da mua hang thang 7/2026, bnhiu % mua tu 8 don tro len",
+      "as_of_date": "2026-08-29",
+      "reference": {
+        "type": "unanswerable",
+        "answer": null,
+        "alias": []
+      },
+      "focus": [
+        "unanswerable",
+        "unsupported_evidence"
+      ]
+    },
+    {
+      "id": "q_3ad4ff264376",
+      "business_id": "biz_105",
+      "question": "check giùm khách hay khen nhân viên nào nhất",
+      "as_of_date": "2026-06-24",
+      "reference": {
+        "type": "unanswerable",
+        "answer": null,
+        "alias": []
+      },
+      "focus": [
+        "unanswerable",
+        "unsupported_evidence"
+      ]
+    },
+    {
+      "id": "q_0eda9e54fcb5",
+      "business_id": "biz_104",
+      "question": "ngay nao trong thang 6/2025 dthu cao nhat",
+      "as_of_date": "2026-06-02",
+      "reference": {
+        "type": "date",
+        "answer": "2025-06-08",
+        "alias": []
+      },
+      "focus": [
+        "date_answer",
+        "daily_revenue_ranking"
+      ]
+    },
+    {
+      "id": "q_8423c5cc4a42",
+      "business_id": "biz_109",
+      "question": "Cho mình bảng 3 khách còn nợ nhiều nhất tính đến hết ngày 05/08/2026, kèm số tiền còn nợ.",
+      "as_of_date": "2026-08-05",
+      "reference": {
+        "type": "table",
+        "answer": {
+          "columns": [
+            "khach_hang",
+            "so_tien_no"
+          ],
+          "rows": [
+            [
+              "Bạch Giang Sơn",
+              2309400
+            ],
+            [
+              "Tạ Hiếu Thu",
+              1025500
+            ],
+            [
+              "Doãn Tâm Nam",
+              901667
+            ]
+          ]
+        },
+        "alias": [
+          [
+            "KH0085"
+          ],
+          [
+            "KH0203",
+            "Ta Hieu Thu"
+          ],
+          [
+            "KH0291"
+          ]
+        ]
+      },
+      "focus": [
+        "table_answer",
+        "debt_ranking",
+        "as_of_date"
+      ]
+    },
+    {
+      "id": "q_d15bde861202",
+      "business_id": "biz_111",
+      "question": "Giúp mình liệt kê 5 khách nợ nhiều nhất tính đến hết ngày 19/08/2026, kèm số tiền còn nợ.",
+      "as_of_date": "2026-08-19",
+      "reference": {
+        "type": "table",
+        "answer": {
+          "columns": [
+            "khach_hang",
+            "so_tien_no"
+          ],
+          "rows": [
+            [
+              "Ông Quang Hoàng",
+              145500
+            ],
+            [
+              "Tô Quân Bình",
+              125500
+            ],
+            [
+              "Từ Hải Thanh",
+              123000
+            ],
+            [
+              "Võ Tâm Phong",
+              111000
+            ],
+            [
+              "Vũ Khánh Tâm",
+              101000
+            ]
+          ]
+        },
+        "alias": [
+          [
+            "KH0098"
+          ],
+          [
+            "KH0078"
+          ],
+          [
+            "KH0165",
+            "Từ Hải Thanh 0359470831"
+          ],
+          [
+            "KH0106"
+          ],
+          [
+            "KH0090",
+            "Vũ Khánh Tâm (0914849701)"
+          ]
+        ]
+      },
+      "focus": [
+        "table_answer",
+        "debt_ranking",
+        "as_of_date"
+      ]
+    },
+    {
+      "id": "q_065aa2aac90c",
+      "business_id": "biz_114",
+      "question": "thang 2/2026 ngay nao cua hang ban dc nhiu tien nhat",
+      "as_of_date": "2026-06-21",
+      "reference": {
+        "type": "date",
+        "answer": "2026-02-05",
+        "alias": []
+      },
+      "focus": [
+        "date_answer",
+        "daily_revenue_ranking"
+      ]
+    },
+    {
+      "id": "q_04128078842a",
+      "business_id": "biz_118",
+      "question": "cửa hàng có mấy khách nhà ở đường Hai Bà Trưng",
+      "as_of_date": "2026-09-10",
+      "reference": {
+        "type": "unanswerable",
+        "answer": null,
+        "alias": []
+      },
+      "focus": [
+        "unanswerable",
+        "unsupported_evidence"
+      ]
+    },
+    {
+      "id": "q_34dc1ecd863a",
+      "business_id": "biz_119",
+      "question": "Cho mình hỏi trong tháng 2/2025, xét theo doanh thu, ngày nào bán đắt nhất?",
+      "as_of_date": "2026-07-13",
+      "reference": {
+        "type": "date",
+        "answer": "2025-02-28",
+        "alias": []
+      },
+      "focus": [
+        "date_answer",
+        "daily_revenue_ranking"
+      ]
+    },
+    {
+      "id": "q_049799837470",
+      "business_id": "biz_128",
+      "question": "trong tong doanh thu thang nay, phan cua khach nhom than thiet la may %",
+      "as_of_date": "2026-09-07",
+      "reference": {
+        "type": "percent",
+        "answer": 16.76,
+        "alias": []
+      },
+      "focus": [
+        "customer_segment_share",
+        "percentage"
       ]
     }
   ]
