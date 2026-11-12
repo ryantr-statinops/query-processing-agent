@@ -67,10 +67,14 @@ Snapshot generated from the local competition package. Source files are left unc
 | `dev_013` | 57 | 3 | .xlsx × 3 | yes |
 | `dev_014` | 63 | 3 | .xlsx × 3 | yes |
 
+## Schema catalog
+
+The first read-only schema scan is recorded in [data-schema-catalog.md](data-schema-catalog.md). It lists files, workbook sheets, candidate header rows, CSV columns, and SQLite tables for the 30 train and 14 public-test businesses. Workbook dimensions were unavailable in the fast metadata pass; header candidates should be verified against each README before they are used for normalization.
+
 ## Next inventory pass
 
-- Record each representative training question ID and its intended data path: business README, source files, sheets/tables, relevant columns, and rulebook clause.
-- Inspect source schemas and data quality without modifying competition files.
-- Compare derived answers with `train/answers.jsonl` and record discrepancies for investigation.
+- Verify the candidate Excel header rows against each business README, then record row counts, date coverage, nulls, and candidate join keys for source tables used by the representative questions.
+- Map each representative question ID to its source files/sheets, required columns, joins, date and unit rules, and applicable rulebook clause.
+- Reproduce representative answers from read-only source data and compare with `train/answers.jsonl`; record discrepancies for investigation.
 - Keep business-level development/holdout grouping from `configs/splits/seed_2026.json` when selecting examples or comparing experiments.
 - `configs/representative_questions.json` contains 60 training questions: two per business, copied from train questions and labels. The set covers all observed answer types; trace each question to source sheets/tables and rulebook clauses.
