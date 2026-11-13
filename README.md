@@ -22,6 +22,18 @@ This is a target design, not a runnable implementation yet. Model choice, retrie
 - Representative set: `configs/representative_questions.json` contains 60 train questions, two per business. Twelve are from the manifest holdout group and have already been exposed during exploration; they are not an independent holdout evaluation set.
 - The source packages, rulebooks, labels, models and generated experiment artifacts are local and must not be committed.
 
+## Preparation scripts
+
+Run the available preparation steps from the repository root:
+
+```powershell
+uv run --locked --no-sync python scripts/run_pipeline.py
+```
+
+This verifies/extracts the datasets, checks their JSONL and business-directory structure, prepares the Qwen3.5-9B Q4_K_M weights (about 5.68 GB), and writes JSON reports under `artifacts/`. Use `--data-only` to skip model weights, `--skip-data-setup` to use extracted data, or `--skip-model-download` to skip model verification/download. Individual checks can also run with `scripts/inspect_data.py` and `scripts/check_environment.py`.
+
+The pipeline prepares inputs only. Inference and model benchmarking become available after the `src/datamate` runtime is rebuilt.
+
 ## Current status
 
 `src/` contains only a rebuild marker; there is no supported inference entrypoint or baseline command today. The data setup script remains at `scripts/setup_data.py`. The old source tree was removed, so the checked-in tests and experiment scripts that import `datamate` require a new package scaffold or replacement before they can serve as passing project checks.
