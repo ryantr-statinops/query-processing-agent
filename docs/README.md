@@ -16,6 +16,8 @@ Tài liệu này dành cho mentor và thành viên mới. Repo đang trong giai 
 
 [Package structure](architecture/package-structure.md) mô tả code hiện có, hướng phụ thuộc và các package runtime còn thiếu. Tài liệu trong archive là thiết kế solver cũ.
 
+Tra cứu lệnh đang hỗ trợ trong [script index](../scripts/README.md). Các implementation solver cũ được giữ trong `scripts/legacy/` và chưa chạy được nếu thiếu runtime.
+
 ## Các điểm nên review
 
 - Catalog và kế hoạch trace có đủ bằng chứng để hiểu schema, khóa nối, grain và quy tắc tính không?

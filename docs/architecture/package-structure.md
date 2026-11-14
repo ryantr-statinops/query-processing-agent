@@ -9,12 +9,11 @@ inference entrypoint, but `__main__.py` is not implemented yet.
 
 | Package | Responsibility |
 | --- | --- |
-| `agent` | Request validation, SQL planning guards, budgets, tool policy, entity resolution, typed answers and evidence verification. |
-| `data.catalog_audit` | Read-only catalog scanning, source review and artifact validation, extracted from the catalog scripts during this refactor. |
-| `evaluation.tracing` | Development trace validation and SQL audit helpers, extracted from tracing scripts during this refactor. |
+| `agent` | Request validation, SQL planning guards, budgets, tool policy, entity resolution, typed answers and evidence verification. Public imports remain available through `datamate.agent.guardrails`. |
+| `data.catalog_audit` | Read-only catalog scanning, source review and artifact validation in `build`, `review` and `validate`. Root script paths remain CLI wrappers. |
+| `evaluation.tracing` | Development answer comparison and SQL audit helpers. Trace definitions and dataset records remain under `scripts/`. |
 
 The refactor retains existing CLI paths and `datamate.agent.guardrails` imports.
-The detailed implementation modules will be documented alongside their extraction.
 
 ## Runtime work still to implement
 
