@@ -1,63 +1,68 @@
-"""Download only the local Qwen GGUF checkpoint and tokenizer assets."""
+"""Download and verify Qwen3.5-9B Q4_K_M GGUF weights (about 5.68 GB).
+
+Run with ``uv run --locked --no-sync python scripts/download_model.py`` after
+``uv sync --locked``.
+An existing verified file is reused without network access. Hugging Face Hub
+resumes its own incomplete downloads when this command is run again.
+This prepares weights only; it does not configure an inference runtime.
+"""
 
 from __future__ import annotations
 
 import argparse
-import json
+import hashlib
 import pathlib
-import shutil
 
 
-REPO_ID = "Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF"
-TOKENIZER_REPO_ID = "Qwen/Qwen2.5-Coder-1.5B-Instruct"
-MODEL_FILE = "qwen2.5-coder-1.5b-instruct-q4_k_m.gguf"
+REPO_ID = "unsloth/Qwen3.5-9B-GGUF"
+REVISION = "3885219b6810b007914f3a7950a8d1b469d598a5"
+MODEL_FILE = "Qwen3.5-9B-Q4_K_M.gguf"
+MODEL_SIZE = 5_680_522_464
+MODEL_SHA256 = "03b74727a860a56338e042c4420bb3f04b2fec5734175f4cb9fa853daf52b7e8"
+DEFAULT_OUTPUT = pathlib.Path(__file__).resolve().parents[1] / "models" / "qwen3.5-9b-q4"
+
+
+def verify_model(model_file: pathlib.Path) -> None:
+    """Reject incomplete or different weights before reporting success."""
+    if model_file.stat().st_size != MODEL_SIZE:
+        raise ValueError(f"Model size mismatch: {model_file}. Expected {MODEL_SIZE} bytes.")
+    digest = hashlib.sha256()
+    with model_file.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(8 * 1024 * 1024), b""):
+            digest.update(chunk)
+    if digest.hexdigest() != MODEL_SHA256:
+        raise ValueError(f"Model SHA-256 mismatch: {model_file}.")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output", type=pathlib.Path, default=pathlib.Path("models/qwen2.5-coder-1.5b-q4"))
-    args = parser.parse_args()
-    from huggingface_hub import snapshot_download
-
-    model_patterns = [MODEL_FILE, "LICENSE*", "README.md"]
-    tokenizer_patterns = [
-        "config.json",
-        "generation_config.json",
-        "tokenizer.json",
-        "tokenizer_config.json",
-        "special_tokens_map.json",
-        "vocab.json",
-        "merges.txt",
-        "added_tokens.json",
-    ]
-    args.output.mkdir(parents=True, exist_ok=True)
-    downloaded = pathlib.Path(snapshot_download(
-        repo_id=REPO_ID,
-        local_dir=str(args.output.resolve()),
-        allow_patterns=model_patterns,
-    ))
-    snapshot_download(
-        repo_id=TOKENIZER_REPO_ID,
-        local_dir=str(args.output.resolve()),
-        allow_patterns=tokenizer_patterns,
+    parser.add_argument(
+        "--output", type=pathlib.Path, default=DEFAULT_OUTPUT,
+        help="Destination directory (default: models/qwen3.5-9b-q4 in this repository).",
     )
-    model_file = downloaded / MODEL_FILE
-    if not model_file.is_file():
-        raise FileNotFoundError(f"Expected GGUF file was not downloaded: {model_file}")
-    # This GGUF stores an output.weight matrix; mistral.rs requires an untied-head config
-    # even though the upstream Transformers config describes tied embeddings.
-    runtime_dir = args.output.resolve() / "mistralrs_runtime"
-    runtime_dir.mkdir(parents=True, exist_ok=True)
-    for filename in tokenizer_patterns:
-        source = args.output.resolve() / filename
-        if source.is_file():
-            shutil.copy2(source, runtime_dir / filename)
-    config_path = runtime_dir / "config.json"
-    config = json.loads(config_path.read_text(encoding="utf-8"))
-    config["tie_word_embeddings"] = False
-    config_path.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
-    print(f"Model ready: {model_file}")
-    print("Run with: $env:DATAMATE_MODEL_PATH = \"" + str(model_file) + "\"")
+    args = parser.parse_args()
+    output = args.output.resolve()
+    model_file = output / MODEL_FILE
+    try:
+        if model_file.is_file():
+            print(f"Checking existing model: {model_file}", flush=True)
+            verify_model(model_file)
+            print("Existing model verified; download skipped.")
+        else:
+            from huggingface_hub import hf_hub_download
+
+            output.mkdir(parents=True, exist_ok=True)
+            print(f"Downloading {REPO_ID}/{MODEL_FILE} (5.68 GB)...", flush=True)
+            downloaded = pathlib.Path(hf_hub_download(
+                repo_id=REPO_ID,
+                filename=MODEL_FILE,
+                revision=REVISION,
+                local_dir=str(output),
+            ))
+            verify_model(downloaded)
+    except (OSError, ValueError) as error:
+        parser.exit(1, f"Model preparation failed: {error}\n")
+    print(f"Model ready (size and SHA-256 verified): {model_file}")
     return 0
 
 
