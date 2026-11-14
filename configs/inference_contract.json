@@ -1,0 +1,3980 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://datamate.local/contracts/inference_contract-0.1.0.json",
+  "title": "DataMate inference contract v0 per-question result",
+  "description": "Machine-readable contract for one offline DataMate question. The root schema validates the internal result record. Request, plan, answer, tool and submission schemas live in $defs and are exposed via x-schemas. Examples in x-examples use synthetic values only.",
+  "x-contract-version": "0.1.0",
+  "x-status": "proposal",
+  "x-owner": "Member 3 (agentic RAG / inference contract)",
+  "x-normative-notes": [
+    "Answer type and execution status are independent fields; abstain is not a competition answer type.",
+    "execution_error, source_missing, blocked_on_catalog, budget_exhausted and insufficient_evidence are distinct reason codes.",
+    "A valid empty result is not numeric zero; null aggregates are insufficient evidence.",
+    "A fully out-of-coverage period and a proven missing source role are unanswerable, not abstain.",
+    "Only verified catalog tables and columns may be referenced by tools or SQL.",
+    "Gold answers, answer references, public-test labels and evaluation scores are forbidden in inference payloads.",
+    "All budgets are candidate values pending lead and evaluation approval."
+  ],
+  "type": "object",
+  "required": [
+    "contract_version",
+    "question_id",
+    "business_id",
+    "execution_status",
+    "reason_code",
+    "answer",
+    "plan",
+    "evidence",
+    "tool_calls",
+    "verification",
+    "budgets",
+    "errors",
+    "diagnostics"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "contract_version": {
+      "const": "0.1.0"
+    },
+    "question_id": {
+      "$ref": "#/$defs/question_id"
+    },
+    "business_id": {
+      "$ref": "#/$defs/business_id"
+    },
+    "execution_status": {
+      "$ref": "#/$defs/execution_status"
+    },
+    "reason_code": {
+      "$ref": "#/$defs/reason_code"
+    },
+    "answer": {
+      "$ref": "#/$defs/answer"
+    },
+    "plan": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/plan"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/evidence_item"
+      }
+    },
+    "tool_calls": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/tool_call"
+      }
+    },
+    "verification": {
+      "$ref": "#/$defs/verification"
+    },
+    "budgets": {
+      "$ref": "#/$defs/budget_usage"
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/error"
+      }
+    },
+    "diagnostics": {
+      "$ref": "#/$defs/diagnostics"
+    }
+  },
+  "$defs": {
+    "question_id": {
+      "type": "string",
+      "pattern": "^q_[A-Za-z0-9_-]+$"
+    },
+    "business_id": {
+      "type": "string",
+      "pattern": "^(?:biz|dev)_[0-9]{3}$"
+    },
+    "iso_date": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
+    },
+    "execution_status": {
+      "enum": [
+        "answered",
+        "unanswerable",
+        "abstain"
+      ]
+    },
+    "answer_type": {
+      "enum": [
+        "number",
+        "percent",
+        "date",
+        "boolean",
+        "string",
+        "list",
+        "table",
+        "unanswerable"
+      ]
+    },
+    "reason_code": {
+      "enum": [
+        "ok",
+        "invalid_request",
+        "invalid_model_output",
+        "ambiguous_question",
+        "ambiguous_entity",
+        "blocked_on_catalog",
+        "source_missing",
+        "unsupported_source_role",
+        "period_out_of_coverage",
+        "subjective_information",
+        "insufficient_evidence",
+        "execution_error",
+        "timeout",
+        "budget_exhausted",
+        "schema_mismatch",
+        "verification_failed"
+      ]
+    },
+    "cell": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        }
+      ]
+    },
+    "scalar": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "table_answer": {
+      "type": "object",
+      "properties": {
+        "columns": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/cell"
+            }
+          }
+        }
+      },
+      "required": [
+        "columns",
+        "rows"
+      ],
+      "additionalProperties": false
+    },
+    "source_ref": {
+      "type": "object",
+      "properties": {
+        "source_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "enum": [
+            "catalog",
+            "readme",
+            "rulebook",
+            "calendar",
+            "column",
+            "sample",
+            "query_result"
+          ]
+        },
+        "table": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 0
+        },
+        "column": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 0
+        },
+        "locator": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 0
+        },
+        "retrieved_for": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 0
+        }
+      },
+      "required": [
+        "kind",
+        "source_ref"
+      ],
+      "additionalProperties": false
+    },
+    "column_context": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "role": {
+          "enum": [
+            "dimension",
+            "measure",
+            "date",
+            "key",
+            "status",
+            "unit",
+            "text",
+            "unknown"
+          ]
+        },
+        "nullable": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "source_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "role",
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    "table_context": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_sheet": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 0
+        },
+        "header_row": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "grain": {
+          "type": "string",
+          "minLength": 1
+        },
+        "grain_status": {
+          "enum": [
+            "verified",
+            "candidate",
+            "needs_review"
+          ]
+        },
+        "row_count": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "date_column": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 0
+        },
+        "min_date": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 0
+        },
+        "max_date": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 0
+        },
+        "columns": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/column_context"
+          }
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "columns",
+        "grain",
+        "grain_status",
+        "header_row",
+        "name",
+        "source_file"
+      ],
+      "additionalProperties": false
+    },
+    "time_window": {
+      "type": "object",
+      "properties": {
+        "raw_text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mode": {
+          "enum": [
+            "day",
+            "month",
+            "quarter",
+            "year",
+            "range",
+            "instant",
+            "relative",
+            "all_time",
+            "unknown"
+          ]
+        },
+        "start": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 0
+        },
+        "end": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 0
+        },
+        "as_of_date": {
+          "$ref": "#/$defs/iso_date"
+        },
+        "calendar_rule": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 0
+        },
+        "coverage": {
+          "enum": [
+            "full",
+            "partial",
+            "none",
+            "unknown"
+          ]
+        }
+      },
+      "required": [
+        "coverage",
+        "mode",
+        "raw_text"
+      ],
+      "additionalProperties": false
+    },
+    "entity_binding": {
+      "type": "object",
+      "properties": {
+        "role": {
+          "type": "string",
+          "minLength": 1
+        },
+        "raw_text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "resolved_value": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 0
+        },
+        "table": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 0
+        },
+        "column": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 0
+        },
+        "match_type": {
+          "enum": [
+            "exact",
+            "normalised",
+            "alias",
+            "fuzzy",
+            "none"
+          ]
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "source_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "confidence",
+        "match_type",
+        "raw_text",
+        "role"
+      ],
+      "additionalProperties": false
+    },
+    "filter": {
+      "type": "object",
+      "properties": {
+        "column": {
+          "type": "string",
+          "minLength": 1
+        },
+        "operator": {
+          "enum": [
+            "=",
+            "!=",
+            "<",
+            "<=",
+            ">",
+            ">=",
+            "in",
+            "not_in",
+            "between",
+            "like",
+            "is_null",
+            "is_not_null"
+          ]
+        },
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/scalar"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/scalar"
+              }
+            }
+          ]
+        }
+      },
+      "required": [
+        "column",
+        "operator",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "plan_step": {
+      "type": "object",
+      "properties": {
+        "step_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "tool": {
+          "enum": [
+            "get_schema",
+            "search_entities",
+            "sample_rows",
+            "run_sql"
+          ]
+        },
+        "purpose": {
+          "type": "string",
+          "minLength": 1
+        },
+        "args": {
+          "type": "object"
+        },
+        "sql": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "depends_on": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "required": [
+        "purpose",
+        "step_id",
+        "tool"
+      ],
+      "additionalProperties": false
+    },
+    "plan": {
+      "type": "object",
+      "properties": {
+        "intent": {
+          "enum": [
+            "revenue",
+            "change",
+            "average_order_value",
+            "order_count",
+            "cancellation",
+            "best_seller",
+            "peak_period",
+            "price_change",
+            "debt",
+            "pharmacy",
+            "purchase",
+            "top_customer",
+            "stock",
+            "employee",
+            "delivery",
+            "profit",
+            "lot",
+            "other"
+          ]
+        },
+        "metric": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 0
+        },
+        "time": {
+          "$ref": "#/$defs/time_window"
+        },
+        "entities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/entity_binding"
+          }
+        },
+        "filters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/filter"
+          }
+        },
+        "group_by": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "order_by": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "column": {
+                "type": "string",
+                "minLength": 1
+              },
+              "direction": {
+                "enum": [
+                  "asc",
+                  "desc"
+                ]
+              }
+            },
+            "required": [
+              "column",
+              "direction"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "limit": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "answer_type": {
+          "$ref": "#/$defs/answer_type"
+        },
+        "expected_shape": {
+          "enum": [
+            "scalar",
+            "list",
+            "table",
+            "boolean",
+            "none"
+          ]
+        },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/source_ref"
+          }
+        },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/plan_step"
+          }
+        },
+        "assumptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "unknowns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "answer_type",
+        "assumptions",
+        "entities",
+        "expected_shape",
+        "intent",
+        "sources",
+        "steps",
+        "time",
+        "unknowns"
+      ],
+      "additionalProperties": false
+    },
+    "answer": {
+      "type": "object",
+      "title": "Typed answer",
+      "required": [
+        "type",
+        "answer"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/answer_type"
+        },
+        "answer": {},
+        "alias": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/scalar"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/scalar"
+                }
+              }
+            ]
+          }
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "type": {
+              "const": "number"
+            },
+            "answer": {
+              "type": "number"
+            }
+          }
+        },
+        {
+          "properties": {
+            "type": {
+              "const": "percent"
+            },
+            "answer": {
+              "type": "number"
+            }
+          }
+        },
+        {
+          "properties": {
+            "type": {
+              "const": "date"
+            },
+            "answer": {
+              "type": "string",
+              "pattern": "^([0-9]{4}-(0[1-9]|1[0-2])|[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01]))$"
+            }
+          }
+        },
+        {
+          "properties": {
+            "type": {
+              "const": "boolean"
+            },
+            "answer": {
+              "type": "boolean"
+            }
+          }
+        },
+        {
+          "properties": {
+            "type": {
+              "const": "string"
+            },
+            "answer": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "type": {
+              "const": "list"
+            },
+            "answer": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/cell"
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "type": {
+              "const": "table"
+            },
+            "answer": {
+              "$ref": "#/$defs/table_answer"
+            }
+          }
+        },
+        {
+          "properties": {
+            "type": {
+              "const": "unanswerable"
+            },
+            "answer": {
+              "type": "null"
+            }
+          }
+        }
+      ]
+    },
+    "evidence_item": {
+      "type": "object",
+      "properties": {
+        "source_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "enum": [
+            "catalog",
+            "readme",
+            "rulebook",
+            "calendar",
+            "column",
+            "sample",
+            "query_result"
+          ]
+        },
+        "supports": {
+          "type": "string",
+          "minLength": 1
+        },
+        "table": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 0
+        },
+        "column": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 0
+        },
+        "locator": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 0
+        },
+        "row_ref": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 0
+        }
+      },
+      "required": [
+        "kind",
+        "source_ref",
+        "supports"
+      ],
+      "additionalProperties": false
+    },
+    "sql_validation": {
+      "type": "object",
+      "properties": {
+        "ok": {
+          "type": "boolean"
+        },
+        "statement_type": {
+          "const": "select"
+        },
+        "tables": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "ctes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "plan_checked": {
+          "type": "boolean"
+        },
+        "columns_checked": {
+          "type": "boolean"
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "columns_checked",
+        "ok",
+        "plan_checked"
+      ],
+      "additionalProperties": false
+    },
+    "tool_call": {
+      "type": "object",
+      "properties": {
+        "call_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tool": {
+          "enum": [
+            "get_schema",
+            "search_entities",
+            "sample_rows",
+            "run_sql"
+          ]
+        },
+        "status": {
+          "enum": [
+            "ok",
+            "error",
+            "timeout",
+            "rejected"
+          ]
+        },
+        "args": {
+          "type": "object"
+        },
+        "elapsed_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "row_count": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "rows_returned": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/error"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sql_validation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sql_validation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "call_id",
+        "elapsed_ms",
+        "status",
+        "tool"
+      ],
+      "additionalProperties": false
+    },
+    "verification_check": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "pass",
+            "fail",
+            "skip",
+            "warn"
+          ]
+        },
+        "detail": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "detail",
+        "name",
+        "status"
+      ],
+      "additionalProperties": false
+    },
+    "verification": {
+      "type": "object",
+      "properties": {
+        "passed": {
+          "type": "boolean"
+        },
+        "checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/verification_check"
+          }
+        },
+        "evidence_sufficient": {
+          "type": "boolean"
+        },
+        "answer_type_matches": {
+          "type": "boolean"
+        },
+        "date_coverage": {
+          "enum": [
+            "full",
+            "partial",
+            "none",
+            "unknown",
+            "not_applicable"
+          ]
+        },
+        "grain_checked": {
+          "type": "boolean"
+        },
+        "dedup_applied": {
+          "type": "boolean"
+        },
+        "unit_conversion_checked": {
+          "type": "boolean"
+        },
+        "plan_checked": {
+          "type": "boolean"
+        },
+        "residual_risks": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "reason_code": {
+          "enum": [
+            "ok",
+            "invalid_request",
+            "invalid_model_output",
+            "ambiguous_question",
+            "ambiguous_entity",
+            "blocked_on_catalog",
+            "source_missing",
+            "unsupported_source_role",
+            "period_out_of_coverage",
+            "subjective_information",
+            "insufficient_evidence",
+            "execution_error",
+            "timeout",
+            "budget_exhausted",
+            "schema_mismatch",
+            "verification_failed"
+          ]
+        }
+      },
+      "required": [
+        "answer_type_matches",
+        "checks",
+        "date_coverage",
+        "dedup_applied",
+        "evidence_sufficient",
+        "grain_checked",
+        "passed",
+        "plan_checked",
+        "reason_code",
+        "residual_risks",
+        "unit_conversion_checked"
+      ],
+      "additionalProperties": false
+    },
+    "budget_usage": {
+      "type": "object",
+      "properties": {
+        "input_tokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tool_calls": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "retrieval_rounds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sql_attempts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "result_rows": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "elapsed_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "max_input_tokens": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "max_tool_calls": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "max_retrieval_rounds": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "max_sql_attempts": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "max_result_rows": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "max_sample_rows": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "query_timeout_ms": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "question_timeout_ms": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "required": [
+            "max_input_tokens",
+            "max_result_rows",
+            "max_retrieval_rounds",
+            "max_sample_rows",
+            "max_sql_attempts",
+            "max_tool_calls",
+            "query_timeout_ms",
+            "question_timeout_ms"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "elapsed_ms",
+        "input_tokens",
+        "limits",
+        "result_rows",
+        "retrieval_rounds",
+        "sql_attempts",
+        "tool_calls"
+      ],
+      "additionalProperties": false
+    },
+    "error": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "enum": [
+            "ambiguous_entity",
+            "budget_exhausted",
+            "catalog_unavailable",
+            "forbidden_function",
+            "forbidden_statement",
+            "forbidden_table_reference",
+            "internal_error",
+            "invalid_model_output",
+            "invalid_request",
+            "invalid_tool_argument",
+            "multiple_statements",
+            "no_source_table",
+            "reference_leakage",
+            "row_limit_exceeded",
+            "sql_parse_error",
+            "timeout",
+            "unknown_column",
+            "unknown_table",
+            "unsupported_sql",
+            "unsupported_tool",
+            "verification_failed"
+          ]
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "stage": {
+          "enum": [
+            "request",
+            "retrieval",
+            "planning",
+            "validation",
+            "execution",
+            "verification",
+            "serialization"
+          ]
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "detail": {
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "stage"
+      ],
+      "additionalProperties": false
+    },
+    "diagnostics": {
+      "type": "object",
+      "properties": {
+        "contract_version": {
+          "const": "0.1.0"
+        },
+        "question_id": {
+          "$ref": "#/$defs/question_id"
+        },
+        "business_id": {
+          "$ref": "#/$defs/business_id"
+        },
+        "as_of_date": {
+          "$ref": "#/$defs/iso_date"
+        },
+        "execution_status": {
+          "$ref": "#/$defs/execution_status"
+        },
+        "reason_code": {
+          "$ref": "#/$defs/reason_code"
+        },
+        "answer_type": {
+          "$ref": "#/$defs/answer_type"
+        },
+        "duration_ms": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "retrieval": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "tool_calls": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "verification": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/verification"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/error"
+          }
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "environment": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "answer_type",
+        "business_id",
+        "contract_version",
+        "execution_status",
+        "question_id",
+        "reason_code"
+      ],
+      "additionalProperties": false
+    },
+    "request": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/question_id"
+        },
+        "business_id": {
+          "$ref": "#/$defs/business_id"
+        },
+        "question": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "as_of_date": {
+          "$ref": "#/$defs/iso_date"
+        }
+      },
+      "required": [
+        "as_of_date",
+        "business_id",
+        "id",
+        "question"
+      ],
+      "additionalProperties": false
+    },
+    "submission": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/question_id"
+        },
+        "type": {
+          "$ref": "#/$defs/answer_type"
+        },
+        "answer": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/scalar"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/scalar"
+              }
+            },
+            {
+              "$ref": "#/$defs/table_answer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "alias": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/scalar"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/scalar"
+                }
+              }
+            ]
+          }
+        }
+      },
+      "required": [
+        "answer",
+        "id",
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    "business_context": {
+      "type": "object",
+      "properties": {
+        "business_id": {
+          "$ref": "#/$defs/business_id"
+        },
+        "as_of_date": {
+          "$ref": "#/$defs/iso_date"
+        },
+        "catalog_status": {
+          "enum": [
+            "verified",
+            "partial",
+            "blocked",
+            "missing"
+          ]
+        },
+        "tables": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/table_context"
+          }
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_ref"
+          }
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "as_of_date",
+        "business_id",
+        "catalog_status",
+        "sources",
+        "tables"
+      ],
+      "additionalProperties": false
+    },
+    "retrieval_context": {
+      "type": "object",
+      "properties": {
+        "question_id": {
+          "$ref": "#/$defs/question_id"
+        },
+        "business_id": {
+          "$ref": "#/$defs/business_id"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_ref"
+          }
+        },
+        "sections": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "enum": [
+                  "readme",
+                  "rulebook",
+                  "calendar",
+                  "schema",
+                  "entity",
+                  "sample"
+                ]
+              },
+              "source_ref": {
+                "type": "string",
+                "minLength": 1
+              },
+              "text": {
+                "type": "string"
+              },
+              "why": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "kind",
+              "source_ref",
+              "text",
+              "why"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "token_estimate": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "business_id",
+        "question_id",
+        "sections",
+        "sources",
+        "token_estimate"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "x-schemas": {
+    "request": {
+      "$ref": "#/$defs/request"
+    },
+    "business_context": {
+      "$ref": "#/$defs/business_context"
+    },
+    "retrieval_context": {
+      "$ref": "#/$defs/retrieval_context"
+    },
+    "plan": {
+      "$ref": "#/$defs/plan"
+    },
+    "answer": {
+      "$ref": "#/$defs/answer"
+    },
+    "tool_call": {
+      "$ref": "#/$defs/tool_call"
+    },
+    "sql_validation": {
+      "$ref": "#/$defs/sql_validation"
+    },
+    "verification": {
+      "$ref": "#/$defs/verification"
+    },
+    "submission": {
+      "$ref": "#/$defs/submission"
+    },
+    "diagnostics": {
+      "$ref": "#/$defs/diagnostics"
+    },
+    "error": {
+      "$ref": "#/$defs/error"
+    }
+  },
+  "x-retrieval-policy": {
+    "mode": "schema_aware_lexical_plus_deterministic_entity_lookup",
+    "dense_index": false,
+    "rationale": "Per-business schemas are small and the verified catalog is the source of truth; no embedding corpus or embedding budget is established for v0.",
+    "retrieval_units": [
+      "business README and rulebook sections",
+      "verified table, column, grain and key metadata",
+      "aliases and distinct entity values",
+      "calendar and as_of_date rules",
+      "query results and their provenance"
+    ],
+    "provenance_required": true,
+    "max_rounds": 2,
+    "input_token_estimate": 1500,
+    "normalisation": [
+      "casefold",
+      "strip Vietnamese diacritics for matching",
+      "collapse punctuation and whitespace",
+      "retain the original data value for string/list answers"
+    ],
+    "exclusions": [
+      "gold answers",
+      "answer references",
+      "public-test labels",
+      "evaluation scores"
+    ]
+  },
+  "x-budgets": {
+    "status": "candidate",
+    "values": {
+      "max_input_tokens": {
+        "value": 1500,
+        "unit": "tokens",
+        "status": "candidate",
+        "rationale": "bounded grounded context; confirm with model tokenizer and quality comparison"
+      },
+      "max_tool_calls": {
+        "value": 6,
+        "unit": "calls",
+        "status": "candidate",
+        "rationale": "schema + entity + sample + SQL + one repair round"
+      },
+      "max_retrieval_rounds": {
+        "value": 2,
+        "unit": "rounds",
+        "status": "candidate",
+        "rationale": "initial context plus one targeted evidence request"
+      },
+      "max_sql_attempts": {
+        "value": 3,
+        "unit": "attempts",
+        "status": "candidate",
+        "rationale": "initial SQL plus two corrective retries (two retries, not two total attempts)"
+      },
+      "max_result_rows": {
+        "value": 200,
+        "unit": "rows",
+        "status": "candidate",
+        "rationale": "bounds verifier and diagnostic size"
+      },
+      "max_sample_rows": {
+        "value": 5,
+        "unit": "rows",
+        "status": "candidate",
+        "rationale": "enough to inspect formats without leaking a dataset"
+      },
+      "query_timeout_ms": {
+        "value": 15000,
+        "unit": "milliseconds",
+        "status": "candidate",
+        "rationale": "local DataFusion query guard"
+      },
+      "question_timeout_ms": {
+        "value": 30000,
+        "unit": "milliseconds",
+        "status": "candidate",
+        "rationale": "end-to-end question guard under offline evaluation"
+      }
+    }
+  },
+  "x-tool-contracts": [
+    {
+      "name": "get_schema",
+      "purpose": "Return verified table and column metadata for the current business.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "tables": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "detail": {
+            "enum": [
+              "summary",
+              "full"
+            ]
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "catalog_status": {
+            "enum": [
+              "verified",
+              "partial",
+              "blocked",
+              "missing"
+            ]
+          },
+          "tables": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/table_context"
+            }
+          }
+        },
+        "required": [
+          "catalog_status",
+          "tables"
+        ],
+        "additionalProperties": false
+      },
+      "limits": {
+        "timeout_ms": 2000,
+        "max_tables": 21
+      },
+      "errors": [
+        "catalog_unavailable",
+        "invalid_tool_argument"
+      ]
+    },
+    {
+      "name": "search_entities",
+      "purpose": "Resolve product/customer/supplier mentions against catalog aliases and distinct values.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1
+          },
+          "tables": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          },
+          "min_score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "enum": [
+              "resolved",
+              "ambiguous",
+              "unmatched"
+            ]
+          },
+          "matches": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "string"
+                },
+                "score": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "table": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "minLength": 0
+                },
+                "column": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "minLength": 0
+                },
+                "source_ref": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "minLength": 0
+                }
+              },
+              "required": [
+                "score",
+                "value"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "reason_code": {
+            "enum": [
+              "ok",
+              "ambiguous_entity",
+              "insufficient_evidence"
+            ]
+          }
+        },
+        "required": [
+          "matches",
+          "reason_code",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "limits": {
+        "timeout_ms": 2000,
+        "max_matches": 50
+      },
+      "errors": [
+        "invalid_tool_argument",
+        "catalog_unavailable"
+      ]
+    },
+    {
+      "name": "sample_rows",
+      "purpose": "Show a deterministic, tiny sample of a verified table for value/format inspection.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "table": {
+            "type": "string",
+            "minLength": 1
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          }
+        },
+        "required": [
+          "table"
+        ],
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "table": {
+            "type": "string"
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/cell"
+              }
+            }
+          },
+          "row_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5
+          },
+          "source_ref": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "columns",
+          "row_count",
+          "rows",
+          "source_ref",
+          "table"
+        ],
+        "additionalProperties": false
+      },
+      "limits": {
+        "timeout_ms": 3000,
+        "max_rows": 5
+      },
+      "errors": [
+        "invalid_tool_argument",
+        "unknown_table",
+        "unknown_column",
+        "timeout"
+      ]
+    },
+    {
+      "name": "run_sql",
+      "purpose": "Plan and execute exactly one read-only SELECT over verified tables.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "sql": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20000
+          },
+          "max_rows": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          },
+          "purpose": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sql"
+        ],
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "columns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/cell"
+              }
+            }
+          },
+          "row_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "elapsed_ms": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sql_validation": {
+            "$ref": "#/$defs/sql_validation"
+          },
+          "source_refs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "columns",
+          "row_count",
+          "rows",
+          "sql_validation",
+          "truncated"
+        ],
+        "additionalProperties": false
+      },
+      "limits": {
+        "timeout_ms": 15000,
+        "max_rows": 200,
+        "max_statements": 1
+      },
+      "errors": [
+        "sql_parse_error",
+        "multiple_statements",
+        "forbidden_statement",
+        "forbidden_function",
+        "forbidden_table_reference",
+        "unknown_table",
+        "unknown_column",
+        "no_source_table",
+        "row_limit_exceeded",
+        "timeout",
+        "budget_exhausted"
+      ]
+    }
+  ],
+  "x-outcome-mapping": {
+    "ok": {
+      "execution_status": "answered",
+      "submission_type": "answer_type",
+      "score_expectation": "full",
+      "note": "Concrete typed answer backed by verified evidence."
+    },
+    "invalid_request": {
+      "execution_status": "abstain",
+      "submission_type": "unanswerable",
+      "score_expectation": "zero_preferred",
+      "note": "Request failed validation; no safe answer."
+    },
+    "invalid_model_output": {
+      "execution_status": "abstain",
+      "submission_type": "unanswerable",
+      "score_expectation": "zero_preferred",
+      "note": "Model output was unparseable or ungrounded."
+    },
+    "ambiguous_question": {
+      "execution_status": "abstain",
+      "submission_type": "unanswerable",
+      "score_expectation": "zero_preferred",
+      "note": "Question meaning remains unresolved."
+    },
+    "ambiguous_entity": {
+      "execution_status": "abstain",
+      "submission_type": "unanswerable",
+      "score_expectation": "zero_preferred",
+      "note": "Entity match remains ambiguous after retrieval."
+    },
+    "blocked_on_catalog": {
+      "execution_status": "abstain",
+      "submission_type": "unanswerable",
+      "score_expectation": "zero_preferred",
+      "note": "Verified catalog is unavailable or incomplete."
+    },
+    "source_missing": {
+      "execution_status": "abstain",
+      "submission_type": "unanswerable",
+      "score_expectation": "zero_preferred",
+      "note": "An expected runtime source file/table is absent."
+    },
+    "unsupported_source_role": {
+      "execution_status": "unanswerable",
+      "submission_type": "unanswerable",
+      "score_expectation": "zero_expected",
+      "note": "The required source role is proven absent from the business package."
+    },
+    "period_out_of_coverage": {
+      "execution_status": "unanswerable",
+      "submission_type": "unanswerable",
+      "score_expectation": "zero_expected",
+      "note": "The whole requested period is outside measured data coverage."
+    },
+    "subjective_information": {
+      "execution_status": "unanswerable",
+      "submission_type": "unanswerable",
+      "score_expectation": "zero_expected",
+      "note": "The data cannot record the requested subjective fact."
+    },
+    "insufficient_evidence": {
+      "execution_status": "abstain",
+      "submission_type": "unanswerable",
+      "score_expectation": "zero_preferred",
+      "note": "Result was empty, null or unverifiable."
+    },
+    "execution_error": {
+      "execution_status": "abstain",
+      "submission_type": "unanswerable",
+      "score_expectation": "zero_preferred",
+      "note": "Read-only execution failed."
+    },
+    "timeout": {
+      "execution_status": "abstain",
+      "submission_type": "unanswerable",
+      "score_expectation": "zero_preferred",
+      "note": "Question or query deadline was exceeded."
+    },
+    "budget_exhausted": {
+      "execution_status": "abstain",
+      "submission_type": "unanswerable",
+      "score_expectation": "zero_preferred",
+      "note": "Tool/retry/token budget was exhausted."
+    },
+    "schema_mismatch": {
+      "execution_status": "abstain",
+      "submission_type": "unanswerable",
+      "score_expectation": "zero_preferred",
+      "note": "Runtime schema disagrees with the verified catalog."
+    },
+    "verification_failed": {
+      "execution_status": "abstain",
+      "submission_type": "unanswerable",
+      "score_expectation": "zero_preferred",
+      "note": "Evidence, grain, unit or answer-shape check failed."
+    }
+  },
+  "x-open-decisions": [
+    {
+      "id": "model_runtime",
+      "owner": "Member 4 / lead",
+      "status": "open",
+      "question": "Which offline GGUF model and runtime meet quality, latency and memory limits?"
+    },
+    {
+      "id": "dense_retrieval",
+      "owner": "Member 3 / lead",
+      "status": "open",
+      "question": "Does dense retrieval beat schema-aware lexical retrieval on development traces?"
+    },
+    {
+      "id": "budgets",
+      "owner": "lead",
+      "status": "open",
+      "question": "Are the candidate token, tool, retry, row and timeout limits approved?"
+    },
+    {
+      "id": "submission_alias",
+      "owner": "Member 5",
+      "status": "open",
+      "question": "Does the evaluator accept the optional alias field for every answer type?"
+    },
+    {
+      "id": "normalisation_functions",
+      "owner": "Member 4",
+      "status": "open",
+      "question": "Are product normalisation keys materialised or implemented as DataFusion functions?"
+    },
+    {
+      "id": "datafusion_pin",
+      "owner": "Member 4 / lead",
+      "status": "open",
+      "question": "Should the project pin DataFusion 55.0.0 instead of the current >=43 range?"
+    },
+    {
+      "id": "biz_105_join_measurement",
+      "owner": "Member 1",
+      "status": "open",
+      "question": "Which candidate biz_105 name joins have measured uniqueness and coverage?"
+    },
+    {
+      "id": "biz_105_duplicate_rows",
+      "owner": "Member 2 / lead",
+      "status": "open",
+      "question": "How should the 2,222 duplicate-excess sales rows be handled per rulebook §8?"
+    }
+  ],
+  "x-examples": [
+    {
+      "name": "answer_number",
+      "target": "answer",
+      "expect": "valid",
+      "validator": "schema",
+      "instance": {
+        "type": "number",
+        "answer": 123456
+      }
+    },
+    {
+      "name": "answer_percent",
+      "target": "answer",
+      "expect": "valid",
+      "validator": "schema",
+      "instance": {
+        "type": "percent",
+        "answer": 12.35
+      }
+    },
+    {
+      "name": "answer_date",
+      "target": "answer",
+      "expect": "valid",
+      "validator": "schema",
+      "instance": {
+        "type": "date",
+        "answer": "2026-05"
+      }
+    },
+    {
+      "name": "answer_boolean",
+      "target": "answer",
+      "expect": "valid",
+      "validator": "schema",
+      "instance": {
+        "type": "boolean",
+        "answer": true
+      }
+    },
+    {
+      "name": "answer_string",
+      "target": "answer",
+      "expect": "valid",
+      "validator": "schema",
+      "instance": {
+        "type": "string",
+        "answer": "Synthetic product name"
+      }
+    },
+    {
+      "name": "answer_list",
+      "target": "answer",
+      "expect": "valid",
+      "validator": "schema",
+      "instance": {
+        "type": "list",
+        "answer": [
+          3,
+          10
+        ]
+      }
+    },
+    {
+      "name": "answer_table",
+      "target": "answer",
+      "expect": "valid",
+      "validator": "schema",
+      "instance": {
+        "type": "table",
+        "answer": {
+          "columns": [
+            "khach_hang",
+            "so_tien_no"
+          ],
+          "rows": [
+            [
+              "Synthetic customer",
+              100000
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "answer_unanswerable",
+      "target": "answer",
+      "expect": "valid",
+      "validator": "schema",
+      "instance": {
+        "type": "unanswerable",
+        "answer": null
+      }
+    },
+    {
+      "name": "request_biz_105",
+      "target": "request",
+      "expect": "valid",
+      "validator": "schema",
+      "instance": {
+        "id": "q_synthetic0001",
+        "business_id": "biz_105",
+        "question": "tong doanh thu thang 5/2026 la bao nhieu",
+        "as_of_date": "2026-06-24"
+      }
+    },
+    {
+      "name": "plan_biz_105_revenue",
+      "target": "plan",
+      "expect": "valid",
+      "validator": "schema",
+      "instance": {
+        "intent": "revenue",
+        "metric": "sum(Trá»‹ giÃ¡)",
+        "time": {
+          "raw_text": "thÃ¡ng 5/2026",
+          "mode": "month",
+          "start": "2026-05-01",
+          "end": "2026-05-31",
+          "as_of_date": "2026-06-24",
+          "calendar_rule": "explicit month",
+          "coverage": "full"
+        },
+        "entities": [],
+        "filters": [],
+        "group_by": [],
+        "order_by": [],
+        "limit": null,
+        "answer_type": "number",
+        "expected_shape": "scalar",
+        "sources": [
+          {
+            "source_ref": "catalog:biz_105:sales",
+            "kind": "catalog",
+            "table": "sales",
+            "column": null,
+            "locator": null,
+            "retrieved_for": "schema grounding"
+          }
+        ],
+        "steps": [
+          {
+            "step_id": 1,
+            "tool": "get_schema",
+            "purpose": "confirm the sales date and amount columns",
+            "args": {
+              "tables": [
+                "biz_105_sales"
+              ]
+            },
+            "sql": null,
+            "depends_on": []
+          },
+          {
+            "step_id": 2,
+            "tool": "run_sql",
+            "purpose": "sum line revenue for the requested month",
+            "args": {
+              "sql": "SELECT SUM(s.\"Trá»‹ giÃ¡\") AS revenue FROM \"biz_105_sales\" AS s WHERE s.\"NgÃ y giao dá»‹ch\" >= DATE '2026-05-01' AND s.\"NgÃ y giao dá»‹ch\" < DATE '2026-06-01'",
+              "max_rows": 1
+            },
+            "sql": "SELECT SUM(s.\"Trá»‹ giÃ¡\") AS revenue FROM \"biz_105_sales\" AS s WHERE s.\"NgÃ y giao dá»‹ch\" >= DATE '2026-05-01' AND s.\"NgÃ y giao dá»‹ch\" < DATE '2026-06-01'",
+            "depends_on": [
+              1
+            ]
+          }
+        ],
+        "assumptions": [
+          "one row is one sales line for biz_105",
+          "period is fully covered by the verified date range"
+        ],
+        "unknowns": [],
+        "confidence": 0.82
+      }
+    },
+    {
+      "name": "result_answered_number",
+      "target": "result",
+      "expect": "valid",
+      "validator": "schema",
+      "instance": {
+        "contract_version": "0.1.0",
+        "question_id": "q_synthetic0001",
+        "business_id": "biz_105",
+        "execution_status": "answered",
+        "reason_code": "ok",
+        "answer": {
+          "type": "number",
+          "answer": 123456
+        },
+        "plan": {
+          "intent": "revenue",
+          "metric": "sum(Trá»‹ giÃ¡)",
+          "time": {
+            "raw_text": "thÃ¡ng 5/2026",
+            "mode": "month",
+            "start": "2026-05-01",
+            "end": "2026-05-31",
+            "as_of_date": "2026-06-24",
+            "calendar_rule": "explicit month",
+            "coverage": "full"
+          },
+          "entities": [],
+          "filters": [],
+          "group_by": [],
+          "order_by": [],
+          "limit": null,
+          "answer_type": "number",
+          "expected_shape": "scalar",
+          "sources": [
+            {
+              "source_ref": "catalog:biz_105:sales",
+              "kind": "catalog",
+              "table": "sales",
+              "column": null,
+              "locator": null,
+              "retrieved_for": "schema grounding"
+            }
+          ],
+          "steps": [
+            {
+              "step_id": 1,
+              "tool": "get_schema",
+              "purpose": "confirm the sales date and amount columns",
+              "args": {
+                "tables": [
+                  "biz_105_sales"
+                ]
+              },
+              "sql": null,
+              "depends_on": []
+            },
+            {
+              "step_id": 2,
+              "tool": "run_sql",
+              "purpose": "sum line revenue for the requested month",
+              "args": {
+                "sql": "SELECT SUM(s.\"Trá»‹ giÃ¡\") AS revenue FROM \"biz_105_sales\" AS s WHERE s.\"NgÃ y giao dá»‹ch\" >= DATE '2026-05-01' AND s.\"NgÃ y giao dá»‹ch\" < DATE '2026-06-01'",
+                "max_rows": 1
+              },
+              "sql": "SELECT SUM(s.\"Trá»‹ giÃ¡\") AS revenue FROM \"biz_105_sales\" AS s WHERE s.\"NgÃ y giao dá»‹ch\" >= DATE '2026-05-01' AND s.\"NgÃ y giao dá»‹ch\" < DATE '2026-06-01'",
+              "depends_on": [
+                1
+              ]
+            }
+          ],
+          "assumptions": [
+            "one row is one sales line for biz_105",
+            "period is fully covered by the verified date range"
+          ],
+          "unknowns": [],
+          "confidence": 0.82
+        },
+        "evidence": [
+          {
+            "source_ref": "catalog:biz_105:sales",
+            "kind": "catalog",
+            "table": "sales",
+            "column": null,
+            "locator": null,
+            "supports": "verified schema, grain and coverage for the referenced table"
+          }
+        ],
+        "tool_calls": [
+          {
+            "call_id": "tc_1",
+            "tool": "get_schema",
+            "status": "ok",
+            "args": {},
+            "elapsed_ms": 12,
+            "row_count": null,
+            "rows_returned": 0,
+            "error": null,
+            "source_refs": [
+              "catalog:biz_105:sales"
+            ],
+            "sql_validation": null
+          },
+          {
+            "call_id": "tc_2",
+            "tool": "run_sql",
+            "status": "ok",
+            "args": {},
+            "elapsed_ms": 12,
+            "row_count": 1,
+            "rows_returned": 1,
+            "error": null,
+            "source_refs": [
+              "catalog:biz_105:sales"
+            ],
+            "sql_validation": {
+              "ok": true,
+              "statement_type": "select",
+              "tables": [
+                "biz_105_sales"
+              ],
+              "ctes": [],
+              "plan_checked": true,
+              "columns_checked": true,
+              "warnings": []
+            }
+          }
+        ],
+        "verification": {
+          "passed": true,
+          "checks": [
+            {
+              "name": "answer_shape",
+              "status": "pass",
+              "detail": "number"
+            },
+            {
+              "name": "citations_grounded",
+              "status": "pass",
+              "detail": "1 source"
+            },
+            {
+              "name": "result_rows",
+              "status": "pass",
+              "detail": "1"
+            },
+            {
+              "name": "null_answer",
+              "status": "pass",
+              "detail": ""
+            }
+          ],
+          "evidence_sufficient": true,
+          "answer_type_matches": true,
+          "date_coverage": "full",
+          "grain_checked": true,
+          "dedup_applied": true,
+          "unit_conversion_checked": false,
+          "plan_checked": true,
+          "residual_risks": [],
+          "reason_code": "ok"
+        },
+        "budgets": {
+          "input_tokens": 900,
+          "tool_calls": 2,
+          "retrieval_rounds": 1,
+          "sql_attempts": 1,
+          "result_rows": 1,
+          "elapsed_ms": 4200,
+          "limits": {
+            "max_input_tokens": 1500,
+            "max_tool_calls": 6,
+            "max_retrieval_rounds": 2,
+            "max_sql_attempts": 3,
+            "max_result_rows": 200,
+            "max_sample_rows": 5,
+            "query_timeout_ms": 15000,
+            "question_timeout_ms": 30000
+          }
+        },
+        "errors": [],
+        "diagnostics": {
+          "contract_version": "0.1.0",
+          "question_id": "q_synthetic0001",
+          "business_id": "biz_105",
+          "as_of_date": "2026-06-24",
+          "execution_status": "answered",
+          "reason_code": "ok",
+          "answer_type": "number",
+          "duration_ms": 4200,
+          "retrieval": {
+            "rounds": 1,
+            "sources": [
+              "catalog:biz_105:sales"
+            ]
+          },
+          "tool_calls": [],
+          "verification": null,
+          "errors": [],
+          "notes": [],
+          "environment": {
+            "contract_version": "0.1.0",
+            "datafusion_version": "55.0.0",
+            "runtime": "offline"
+          }
+        }
+      }
+    },
+    {
+      "name": "result_unanswerable_source_role",
+      "target": "result",
+      "expect": "valid",
+      "validator": "schema",
+      "instance": {
+        "contract_version": "0.1.0",
+        "question_id": "q_synthetic0001",
+        "business_id": "biz_105",
+        "execution_status": "unanswerable",
+        "reason_code": "unsupported_source_role",
+        "answer": {
+          "type": "unanswerable",
+          "answer": null
+        },
+        "plan": null,
+        "evidence": [
+          {
+            "source_ref": "catalog:biz_105:roles",
+            "kind": "catalog",
+            "supports": "no employee-feedback source role exists"
+          }
+        ],
+        "tool_calls": [
+          {
+            "call_id": "tc_1",
+            "tool": "get_schema",
+            "status": "ok",
+            "args": {},
+            "elapsed_ms": 12,
+            "row_count": null,
+            "rows_returned": 0,
+            "error": null,
+            "source_refs": [
+              "catalog:biz_105:sales"
+            ],
+            "sql_validation": null
+          }
+        ],
+        "verification": {
+          "passed": true,
+          "checks": [
+            {
+              "name": "outcome_consistency",
+              "status": "pass",
+              "detail": ""
+            },
+            {
+              "name": "reason_mapping",
+              "status": "pass",
+              "detail": "proven absence"
+            }
+          ],
+          "evidence_sufficient": false,
+          "answer_type_matches": true,
+          "date_coverage": "full",
+          "grain_checked": true,
+          "dedup_applied": false,
+          "unit_conversion_checked": false,
+          "plan_checked": false,
+          "residual_risks": [],
+          "reason_code": "unsupported_source_role"
+        },
+        "budgets": {
+          "input_tokens": 900,
+          "tool_calls": 1,
+          "retrieval_rounds": 1,
+          "sql_attempts": 0,
+          "result_rows": 0,
+          "elapsed_ms": 4200,
+          "limits": {
+            "max_input_tokens": 1500,
+            "max_tool_calls": 6,
+            "max_retrieval_rounds": 2,
+            "max_sql_attempts": 3,
+            "max_result_rows": 200,
+            "max_sample_rows": 5,
+            "query_timeout_ms": 15000,
+            "question_timeout_ms": 30000
+          }
+        },
+        "errors": [],
+        "diagnostics": {
+          "contract_version": "0.1.0",
+          "question_id": "q_synthetic0001",
+          "business_id": "biz_105",
+          "as_of_date": "2026-06-24",
+          "execution_status": "unanswerable",
+          "reason_code": "unsupported_source_role",
+          "answer_type": "unanswerable",
+          "duration_ms": 4200,
+          "retrieval": {
+            "rounds": 1,
+            "sources": [
+              "catalog:biz_105:sales"
+            ]
+          },
+          "tool_calls": [],
+          "verification": null,
+          "errors": [],
+          "notes": [],
+          "environment": {
+            "contract_version": "0.1.0",
+            "datafusion_version": "55.0.0",
+            "runtime": "offline"
+          }
+        }
+      }
+    },
+    {
+      "name": "result_abstain_ambiguous_entity",
+      "target": "result",
+      "expect": "valid",
+      "validator": "schema",
+      "instance": {
+        "contract_version": "0.1.0",
+        "question_id": "q_synthetic0001",
+        "business_id": "biz_105",
+        "execution_status": "abstain",
+        "reason_code": "ambiguous_entity",
+        "answer": {
+          "type": "unanswerable",
+          "answer": null
+        },
+        "plan": null,
+        "evidence": [
+          {
+            "source_ref": "catalog:biz_105:sales",
+            "kind": "catalog",
+            "table": "sales",
+            "column": null,
+            "locator": null,
+            "supports": "verified schema, grain and coverage for the referenced table"
+          }
+        ],
+        "tool_calls": [
+          {
+            "call_id": "tc_1",
+            "tool": "search_entities",
+            "status": "ok",
+            "args": {},
+            "elapsed_ms": 12,
+            "row_count": 3,
+            "rows_returned": 3,
+            "error": null,
+            "source_refs": [
+              "catalog:biz_105:sales"
+            ],
+            "sql_validation": null
+          }
+        ],
+        "verification": {
+          "passed": true,
+          "checks": [
+            {
+              "name": "answer_shape",
+              "status": "pass",
+              "detail": ""
+            },
+            {
+              "name": "citations_grounded",
+              "status": "pass",
+              "detail": ""
+            },
+            {
+              "name": "result_rows",
+              "status": "pass",
+              "detail": ""
+            }
+          ],
+          "evidence_sufficient": false,
+          "answer_type_matches": true,
+          "date_coverage": "full",
+          "grain_checked": true,
+          "dedup_applied": false,
+          "unit_conversion_checked": false,
+          "plan_checked": false,
+          "residual_risks": [],
+          "reason_code": "ambiguous_entity"
+        },
+        "budgets": {
+          "input_tokens": 900,
+          "tool_calls": 1,
+          "retrieval_rounds": 1,
+          "sql_attempts": 0,
+          "result_rows": 3,
+          "elapsed_ms": 4200,
+          "limits": {
+            "max_input_tokens": 1500,
+            "max_tool_calls": 6,
+            "max_retrieval_rounds": 2,
+            "max_sql_attempts": 3,
+            "max_result_rows": 200,
+            "max_sample_rows": 5,
+            "query_timeout_ms": 15000,
+            "question_timeout_ms": 30000
+          }
+        },
+        "errors": [
+          {
+            "code": "ambiguous_entity",
+            "message": "two product names matched with insufficient margin",
+            "stage": "retrieval",
+            "retryable": false,
+            "detail": null
+          }
+        ],
+        "diagnostics": {
+          "contract_version": "0.1.0",
+          "question_id": "q_synthetic0001",
+          "business_id": "biz_105",
+          "as_of_date": "2026-06-24",
+          "execution_status": "abstain",
+          "reason_code": "ambiguous_entity",
+          "answer_type": "unanswerable",
+          "duration_ms": 4200,
+          "retrieval": {
+            "rounds": 1,
+            "sources": [
+              "catalog:biz_105:sales"
+            ]
+          },
+          "tool_calls": [],
+          "verification": null,
+          "errors": [],
+          "notes": [],
+          "environment": {
+            "contract_version": "0.1.0",
+            "datafusion_version": "55.0.0",
+            "runtime": "offline"
+          }
+        }
+      }
+    },
+    {
+      "name": "result_abstain_execution_error",
+      "target": "result",
+      "expect": "valid",
+      "validator": "schema",
+      "instance": {
+        "contract_version": "0.1.0",
+        "question_id": "q_synthetic0001",
+        "business_id": "biz_105",
+        "execution_status": "abstain",
+        "reason_code": "execution_error",
+        "answer": {
+          "type": "unanswerable",
+          "answer": null
+        },
+        "plan": {
+          "intent": "revenue",
+          "metric": "sum(Trá»‹ giÃ¡)",
+          "time": {
+            "raw_text": "thÃ¡ng 5/2026",
+            "mode": "month",
+            "start": "2026-05-01",
+            "end": "2026-05-31",
+            "as_of_date": "2026-06-24",
+            "calendar_rule": "explicit month",
+            "coverage": "full"
+          },
+          "entities": [],
+          "filters": [],
+          "group_by": [],
+          "order_by": [],
+          "limit": null,
+          "answer_type": "number",
+          "expected_shape": "scalar",
+          "sources": [
+            {
+              "source_ref": "catalog:biz_105:sales",
+              "kind": "catalog",
+              "table": "sales",
+              "column": null,
+              "locator": null,
+              "retrieved_for": "schema grounding"
+            }
+          ],
+          "steps": [
+            {
+              "step_id": 1,
+              "tool": "get_schema",
+              "purpose": "confirm the sales date and amount columns",
+              "args": {
+                "tables": [
+                  "biz_105_sales"
+                ]
+              },
+              "sql": null,
+              "depends_on": []
+            },
+            {
+              "step_id": 2,
+              "tool": "run_sql",
+              "purpose": "sum line revenue for the requested month",
+              "args": {
+                "sql": "SELECT SUM(s.\"Trá»‹ giÃ¡\") AS revenue FROM \"biz_105_sales\" AS s WHERE s.\"NgÃ y giao dá»‹ch\" >= DATE '2026-05-01' AND s.\"NgÃ y giao dá»‹ch\" < DATE '2026-06-01'",
+                "max_rows": 1
+              },
+              "sql": "SELECT SUM(s.\"Trá»‹ giÃ¡\") AS revenue FROM \"biz_105_sales\" AS s WHERE s.\"NgÃ y giao dá»‹ch\" >= DATE '2026-05-01' AND s.\"NgÃ y giao dá»‹ch\" < DATE '2026-06-01'",
+              "depends_on": [
+                1
+              ]
+            }
+          ],
+          "assumptions": [
+            "one row is one sales line for biz_105",
+            "period is fully covered by the verified date range"
+          ],
+          "unknowns": [],
+          "confidence": 0.82
+        },
+        "evidence": [
+          {
+            "source_ref": "catalog:biz_105:sales",
+            "kind": "catalog",
+            "table": "sales",
+            "column": null,
+            "locator": null,
+            "supports": "verified schema, grain and coverage for the referenced table"
+          }
+        ],
+        "tool_calls": [
+          {
+            "call_id": "tc_1",
+            "tool": "run_sql",
+            "status": "error",
+            "args": {},
+            "elapsed_ms": 12,
+            "row_count": null,
+            "rows_returned": 0,
+            "error": {
+              "code": "internal_error",
+              "message": "query execution failed",
+              "stage": "execution",
+              "retryable": true,
+              "detail": null
+            },
+            "source_refs": [
+              "catalog:biz_105:sales"
+            ],
+            "sql_validation": null
+          }
+        ],
+        "verification": {
+          "passed": true,
+          "checks": [
+            {
+              "name": "answer_shape",
+              "status": "pass",
+              "detail": ""
+            },
+            {
+              "name": "citations_grounded",
+              "status": "pass",
+              "detail": ""
+            },
+            {
+              "name": "result_rows",
+              "status": "pass",
+              "detail": ""
+            }
+          ],
+          "evidence_sufficient": false,
+          "answer_type_matches": true,
+          "date_coverage": "full",
+          "grain_checked": true,
+          "dedup_applied": false,
+          "unit_conversion_checked": false,
+          "plan_checked": false,
+          "residual_risks": [],
+          "reason_code": "execution_error"
+        },
+        "budgets": {
+          "input_tokens": 900,
+          "tool_calls": 1,
+          "retrieval_rounds": 1,
+          "sql_attempts": 1,
+          "result_rows": 0,
+          "elapsed_ms": 4200,
+          "limits": {
+            "max_input_tokens": 1500,
+            "max_tool_calls": 6,
+            "max_retrieval_rounds": 2,
+            "max_sql_attempts": 3,
+            "max_result_rows": 200,
+            "max_sample_rows": 5,
+            "query_timeout_ms": 15000,
+            "question_timeout_ms": 30000
+          }
+        },
+        "errors": [
+          {
+            "code": "internal_error",
+            "message": "query execution failed",
+            "stage": "execution",
+            "retryable": true,
+            "detail": null
+          }
+        ],
+        "diagnostics": {
+          "contract_version": "0.1.0",
+          "question_id": "q_synthetic0001",
+          "business_id": "biz_105",
+          "as_of_date": "2026-06-24",
+          "execution_status": "abstain",
+          "reason_code": "execution_error",
+          "answer_type": "unanswerable",
+          "duration_ms": 4200,
+          "retrieval": {
+            "rounds": 1,
+            "sources": [
+              "catalog:biz_105:sales"
+            ]
+          },
+          "tool_calls": [],
+          "verification": null,
+          "errors": [],
+          "notes": [],
+          "environment": {
+            "contract_version": "0.1.0",
+            "datafusion_version": "55.0.0",
+            "runtime": "offline"
+          }
+        }
+      }
+    },
+    {
+      "name": "result_abstain_unknown_column",
+      "target": "result",
+      "expect": "valid",
+      "validator": "schema",
+      "instance": {
+        "contract_version": "0.1.0",
+        "question_id": "q_synthetic0001",
+        "business_id": "biz_105",
+        "execution_status": "abstain",
+        "reason_code": "schema_mismatch",
+        "answer": {
+          "type": "unanswerable",
+          "answer": null
+        },
+        "plan": {
+          "intent": "revenue",
+          "metric": "sum(Trá»‹ giÃ¡)",
+          "time": {
+            "raw_text": "thÃ¡ng 5/2026",
+            "mode": "month",
+            "start": "2026-05-01",
+            "end": "2026-05-31",
+            "as_of_date": "2026-06-24",
+            "calendar_rule": "explicit month",
+            "coverage": "full"
+          },
+          "entities": [],
+          "filters": [],
+          "group_by": [],
+          "order_by": [],
+          "limit": null,
+          "answer_type": "number",
+          "expected_shape": "scalar",
+          "sources": [
+            {
+              "source_ref": "catalog:biz_105:sales",
+              "kind": "catalog",
+              "table": "sales",
+              "column": null,
+              "locator": null,
+              "retrieved_for": "schema grounding"
+            }
+          ],
+          "steps": [
+            {
+              "step_id": 1,
+              "tool": "get_schema",
+              "purpose": "confirm the sales date and amount columns",
+              "args": {
+                "tables": [
+                  "biz_105_sales"
+                ]
+              },
+              "sql": null,
+              "depends_on": []
+            },
+            {
+              "step_id": 2,
+              "tool": "run_sql",
+              "purpose": "sum line revenue for the requested month",
+              "args": {
+                "sql": "SELECT SUM(s.\"Trá»‹ giÃ¡\") AS revenue FROM \"biz_105_sales\" AS s WHERE s.\"NgÃ y giao dá»‹ch\" >= DATE '2026-05-01' AND s.\"NgÃ y giao dá»‹ch\" < DATE '2026-06-01'",
+                "max_rows": 1
+              },
+              "sql": "SELECT SUM(s.\"Trá»‹ giÃ¡\") AS revenue FROM \"biz_105_sales\" AS s WHERE s.\"NgÃ y giao dá»‹ch\" >= DATE '2026-05-01' AND s.\"NgÃ y giao dá»‹ch\" < DATE '2026-06-01'",
+              "depends_on": [
+                1
+              ]
+            }
+          ],
+          "assumptions": [
+            "one row is one sales line for biz_105",
+            "period is fully covered by the verified date range"
+          ],
+          "unknowns": [],
+          "confidence": 0.82
+        },
+        "evidence": [
+          {
+            "source_ref": "catalog:biz_105:sales",
+            "kind": "catalog",
+            "table": "sales",
+            "column": null,
+            "locator": null,
+            "supports": "verified schema, grain and coverage for the referenced table"
+          }
+        ],
+        "tool_calls": [
+          {
+            "call_id": "tc_1",
+            "tool": "run_sql",
+            "status": "error",
+            "args": {},
+            "elapsed_ms": 12,
+            "row_count": null,
+            "rows_returned": 0,
+            "error": {
+              "code": "unknown_column",
+              "message": "column is not present in the verified schema",
+              "stage": "validation",
+              "retryable": true,
+              "detail": null
+            },
+            "source_refs": [
+              "catalog:biz_105:sales"
+            ],
+            "sql_validation": null
+          }
+        ],
+        "verification": {
+          "passed": true,
+          "checks": [
+            {
+              "name": "answer_shape",
+              "status": "pass",
+              "detail": ""
+            },
+            {
+              "name": "citations_grounded",
+              "status": "pass",
+              "detail": ""
+            },
+            {
+              "name": "result_rows",
+              "status": "pass",
+              "detail": ""
+            }
+          ],
+          "evidence_sufficient": false,
+          "answer_type_matches": true,
+          "date_coverage": "full",
+          "grain_checked": true,
+          "dedup_applied": false,
+          "unit_conversion_checked": false,
+          "plan_checked": false,
+          "residual_risks": [],
+          "reason_code": "schema_mismatch"
+        },
+        "budgets": {
+          "input_tokens": 900,
+          "tool_calls": 1,
+          "retrieval_rounds": 1,
+          "sql_attempts": 1,
+          "result_rows": 0,
+          "elapsed_ms": 4200,
+          "limits": {
+            "max_input_tokens": 1500,
+            "max_tool_calls": 6,
+            "max_retrieval_rounds": 2,
+            "max_sql_attempts": 3,
+            "max_result_rows": 200,
+            "max_sample_rows": 5,
+            "query_timeout_ms": 15000,
+            "question_timeout_ms": 30000
+          }
+        },
+        "errors": [
+          {
+            "code": "unknown_column",
+            "message": "column is not present in the verified schema",
+            "stage": "validation",
+            "retryable": true,
+            "detail": null
+          }
+        ],
+        "diagnostics": {
+          "contract_version": "0.1.0",
+          "question_id": "q_synthetic0001",
+          "business_id": "biz_105",
+          "as_of_date": "2026-06-24",
+          "execution_status": "abstain",
+          "reason_code": "schema_mismatch",
+          "answer_type": "unanswerable",
+          "duration_ms": 4200,
+          "retrieval": {
+            "rounds": 1,
+            "sources": [
+              "catalog:biz_105:sales"
+            ]
+          },
+          "tool_calls": [],
+          "verification": null,
+          "errors": [],
+          "notes": [],
+          "environment": {
+            "contract_version": "0.1.0",
+            "datafusion_version": "55.0.0",
+            "runtime": "offline"
+          }
+        }
+      }
+    },
+    {
+      "name": "result_abstain_no_evidence",
+      "target": "result",
+      "expect": "valid",
+      "validator": "schema",
+      "instance": {
+        "contract_version": "0.1.0",
+        "question_id": "q_synthetic0001",
+        "business_id": "biz_105",
+        "execution_status": "abstain",
+        "reason_code": "insufficient_evidence",
+        "answer": {
+          "type": "unanswerable",
+          "answer": null
+        },
+        "plan": {
+          "intent": "revenue",
+          "metric": "sum(Trá»‹ giÃ¡)",
+          "time": {
+            "raw_text": "thÃ¡ng 5/2026",
+            "mode": "month",
+            "start": "2026-05-01",
+            "end": "2026-05-31",
+            "as_of_date": "2026-06-24",
+            "calendar_rule": "explicit month",
+            "coverage": "full"
+          },
+          "entities": [],
+          "filters": [],
+          "group_by": [],
+          "order_by": [],
+          "limit": null,
+          "answer_type": "number",
+          "expected_shape": "scalar",
+          "sources": [
+            {
+              "source_ref": "catalog:biz_105:sales",
+              "kind": "catalog",
+              "table": "sales",
+              "column": null,
+              "locator": null,
+              "retrieved_for": "schema grounding"
+            }
+          ],
+          "steps": [
+            {
+              "step_id": 1,
+              "tool": "get_schema",
+              "purpose": "confirm the sales date and amount columns",
+              "args": {
+                "tables": [
+                  "biz_105_sales"
+                ]
+              },
+              "sql": null,
+              "depends_on": []
+            },
+            {
+              "step_id": 2,
+              "tool": "run_sql",
+              "purpose": "sum line revenue for the requested month",
+              "args": {
+                "sql": "SELECT SUM(s.\"Trá»‹ giÃ¡\") AS revenue FROM \"biz_105_sales\" AS s WHERE s.\"NgÃ y giao dá»‹ch\" >= DATE '2026-05-01' AND s.\"NgÃ y giao dá»‹ch\" < DATE '2026-06-01'",
+                "max_rows": 1
+              },
+              "sql": "SELECT SUM(s.\"Trá»‹ giÃ¡\") AS revenue FROM \"biz_105_sales\" AS s WHERE s.\"NgÃ y giao dá»‹ch\" >= DATE '2026-05-01' AND s.\"NgÃ y giao dá»‹ch\" < DATE '2026-06-01'",
+              "depends_on": [
+                1
+              ]
+            }
+          ],
+          "assumptions": [
+            "one row is one sales line for biz_105",
+            "period is fully covered by the verified date range"
+          ],
+          "unknowns": [],
+          "confidence": 0.82
+        },
+        "evidence": [
+          {
+            "source_ref": "catalog:biz_105:sales",
+            "kind": "catalog",
+            "table": "sales",
+            "column": null,
+            "locator": null,
+            "supports": "verified schema, grain and coverage for the referenced table"
+          }
+        ],
+        "tool_calls": [
+          {
+            "call_id": "tc_1",
+            "tool": "run_sql",
+            "status": "ok",
+            "args": {},
+            "elapsed_ms": 12,
+            "row_count": 0,
+            "rows_returned": 0,
+            "error": null,
+            "source_refs": [
+              "catalog:biz_105:sales"
+            ],
+            "sql_validation": {
+              "ok": true,
+              "statement_type": "select",
+              "tables": [
+                "biz_105_sales"
+              ],
+              "ctes": [],
+              "plan_checked": true,
+              "columns_checked": true,
+              "warnings": []
+            }
+          }
+        ],
+        "verification": {
+          "passed": true,
+          "checks": [
+            {
+              "name": "result_rows",
+              "status": "fail",
+              "detail": "empty result"
+            }
+          ],
+          "evidence_sufficient": false,
+          "answer_type_matches": true,
+          "date_coverage": "full",
+          "grain_checked": true,
+          "dedup_applied": false,
+          "unit_conversion_checked": false,
+          "plan_checked": true,
+          "residual_risks": [],
+          "reason_code": "insufficient_evidence"
+        },
+        "budgets": {
+          "input_tokens": 900,
+          "tool_calls": 1,
+          "retrieval_rounds": 1,
+          "sql_attempts": 1,
+          "result_rows": 0,
+          "elapsed_ms": 4200,
+          "limits": {
+            "max_input_tokens": 1500,
+            "max_tool_calls": 6,
+            "max_retrieval_rounds": 2,
+            "max_sql_attempts": 3,
+            "max_result_rows": 200,
+            "max_sample_rows": 5,
+            "query_timeout_ms": 15000,
+            "question_timeout_ms": 30000
+          }
+        },
+        "errors": [],
+        "diagnostics": {
+          "contract_version": "0.1.0",
+          "question_id": "q_synthetic0001",
+          "business_id": "biz_105",
+          "as_of_date": "2026-06-24",
+          "execution_status": "abstain",
+          "reason_code": "insufficient_evidence",
+          "answer_type": "unanswerable",
+          "duration_ms": 4200,
+          "retrieval": {
+            "rounds": 1,
+            "sources": [
+              "catalog:biz_105:sales"
+            ]
+          },
+          "tool_calls": [],
+          "verification": null,
+          "errors": [],
+          "notes": [],
+          "environment": {
+            "contract_version": "0.1.0",
+            "datafusion_version": "55.0.0",
+            "runtime": "offline"
+          }
+        }
+      }
+    },
+    {
+      "name": "result_abstain_budget_exhausted",
+      "target": "result",
+      "expect": "valid",
+      "validator": "schema",
+      "instance": {
+        "contract_version": "0.1.0",
+        "question_id": "q_synthetic0001",
+        "business_id": "biz_105",
+        "execution_status": "abstain",
+        "reason_code": "budget_exhausted",
+        "answer": {
+          "type": "unanswerable",
+          "answer": null
+        },
+        "plan": {
+          "intent": "revenue",
+          "metric": "sum(Trá»‹ giÃ¡)",
+          "time": {
+            "raw_text": "thÃ¡ng 5/2026",
+            "mode": "month",
+            "start": "2026-05-01",
+            "end": "2026-05-31",
+            "as_of_date": "2026-06-24",
+            "calendar_rule": "explicit month",
+            "coverage": "full"
+          },
+          "entities": [],
+          "filters": [],
+          "group_by": [],
+          "order_by": [],
+          "limit": null,
+          "answer_type": "number",
+          "expected_shape": "scalar",
+          "sources": [
+            {
+              "source_ref": "catalog:biz_105:sales",
+              "kind": "catalog",
+              "table": "sales",
+              "column": null,
+              "locator": null,
+              "retrieved_for": "schema grounding"
+            }
+          ],
+          "steps": [
+            {
+              "step_id": 1,
+              "tool": "get_schema",
+              "purpose": "confirm the sales date and amount columns",
+              "args": {
+                "tables": [
+                  "biz_105_sales"
+                ]
+              },
+              "sql": null,
+              "depends_on": []
+            },
+            {
+              "step_id": 2,
+              "tool": "run_sql",
+              "purpose": "sum line revenue for the requested month",
+              "args": {
+                "sql": "SELECT SUM(s.\"Trá»‹ giÃ¡\") AS revenue FROM \"biz_105_sales\" AS s WHERE s.\"NgÃ y giao dá»‹ch\" >= DATE '2026-05-01' AND s.\"NgÃ y giao dá»‹ch\" < DATE '2026-06-01'",
+                "max_rows": 1
+              },
+              "sql": "SELECT SUM(s.\"Trá»‹ giÃ¡\") AS revenue FROM \"biz_105_sales\" AS s WHERE s.\"NgÃ y giao dá»‹ch\" >= DATE '2026-05-01' AND s.\"NgÃ y giao dá»‹ch\" < DATE '2026-06-01'",
+              "depends_on": [
+                1
+              ]
+            }
+          ],
+          "assumptions": [
+            "one row is one sales line for biz_105",
+            "period is fully covered by the verified date range"
+          ],
+          "unknowns": [],
+          "confidence": 0.82
+        },
+        "evidence": [
+          {
+            "source_ref": "catalog:biz_105:sales",
+            "kind": "catalog",
+            "table": "sales",
+            "column": null,
+            "locator": null,
+            "supports": "verified schema, grain and coverage for the referenced table"
+          }
+        ],
+        "tool_calls": [
+          {
+            "call_id": "tc_1",
+            "tool": "run_sql",
+            "status": "rejected",
+            "args": {},
+            "elapsed_ms": 12,
+            "row_count": null,
+            "rows_returned": 0,
+            "error": {
+              "code": "budget_exhausted",
+              "message": "SQL attempt budget exhausted",
+              "stage": "execution",
+              "retryable": false,
+              "detail": null
+            },
+            "source_refs": [
+              "catalog:biz_105:sales"
+            ],
+            "sql_validation": null
+          }
+        ],
+        "verification": {
+          "passed": true,
+          "checks": [
+            {
+              "name": "answer_shape",
+              "status": "pass",
+              "detail": ""
+            },
+            {
+              "name": "citations_grounded",
+              "status": "pass",
+              "detail": ""
+            },
+            {
+              "name": "result_rows",
+              "status": "pass",
+              "detail": ""
+            }
+          ],
+          "evidence_sufficient": false,
+          "answer_type_matches": true,
+          "date_coverage": "full",
+          "grain_checked": true,
+          "dedup_applied": false,
+          "unit_conversion_checked": false,
+          "plan_checked": false,
+          "residual_risks": [],
+          "reason_code": "budget_exhausted"
+        },
+        "budgets": {
+          "input_tokens": 900,
+          "tool_calls": 6,
+          "retrieval_rounds": 1,
+          "sql_attempts": 3,
+          "result_rows": 0,
+          "elapsed_ms": 29000,
+          "limits": {
+            "max_input_tokens": 1500,
+            "max_tool_calls": 6,
+            "max_retrieval_rounds": 2,
+            "max_sql_attempts": 3,
+            "max_result_rows": 200,
+            "max_sample_rows": 5,
+            "query_timeout_ms": 15000,
+            "question_timeout_ms": 30000
+          }
+        },
+        "errors": [
+          {
+            "code": "budget_exhausted",
+            "message": "SQL attempt budget exhausted",
+            "stage": "execution",
+            "retryable": false,
+            "detail": null
+          }
+        ],
+        "diagnostics": {
+          "contract_version": "0.1.0",
+          "question_id": "q_synthetic0001",
+          "business_id": "biz_105",
+          "as_of_date": "2026-06-24",
+          "execution_status": "abstain",
+          "reason_code": "budget_exhausted",
+          "answer_type": "unanswerable",
+          "duration_ms": 4200,
+          "retrieval": {
+            "rounds": 1,
+            "sources": [
+              "catalog:biz_105:sales"
+            ]
+          },
+          "tool_calls": [],
+          "verification": null,
+          "errors": [],
+          "notes": [],
+          "environment": {
+            "contract_version": "0.1.0",
+            "datafusion_version": "55.0.0",
+            "runtime": "offline"
+          }
+        }
+      }
+    },
+    {
+      "name": "result_abstain_blocked_catalog",
+      "target": "result",
+      "expect": "valid",
+      "validator": "schema",
+      "instance": {
+        "contract_version": "0.1.0",
+        "question_id": "q_synthetic0001",
+        "business_id": "biz_105",
+        "execution_status": "abstain",
+        "reason_code": "blocked_on_catalog",
+        "answer": {
+          "type": "unanswerable",
+          "answer": null
+        },
+        "plan": null,
+        "evidence": [
+          {
+            "source_ref": "catalog:biz_105:sales",
+            "kind": "catalog",
+            "table": "sales",
+            "column": null,
+            "locator": null,
+            "supports": "verified schema, grain and coverage for the referenced table"
+          }
+        ],
+        "tool_calls": [
+          {
+            "call_id": "tc_1",
+            "tool": "get_schema",
+            "status": "error",
+            "args": {},
+            "elapsed_ms": 12,
+            "row_count": null,
+            "rows_returned": 0,
+            "error": {
+              "code": "catalog_unavailable",
+              "message": "verified catalog is not available",
+              "stage": "retrieval",
+              "retryable": false,
+              "detail": null
+            },
+            "source_refs": [
+              "catalog:biz_105:sales"
+            ],
+            "sql_validation": null
+          }
+        ],
+        "verification": {
+          "passed": true,
+          "checks": [
+            {
+              "name": "answer_shape",
+              "status": "pass",
+              "detail": ""
+            },
+            {
+              "name": "citations_grounded",
+              "status": "pass",
+              "detail": ""
+            },
+            {
+              "name": "result_rows",
+              "status": "pass",
+              "detail": ""
+            }
+          ],
+          "evidence_sufficient": false,
+          "answer_type_matches": true,
+          "date_coverage": "full",
+          "grain_checked": true,
+          "dedup_applied": false,
+          "unit_conversion_checked": false,
+          "plan_checked": false,
+          "residual_risks": [],
+          "reason_code": "blocked_on_catalog"
+        },
+        "budgets": {
+          "input_tokens": 900,
+          "tool_calls": 1,
+          "retrieval_rounds": 1,
+          "sql_attempts": 0,
+          "result_rows": 0,
+          "elapsed_ms": 4200,
+          "limits": {
+            "max_input_tokens": 1500,
+            "max_tool_calls": 6,
+            "max_retrieval_rounds": 2,
+            "max_sql_attempts": 3,
+            "max_result_rows": 200,
+            "max_sample_rows": 5,
+            "query_timeout_ms": 15000,
+            "question_timeout_ms": 30000
+          }
+        },
+        "errors": [
+          {
+            "code": "catalog_unavailable",
+            "message": "verified catalog is not available",
+            "stage": "retrieval",
+            "retryable": false,
+            "detail": null
+          }
+        ],
+        "diagnostics": {
+          "contract_version": "0.1.0",
+          "question_id": "q_synthetic0001",
+          "business_id": "biz_105",
+          "as_of_date": "2026-06-24",
+          "execution_status": "abstain",
+          "reason_code": "blocked_on_catalog",
+          "answer_type": "unanswerable",
+          "duration_ms": 4200,
+          "retrieval": {
+            "rounds": 1,
+            "sources": [
+              "catalog:biz_105:sales"
+            ]
+          },
+          "tool_calls": [],
+          "verification": null,
+          "errors": [],
+          "notes": [],
+          "environment": {
+            "contract_version": "0.1.0",
+            "datafusion_version": "55.0.0",
+            "runtime": "offline"
+          }
+        }
+      }
+    },
+    {
+      "name": "result_abstain_parse_failure",
+      "target": "result",
+      "expect": "valid",
+      "validator": "schema",
+      "instance": {
+        "contract_version": "0.1.0",
+        "question_id": "q_synthetic0001",
+        "business_id": "biz_105",
+        "execution_status": "abstain",
+        "reason_code": "invalid_model_output",
+        "answer": {
+          "type": "unanswerable",
+          "answer": null
+        },
+        "plan": null,
+        "evidence": [
+          {
+            "source_ref": "catalog:biz_105:sales",
+            "kind": "catalog",
+            "table": "sales",
+            "column": null,
+            "locator": null,
+            "supports": "verified schema, grain and coverage for the referenced table"
+          }
+        ],
+        "tool_calls": [],
+        "verification": {
+          "passed": true,
+          "checks": [
+            {
+              "name": "answer_shape",
+              "status": "pass",
+              "detail": ""
+            },
+            {
+              "name": "citations_grounded",
+              "status": "pass",
+              "detail": ""
+            },
+            {
+              "name": "result_rows",
+              "status": "pass",
+              "detail": ""
+            }
+          ],
+          "evidence_sufficient": false,
+          "answer_type_matches": true,
+          "date_coverage": "full",
+          "grain_checked": true,
+          "dedup_applied": false,
+          "unit_conversion_checked": false,
+          "plan_checked": false,
+          "residual_risks": [],
+          "reason_code": "invalid_model_output"
+        },
+        "budgets": {
+          "input_tokens": 900,
+          "tool_calls": 0,
+          "retrieval_rounds": 1,
+          "sql_attempts": 0,
+          "result_rows": 0,
+          "elapsed_ms": 900,
+          "limits": {
+            "max_input_tokens": 1500,
+            "max_tool_calls": 6,
+            "max_retrieval_rounds": 2,
+            "max_sql_attempts": 3,
+            "max_result_rows": 200,
+            "max_sample_rows": 5,
+            "query_timeout_ms": 15000,
+            "question_timeout_ms": 30000
+          }
+        },
+        "errors": [
+          {
+            "code": "sql_parse_error",
+            "message": "model plan was not valid JSON",
+            "stage": "planning",
+            "retryable": true,
+            "detail": null
+          }
+        ],
+        "diagnostics": {
+          "contract_version": "0.1.0",
+          "question_id": "q_synthetic0001",
+          "business_id": "biz_105",
+          "as_of_date": "2026-06-24",
+          "execution_status": "abstain",
+          "reason_code": "invalid_model_output",
+          "answer_type": "unanswerable",
+          "duration_ms": 4200,
+          "retrieval": {
+            "rounds": 1,
+            "sources": [
+              "catalog:biz_105:sales"
+            ]
+          },
+          "tool_calls": [],
+          "verification": null,
+          "errors": [],
+          "notes": [],
+          "environment": {
+            "contract_version": "0.1.0",
+            "datafusion_version": "55.0.0",
+            "runtime": "offline"
+          }
+        }
+      }
+    },
+    {
+      "name": "submission_abstain",
+      "target": "submission",
+      "expect": "valid",
+      "validator": "schema",
+      "instance": {
+        "id": "q_synthetic0001",
+        "type": "unanswerable",
+        "answer": null
+      }
+    },
+    {
+      "name": "invalid_answer_shape",
+      "target": "answer",
+      "expect": "invalid",
+      "validator": "schema",
+      "expected_error": "number answer with null value",
+      "instance": {
+        "type": "number",
+        "answer": null
+      }
+    },
+    {
+      "name": "invalid_status_reason_mismatch",
+      "target": "result",
+      "expect": "invalid",
+      "validator": "contract",
+      "expected_error": "answered result must use reason_code ok",
+      "instance": {
+        "contract_version": "0.1.0",
+        "question_id": "q_synthetic0001",
+        "business_id": "biz_105",
+        "execution_status": "answered",
+        "reason_code": "execution_error",
+        "answer": {
+          "type": "number",
+          "answer": 5
+        },
+        "plan": {
+          "intent": "revenue",
+          "metric": "sum(Trá»‹ giÃ¡)",
+          "time": {
+            "raw_text": "thÃ¡ng 5/2026",
+            "mode": "month",
+            "start": "2026-05-01",
+            "end": "2026-05-31",
+            "as_of_date": "2026-06-24",
+            "calendar_rule": "explicit month",
+            "coverage": "full"
+          },
+          "entities": [],
+          "filters": [],
+          "group_by": [],
+          "order_by": [],
+          "limit": null,
+          "answer_type": "number",
+          "expected_shape": "scalar",
+          "sources": [
+            {
+              "source_ref": "catalog:biz_105:sales",
+              "kind": "catalog",
+              "table": "sales",
+              "column": null,
+              "locator": null,
+              "retrieved_for": "schema grounding"
+            }
+          ],
+          "steps": [
+            {
+              "step_id": 1,
+              "tool": "get_schema",
+              "purpose": "confirm the sales date and amount columns",
+              "args": {
+                "tables": [
+                  "biz_105_sales"
+                ]
+              },
+              "sql": null,
+              "depends_on": []
+            },
+            {
+              "step_id": 2,
+              "tool": "run_sql",
+              "purpose": "sum line revenue for the requested month",
+              "args": {
+                "sql": "SELECT SUM(s.\"Trá»‹ giÃ¡\") AS revenue FROM \"biz_105_sales\" AS s WHERE s.\"NgÃ y giao dá»‹ch\" >= DATE '2026-05-01' AND s.\"NgÃ y giao dá»‹ch\" < DATE '2026-06-01'",
+                "max_rows": 1
+              },
+              "sql": "SELECT SUM(s.\"Trá»‹ giÃ¡\") AS revenue FROM \"biz_105_sales\" AS s WHERE s.\"NgÃ y giao dá»‹ch\" >= DATE '2026-05-01' AND s.\"NgÃ y giao dá»‹ch\" < DATE '2026-06-01'",
+              "depends_on": [
+                1
+              ]
+            }
+          ],
+          "assumptions": [
+            "one row is one sales line for biz_105",
+            "period is fully covered by the verified date range"
+          ],
+          "unknowns": [],
+          "confidence": 0.82
+        },
+        "evidence": [
+          {
+            "source_ref": "catalog:biz_105:sales",
+            "kind": "catalog",
+            "table": "sales",
+            "column": null,
+            "locator": null,
+            "supports": "verified schema, grain and coverage for the referenced table"
+          }
+        ],
+        "tool_calls": [
+          {
+            "call_id": "tc_1",
+            "tool": "run_sql",
+            "status": "ok",
+            "args": {},
+            "elapsed_ms": 12,
+            "row_count": 1,
+            "rows_returned": 1,
+            "error": null,
+            "source_refs": [
+              "catalog:biz_105:sales"
+            ],
+            "sql_validation": {
+              "ok": true,
+              "statement_type": "select",
+              "tables": [
+                "biz_105_sales"
+              ],
+              "ctes": [],
+              "plan_checked": true,
+              "columns_checked": true,
+              "warnings": []
+            }
+          }
+        ],
+        "verification": {
+          "passed": true,
+          "checks": [
+            {
+              "name": "answer_shape",
+              "status": "pass",
+              "detail": ""
+            },
+            {
+              "name": "citations_grounded",
+              "status": "pass",
+              "detail": ""
+            },
+            {
+              "name": "result_rows",
+              "status": "pass",
+              "detail": ""
+            }
+          ],
+          "evidence_sufficient": true,
+          "answer_type_matches": true,
+          "date_coverage": "full",
+          "grain_checked": true,
+          "dedup_applied": false,
+          "unit_conversion_checked": false,
+          "plan_checked": true,
+          "residual_risks": [],
+          "reason_code": "execution_error"
+        },
+        "budgets": {
+          "input_tokens": 900,
+          "tool_calls": 2,
+          "retrieval_rounds": 1,
+          "sql_attempts": 1,
+          "result_rows": 1,
+          "elapsed_ms": 4200,
+          "limits": {
+            "max_input_tokens": 1500,
+            "max_tool_calls": 6,
+            "max_retrieval_rounds": 2,
+            "max_sql_attempts": 3,
+            "max_result_rows": 200,
+            "max_sample_rows": 5,
+            "query_timeout_ms": 15000,
+            "question_timeout_ms": 30000
+          }
+        },
+        "errors": [],
+        "diagnostics": {
+          "contract_version": "0.1.0",
+          "question_id": "q_synthetic0001",
+          "business_id": "biz_105",
+          "as_of_date": "2026-06-24",
+          "execution_status": "answered",
+          "reason_code": "execution_error",
+          "answer_type": "number",
+          "duration_ms": 4200,
+          "retrieval": {
+            "rounds": 1,
+            "sources": [
+              "catalog:biz_105:sales"
+            ]
+          },
+          "tool_calls": [],
+          "verification": null,
+          "errors": [],
+          "notes": [],
+          "environment": {
+            "contract_version": "0.1.0",
+            "datafusion_version": "55.0.0",
+            "runtime": "offline"
+          }
+        }
+      }
+    }
+  ]
+}
