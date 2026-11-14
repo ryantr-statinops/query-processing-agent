@@ -1,0 +1,705 @@
+[
+  {
+    "question_id": "q_001883280e83",
+    "business_id": "biz_128",
+    "split_group": "development",
+    "question": "tháng này tổng giá trị các phiếu nhập hàng là bao nhiu",
+    "as_of_date": "2026-09-07",
+    "intent": "aggregate_purchase_slip_value",
+    "time_range": {
+      "start": "2026-09-01",
+      "end": "2026-09-07",
+      "inclusive": true,
+      "resolution": "tháng này = từ ngày 1 đến hết as_of_date"
+    },
+    "entities_filters": {
+      "entity": "all purchase slips",
+      "filters": [
+        "slip date within resolved period",
+        "exclude cancelled purchase slips"
+      ]
+    },
+    "answer_type": "number",
+    "source_refs": [
+      {
+        "path": "train/data/biz_128/DanhSachNhapHang.xlsx",
+        "sheet": "Sheet1",
+        "columns": [
+          "Mã nhập hàng",
+          "Thời gian",
+          "Cần trả NCC",
+          "Trạng thái"
+        ],
+        "role": "purchase-slip header / amount at slip grain"
+      }
+    ],
+    "required_columns": [
+      "Thời gian",
+      "Cần trả NCC",
+      "Trạng thái"
+    ],
+    "grain": {
+      "source": "one row per purchase slip",
+      "aggregation": "one row per slip; do not aggregate purchase detail rows"
+    },
+    "join_edges": [],
+    "rule_refs": [
+      "train/rulebook.md §5: Tiền nhập hàng trong kỳ = tổng tiền các phiếu nhập có ngày phiếu trong kỳ, bỏ phiếu huỷ",
+      "train/rulebook.md §2: Tháng này = ngày 1 đến hết hôm nay (as_of_date)"
+    ],
+    "unit_semantics": {
+      "metric": "VND purchase value",
+      "source_field": "Cần trả NCC",
+      "meaning": "total amount for the entire purchase slip"
+    },
+    "calculation": {
+      "operation": "SUM",
+      "expression": "SUM(Cần trả NCC) over slips dated 2026-09-01 through 2026-09-07 inclusive, excluding cancelled slips",
+      "qualifying_slips": 7,
+      "included_values_vnd": [
+        13353000,
+        26181000,
+        18215400,
+        9437000,
+        8528000,
+        10762000,
+        3050000
+      ]
+    },
+    "computed_answer": 89526400,
+    "gold_comparison": {
+      "reference_type": "number",
+      "reference_answer": 89526400,
+      "match": true
+    },
+    "status": "verified",
+    "uncertainty": [],
+    "reviewer": "Nam"
+  },
+  {
+    "question_id": "q_00558c1410ef",
+    "business_id": "biz_105",
+    "split_group": "development",
+    "question": "tỉ lệ huỷ đơn tháng 6/2025 là nhiêu %",
+    "as_of_date": "2026-06-24",
+    "intent": "cancellation_rate",
+    "time_range": {
+      "start": "2025-06-01",
+      "end": "2025-06-30",
+      "inclusive": true,
+      "resolution": "explicit month 06/2025"
+    },
+    "entities_filters": {
+      "entity": "all sales orders placed in June 2025",
+      "numerator_filter": "orders whose Status denotes cancellation",
+      "denominator_filter": "all orders in the month, regardless of status"
+    },
+    "answer_type": "percent",
+    "source_refs": [
+      {
+        "path": "train/data/biz_105/SoBanHang_1.xlsx",
+        "sheet": "Thang 06 2025",
+        "header_row": 2,
+        "columns": [
+          "Mã hóa đơn",
+          "Status"
+        ],
+        "role": "sales line log; order ID and status repeat on each line"
+      }
+    ],
+    "required_columns": [
+      "Mã hóa đơn",
+      "Status"
+    ],
+    "grain": {
+      "source": "one row per sold item line",
+      "calculation_grain": "distinct Mã hóa đơn",
+      "reason": "multiple item rows belong to one order; count each order once"
+    },
+    "join_edges": [],
+    "rule_refs": [
+      "train/rulebook.md §1: Tỉ lệ đơn huỷ = đơn huỷ / mọi đơn đặt trong kỳ, mọi trạng thái; làm tròn 2 chữ số thập phân"
+    ],
+    "unit_semantics": {
+      "metric": "percentage of orders cancelled",
+      "formula": "cancelled distinct orders / all distinct orders × 100",
+      "rounding": "2 decimal places"
+    },
+    "calculation": {
+      "operation": "COUNT_DISTINCT",
+      "total_orders": 4948,
+      "cancelled_orders": 103,
+      "cancel_status_values": [
+        "hủy",
+        "Đã hủy đơn"
+      ],
+      "expression": "103 / 4948 * 100"
+    },
+    "computed_answer": 2.08,
+    "gold_comparison": {
+      "reference_type": "percent",
+      "reference_answer": 2.08,
+      "match": true
+    },
+    "status": "verified",
+    "uncertainty": [],
+    "reviewer": "Nam"
+  },
+  {
+    "question_id": "q_00d4d6380d03",
+    "business_id": "biz_114",
+    "split_group": "development",
+    "question": "thang 6/2025 hang nao chay nhat",
+    "as_of_date": "2026-06-21",
+    "intent": "top_product_by_base_quantity",
+    "time_range": {
+      "start": "2025-06-01",
+      "end": "2025-06-30",
+      "inclusive": true,
+      "resolution": "explicit month 06/2025"
+    },
+    "entities_filters": {
+      "entity": "all products",
+      "filters": [
+        "orders dated in June 2025",
+        "exclude any cancelled order",
+        "exclude any returned order",
+        "rank by base-unit quantity"
+      ]
+    },
+    "answer_type": "string",
+    "source_refs": [
+      {
+        "path": "train/data/biz_114/ban_hang.csv",
+        "table": "ban_hang",
+        "columns": [
+          "Ngày",
+          "Mã GD",
+          "trang_thai",
+          "Sản phẩm",
+          "Quy ra ĐV lẻ"
+        ],
+        "role": "one row per order line"
+      }
+    ],
+    "required_columns": [
+      "Ngày",
+      "Mã GD",
+      "trang_thai",
+      "Sản phẩm",
+      "Quy ra ĐV lẻ"
+    ],
+    "grain": {
+      "source": "one row per item line",
+      "order_grain": "Mã GD",
+      "aggregation_grain": "Sản phẩm"
+    },
+    "join_edges": [],
+    "rule_refs": [
+      "train/rulebook.md §3: Bán chạy theo số lượng quy về đơn vị cơ bản; bỏ đơn huỷ, trả",
+      "train/rulebook.md §3: Mặt hàng excludes Phí phục vụ (not present as top item in the current rank)"
+    ],
+    "unit_semantics": {
+      "metric": "quantity sold",
+      "source_field": "Quy ra ĐV lẻ",
+      "meaning": "quantity converted to base unit; for this product README defines 1 thiên = 1000 viên"
+    },
+    "calculation": {
+      "operation": "GROUP_BY_SUM_AND_RANK",
+      "orders_in_period": 673,
+      "excluded_orders_in_business_file": 18,
+      "qualifying_rows": 1452,
+      "expression": "SUM(Quy ra ĐV lẻ) GROUP BY Sản phẩm after excluding June orders with cancelled/returned status; sort quantity descending",
+      "top_candidates": [
+        [
+          "Gạch ống 8x8x18 Tuynel",
+          3149
+        ],
+        [
+          "Xi măng Hà Tiên PCB40 bao 50kg",
+          372
+        ],
+        [
+          "Xi măng INSEE Power-S bao 50kg",
+          208
+        ],
+        [
+          "Cát xây tô",
+          153
+        ],
+        [
+          "Lưới B40 mạ kẽm khổ 1.5m",
+          150
+        ]
+      ]
+    },
+    "computed_answer": "Gạch ống 8x8x18 Tuynel",
+    "gold_comparison": {
+      "reference_type": "string",
+      "reference_answer": "Gạch ống 8x8x18 Tuynel",
+      "match": true
+    },
+    "status": "verified",
+    "uncertainty": [],
+    "reviewer": "Nam"
+  },
+  {
+    "question_id": "q_0194d8d10f17",
+    "business_id": "biz_111",
+    "split_group": "development",
+    "question": "Tính đến hết ngày 19/08/2026, có bao nhiêu khách còn nợ cửa hàng?",
+    "as_of_date": "2026-08-19",
+    "intent": "count_customers_with_outstanding_receivables",
+    "time_range": {
+      "as_of": "2026-08-19",
+      "inclusive_end_of_day": true,
+      "resolution": "explicit as-of date equals business data end date"
+    },
+    "entities_filters": {
+      "entity": "identified customers (customer code)",
+      "filters": [
+        "not-cancelled orders",
+        "exclude COD",
+        "exclude marketplace channels if present",
+        "customer code must be present",
+        "outstanding amount > 0"
+      ]
+    },
+    "answer_type": "number",
+    "source_refs": [
+      {
+        "path": "train/data/biz_111/don_hang.csv",
+        "table": "don_hang",
+        "columns": [
+          "Số KH",
+          "Xử lý",
+          "NgayBan",
+          "Bán qua",
+          "Phương thức TT",
+          "Tổng bill",
+          "Mã chứng từ"
+        ],
+        "role": "one row per order and customer/order amount/status"
+      },
+      {
+        "path": "train/data/biz_111/thanh_toan.csv",
+        "table": "thanh_toan",
+        "columns": [
+          "Thời gian thu",
+          "Tiền",
+          "Số HĐ"
+        ],
+        "role": "payment events per order"
+      }
+    ],
+    "required_columns": [
+      "Số KH",
+      "Xử lý",
+      "Bán qua",
+      "Phương thức TT",
+      "Tổng bill",
+      "Mã chứng từ",
+      "Thời gian thu",
+      "Tiền",
+      "Số HĐ"
+    ],
+    "grain": {
+      "orders": "one row per order",
+      "payments": "one row per payment event",
+      "aggregation": "sum positive outstanding order balances by customer ID, then count customers"
+    },
+    "join_edges": [
+      {
+        "left": "don_hang.Mã chứng từ",
+        "right": "thanh_toan.Số HĐ",
+        "cardinality": "one-to-many"
+      }
+    ],
+    "rule_refs": [
+      "train/rulebook.md §4: debt at date X = total order due minus payments through X; non-cancelled only; returned orders still count if debt remains; COD and marketplace are not customer debt",
+      "train/rulebook.md §3: when customer code exists, each customer code is a customer; retail/no-code not counted in customer-level listing/count"
+    ],
+    "unit_semantics": {
+      "metric": "number of customers with outstanding debt",
+      "order_outstanding": "Tổng bill − SUM(payment Tiền through 2026-08-19)",
+      "customer_key": "Số KH"
+    },
+    "calculation": {
+      "operation": "GROUP_BY_CUSTOMER_THEN_COUNT_POSITIVE",
+      "eligible_orders_with_positive_balance": 36,
+      "customer_ids_with_positive_balance": 35,
+      "excluded_orders": {
+        "retail_no_customer_id": 25011,
+        "cod": 2856,
+        "cancelled": 1328
+      },
+      "expression": "COUNT(DISTINCT Số KH) among eligible orders with SUM(order outstanding) > 0"
+    },
+    "computed_answer": 35,
+    "gold_comparison": {
+      "reference_type": "number",
+      "reference_answer": 35,
+      "computed_type": "number",
+      "match": true
+    },
+    "status": "verified",
+    "uncertainty": [],
+    "reviewer": "Nam"
+  },
+  {
+    "question_id": "q_01a252a82858",
+    "business_id": "biz_104",
+    "split_group": "development",
+    "question": "Ngày 14/07/2025 cửa hàng bán Cà phê muối (L) với đơn giá bao nhiêu một ly?",
+    "as_of_date": "2026-06-02",
+    "intent": "historical_unit_price",
+    "time_range": {
+      "start": "2025-07-14",
+      "end": "2025-07-14",
+      "inclusive": true,
+      "resolution": "explicit single date 14/07/2025"
+    },
+    "entities_filters": {
+      "entity": "Cà phê muối (L)",
+      "filters": [
+        "order date == 14/07/2025",
+        "product name == Cà phê muối (L)",
+        "per rulebook §5, include lines regardless of order status (cancelled/returned)"
+      ]
+    },
+    "answer_type": "number",
+    "source_refs": [
+      {
+        "path": "train/data/biz_104/DonHang_ChiTiet.xlsx",
+        "sheet": "Sheet1",
+        "columns": [
+          "Mã đơn hàng",
+          "Ngày đặt hàng",
+          "Trạng thái đơn hàng",
+          "Tên sản phẩm",
+          "Giá sản phẩm",
+          "Đơn vị tính"
+        ],
+        "role": "order detail lines containing product name, order date, unit price, and unit of measure"
+      }
+    ],
+    "required_columns": [
+      "Ngày đặt hàng",
+      "Tên sản phẩm",
+      "Giá sản phẩm",
+      "Đơn vị tính"
+    ],
+    "grain": {
+      "source": "one row per order item line",
+      "calculation_grain": "distinct unit price for product on specified date"
+    },
+    "join_edges": [],
+    "rule_refs": [
+      "train/rulebook.md §5: Giá bán X ngày D = đơn giá ghi trên dòng bán X của các đơn đặt ngày D, cho một đơn vị cơ bản, trước chiết khấu dòng; tính cả dòng của đơn huỷ, đơn trả",
+      "train/rulebook.md §6 (Cà phê): Size M, size L = món có tên kết thúc bằng (M) hoặc (L), không phân biệt hoa thường",
+      "train/data/biz_104/README.md: Ngày dạng dd/mm/yyyy; Cột Giá sản phẩm là đơn giá; file DonHang_ChiTiet.xlsx mỗi dòng một sản phẩm"
+    ],
+    "unit_semantics": {
+      "metric": "VND per ly",
+      "source_field": "Giá sản phẩm",
+      "meaning": "unit selling price for one basic unit (ly) of Cà phê muối (L)"
+    },
+    "calculation": {
+      "operation": "LOOKUP_PRICE",
+      "expression": "SELECT DISTINCT [Giá sản phẩm] FROM DonHang_ChiTiet WHERE [Ngày đặt hàng] = 14/07/2025 AND [Tên sản phẩm] = Cà phê muối (L)",
+      "qualifying_rows": 2,
+      "matched_orders": [
+        "ORD009951",
+        "ORD009966"
+      ],
+      "observed_raw_prices": [
+        "41000",
+        "41,000"
+      ],
+      "parsed_numeric_price": 41000,
+      "unit": "ly"
+    },
+    "computed_answer": 41000,
+    "gold_comparison": {
+      "reference_type": "number",
+      "reference_answer": 41000,
+      "match": true
+    },
+    "status": "verified",
+    "uncertainty": [],
+    "reviewer": "Nam"
+  },
+  {
+    "question_id": "q_20aa992c0d3f",
+    "business_id": "biz_101",
+    "split_group": "development",
+    "question": "thang 5/2026 ngay nao cua hang ban dc nhieu tien nhat",
+    "as_of_date": "2026-08-24",
+    "intent": "highest_daily_revenue_date",
+    "time_range": {
+      "start": "2026-05-01",
+      "end": "2026-05-31",
+      "inclusive": true,
+      "resolution": "explicit month 05/2026"
+    },
+    "entities_filters": {
+      "entity": "daily sales revenue",
+      "filters": [
+        "sales date in May 2026",
+        "exclude cancelled orders",
+        "exclude returned orders"
+      ]
+    },
+    "answer_type": "date",
+    "source_refs": [
+      {
+        "path": "train/data/biz_101/ban_hang.csv",
+        "table": "ban_hang",
+        "columns": [
+          "Ngày tháng",
+          "Mã hóa đơn",
+          "Kết quả",
+          "Thanh tien"
+        ],
+        "role": "flat line-level sales file"
+      }
+    ],
+    "required_columns": [
+      "Ngày tháng",
+      "Mã hóa đơn",
+      "Kết quả",
+      "Thanh tien"
+    ],
+    "grain": {
+      "source": "one row per item line",
+      "aggregation_grain": "calendar date",
+      "order_grain": "distinct Mã hóa đơn"
+    },
+    "join_edges": [],
+    "rule_refs": [
+      "train/rulebook.md §1: revenue sums line amounts after line discount; excludes cancelled and returned orders"
+    ],
+    "unit_semantics": {
+      "metric": "VND revenue",
+      "source_field": "Thanh tien",
+      "aggregation": "SUM line amounts by day"
+    },
+    "calculation": {
+      "operation": "GROUP_BY_SUM_THEN_ARGMAX",
+      "qualifying_lines": 3636,
+      "top_days": [
+        [
+          "2026-05-09",
+          13672500
+        ],
+        [
+          "2026-05-30",
+          11840800
+        ],
+        [
+          "2026-05-14",
+          10383700
+        ],
+        [
+          "2026-05-15",
+          10240700
+        ],
+        [
+          "2026-05-25",
+          9605700
+        ]
+      ],
+      "expression": "SUM(Thanh tien) by Ngày tháng for valid orders, then select maximum"
+    },
+    "computed_answer": "2026-05-09",
+    "gold_comparison": {
+      "reference_type": "date",
+      "reference_answer": "2026-05-09",
+      "computed_type": "date",
+      "match": true
+    },
+    "status": "verified",
+    "uncertainty": [],
+    "reviewer": "Nam"
+  },
+  {
+    "question_id": "q_0c8f3e07768f",
+    "business_id": "biz_101",
+    "split_group": "development",
+    "question": "e so don hang quy 4/2025 la bao nhiu vay",
+    "as_of_date": "2026-08-24",
+    "intent": "count_valid_orders",
+    "time_range": {
+      "start": "2025-10-01",
+      "end": "2025-12-31",
+      "inclusive": true,
+      "resolution": "explicit Q4/2025"
+    },
+    "entities_filters": {
+      "entity": "distinct sales orders",
+      "filters": [
+        "order date in Q4/2025",
+        "exclude cancelled orders",
+        "exclude returned orders"
+      ]
+    },
+    "answer_type": "number",
+    "source_refs": [
+      {
+        "path": "train/data/biz_101/ban_hang.csv",
+        "table": "ban_hang",
+        "columns": [
+          "Ngày tháng",
+          "Mã hóa đơn",
+          "Kết quả"
+        ],
+        "role": "flat line-level sales file; repeated order IDs identify order grain"
+      }
+    ],
+    "required_columns": [
+      "Ngày tháng",
+      "Mã hóa đơn",
+      "Kết quả"
+    ],
+    "grain": {
+      "source": "one row per item line",
+      "counting_grain": "distinct Mã hóa đơn"
+    },
+    "join_edges": [],
+    "rule_refs": [
+      "train/rulebook.md §1: Số đơn counts orders not cancelled and not returned"
+    ],
+    "unit_semantics": {
+      "metric": "order count",
+      "aggregation": "COUNT DISTINCT Mã hóa đơn"
+    },
+    "calculation": {
+      "operation": "COUNT_DISTINCT",
+      "rows_in_period": 10589,
+      "distinct_orders_in_period": 4234,
+      "excluded_orders_in_period": 202,
+      "expression": "COUNT(DISTINCT Mã hóa đơn) after excluding cancelled/returned orders"
+    },
+    "computed_answer": 4032,
+    "gold_comparison": {
+      "reference_type": "number",
+      "reference_answer": 4032,
+      "computed_type": "number",
+      "match": true
+    },
+    "status": "verified",
+    "uncertainty": [],
+    "reviewer": "Nam"
+  },
+  {
+    "question_id": "q_3ad4ff264376",
+    "business_id": "biz_105",
+    "split_group": "development",
+    "question": "check giùm khách hay khen nhân viên nào nhất",
+    "as_of_date": "2026-06-24",
+    "intent": "customer_feedback_employee_ranking",
+    "time_range": null,
+    "entities_filters": {
+      "entity": "employee receiving customer praise",
+      "requested_evidence": [
+        "customer feedback/praise content",
+        "employee identity linked to feedback"
+      ],
+      "available_sources": [
+        "sales logs",
+        "product unit-conversion catalog",
+        "inventory snapshot",
+        "purchase log",
+        "price history"
+      ]
+    },
+    "answer_type": "unanswerable",
+    "source_refs": [
+      {
+        "path": "train/data/biz_105/README.md",
+        "section": "File / Cột / Quy ước",
+        "role": "documents complete available source files and fields"
+      },
+      {
+        "path": "train/data/biz_105/SoBanHang_1.xlsx",
+        "sheet": "Thang 06 2025",
+        "columns": [
+          "Hàng",
+          "so_luong",
+          "Unit",
+          "Trị giá",
+          "Status",
+          "Giá lẻ",
+          "Giờ",
+          "Mã hóa đơn",
+          "Ngày giao dịch",
+          "Khách"
+        ],
+        "role": "sales records; no employee or feedback field",
+        "header_row": 2
+      },
+      {
+        "path": "train/data/biz_105/SoBanHang_2026.xlsx",
+        "sheet": "Thang 02 2026",
+        "columns": [
+          "Hàng",
+          "so_luong",
+          "Unit",
+          "Trị giá",
+          "Status",
+          "Giá lẻ",
+          "Giờ",
+          "Mã hóa đơn",
+          "Ngày giao dịch",
+          "Khách"
+        ],
+        "role": "sales records; no employee or feedback field",
+        "header_row": 2
+      }
+    ],
+    "required_columns": [
+      "customer feedback text",
+      "employee identifier/name"
+    ],
+    "grain": {
+      "available_data_grain": "sales item lines, purchase lines, inventory product rows, price-change records",
+      "missing_evidence": [
+        "customer review/feedback content",
+        "employee identity or staff attribution"
+      ]
+    },
+    "join_edges": [],
+    "rule_refs": [
+      "train/rulebook.md: insufficient evidence must be labeled unanswerable; no rule can infer praise or staff identity from sales-only fields"
+    ],
+    "unit_semantics": {
+      "metric": "not computable",
+      "reason": "The business package contains no customer feedback/review source and no employee/staff field linking a transaction or feedback to a person."
+    },
+    "calculation": {
+      "operation": "ABSTAIN",
+      "reason": "Shop biz_105 lacks customer feedback records and staff assignment tables in train/data/biz_105/ to identify praised employees",
+      "available_files": [
+        "SoBanHang_1.xlsx",
+        "SoBanHang_2026.xlsx",
+        "DanhMuc.xlsx",
+        "TonKho.xlsx",
+        "SoNhapHang.xlsx",
+        "BangGia.xlsx"
+      ]
+    },
+    "computed_answer": null,
+    "gold_comparison": {
+      "reference_type": "unanswerable",
+      "reference_answer": null,
+      "computed_type": "unanswerable",
+      "match": true
+    },
+    "status": "insufficient_evidence",
+    "uncertainty": [
+      "Thiếu dữ liệu phản hồi/khen ngợi của khách hàng hoặc bảng phân công nhân viên trong train/data/biz_105/"
+    ],
+    "reviewer": "Nam",
+    "decision_owner": "Lead / Người 5"
+  }
+]
