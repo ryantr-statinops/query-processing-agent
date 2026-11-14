@@ -302,6 +302,22 @@ class BudgetTests(unittest.TestCase):
             ledger.tick(1)
         self.assertEqual(caught.exception.code, "timeout")
 
+    def test_query_deadline_is_enforced_per_call(self):
+        ledger = g.BudgetLedger(query_timeout_ms=10, question_timeout_ms=100)
+        ledger.tick(10, is_query=True)
+        with self.assertRaises(g.GuardrailError) as caught:
+            ledger.tick(11, is_query=True)
+        self.assertEqual(caught.exception.code, "timeout")
+        self.assertEqual(caught.exception.detail["limit_ms"], 10)
+
+    def test_query_elapsed_must_be_a_non_negative_integer(self):
+        ledger = g.BudgetLedger()
+        for elapsed_ms in (-1, 0.5, True):
+            with self.subTest(elapsed_ms=elapsed_ms):
+                with self.assertRaises(g.GuardrailError) as caught:
+                    ledger.tick(elapsed_ms, is_query=True)
+                self.assertEqual(caught.exception.code, "invalid_tool_argument")
+
     def test_input_token_budget(self):
         ledger = g.BudgetLedger(max_input_tokens=10)
         ledger.set_input_tokens(10)

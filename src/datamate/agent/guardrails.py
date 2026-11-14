@@ -1279,7 +1279,7 @@ class BudgetLedger:
             "question_timeout_ms",
         ):
             value = getattr(self, name)
-            if not isinstance(value, int) or value <= 0:
+            if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
                 raise GuardrailError(
                     "invalid_tool_argument",
                     f"{name} must be a positive integer",
@@ -1291,10 +1291,25 @@ class BudgetLedger:
                 "max_sample_rows cannot exceed max_result_rows",
             )
 
-    def tick(self, elapsed_ms: int) -> None:
-        if elapsed_ms < 0:
-            raise GuardrailError("invalid_tool_argument", "elapsed_ms cannot be negative")
+    def tick(self, elapsed_ms: int, *, is_query: bool = False) -> None:
+        if not isinstance(elapsed_ms, int) or isinstance(elapsed_ms, bool) or elapsed_ms < 0:
+            raise GuardrailError(
+                "invalid_tool_argument",
+                "elapsed_ms must be a non-negative integer",
+            )
+        if not isinstance(is_query, bool):
+            raise GuardrailError("invalid_tool_argument", "is_query must be a boolean")
         self.elapsed_ms += elapsed_ms
+        if is_query and elapsed_ms > self.query_timeout_ms:
+            raise GuardrailError(
+                "timeout",
+                "query deadline exceeded",
+                stage="execution",
+                detail={
+                    "elapsed_ms": elapsed_ms,
+                    "limit_ms": self.query_timeout_ms,
+                },
+            )
         if self.elapsed_ms > self.question_timeout_ms:
             raise GuardrailError(
                 "timeout",
