@@ -295,7 +295,7 @@ def get_part2_definitions(q_map, get_split):
         "as_of_date": q["as_of_date"],
         "intent": "top_k_debtors_table",
         "time_range": {"start": "beginning_of_data", "end": "2025-07-12", "inclusive": True, "resolution": "tính đến hết ngày 12/07/2025"},
-        "entities_filters": {"entity": "công nợ khách hàng", "filters": ["đơn đặt <= 2025-07-12", "PhuongThucTT == 'debt'", "còn nợ > 0"]},
+        "entities_filters": {"entity": "công nợ khách hàng", "filters": ["đơn đặt <= 2025-07-12", "exclude cancelled", "exclude COD and marketplace sales per rulebook §4", "còn số dư chưa thu > 0"]},
         "answer_type": "table",
         "source_refs": [
             {"path": "train/data/biz_123/pos.sqlite", "sheet": "khach_hang", "columns": ["MaKhachHang", "TenGoi"], "role": "customer directory table"},
@@ -303,10 +303,10 @@ def get_part2_definitions(q_map, get_split):
             {"path": "train/data/biz_123/pos.sqlite", "sheet": "thanh_toan", "columns": ["MaHoaDon", "NgayGioThu", "SoTienThu"], "role": "payment receipts table"}
         ],
         "required_columns": ["MaKhachHang", "TenGoi", "NgayLap", "TongThanhToan", "PhuongThucTT", "NgayGioThu", "SoTienThu"],
-        "grain": {"source": "one row per invoice / payment", "calculation_grain": "aggregate remaining balance of debt orders by customer and rank top 5"},
+        "grain": {"source": "one row per invoice / payment", "calculation_grain": "aggregate payments by store and invoice through cutoff before joining valid order balances by store/customer; rank top 5"},
         "join_edges": [{"from": "don_hang.MaKhachHang", "to": "khach_hang.MaKhachHang", "cardinality": "many_to_one"}],
         "rule_refs": [
-            "train/rulebook.md §4: Đơn COD, sàn TMĐT không phải khách nợ; Nợ trong kỳ chỉ đơn ghi nợ (debt); Nợ một đơn tại ngày X = tổng đơn trừ các khoản trả đến hết ngày X"
+            "train/rulebook.md §4: loại đơn COD và bán qua sàn TMĐT khỏi công nợ; dư nợ tại ngày X = giá trị đơn hợp lệ trừ tổng các khoản đã thu đến hết ngày X"
         ],
         "unit_semantics": {"metric": "table with columns ['khach_hang', 'so_tien_no']", "meaning": "top 5 debtors with outstanding balance in VND"},
         "calculation": {
@@ -345,7 +345,7 @@ def get_part2_definitions(q_map, get_split):
         },
         "status": "verified",
         "uncertainty": [
-            "Lưu ý phân biệt Rulebook §4: Đơn COD và chuyển khoản chưa thu không tính vào công nợ; chỉ đơn ghi hình thức 'debt' mới tính là khách nợ. Khớp 100% danh sách Gold."
+            "Đã tái tính tại cutoff: tổng hợp payment trước khi join; loại COD và kênh sàn TMĐT, không lọc chỉ theo nhãn payment 'debt'. Kết quả khớp nhãn; xác nhận reviewer là bước riêng."
         ],
         "reviewer": "Nam"
     })

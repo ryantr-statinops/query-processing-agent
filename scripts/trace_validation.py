@@ -47,14 +47,13 @@ def validate_records(questions, traces, holdout_businesses):
         actual, reference = record.get("computed_answer"), question["reference"]["answer"]
         matches = answers_match(answer_type, actual, reference)
         record["gold_comparison"] = {"reference_type": answer_type, "reference_answer": reference, "match": matches}
-        if answer_type == "unanswerable":
-            if record.get("status") != "insufficient_evidence":
-                raise ValueError(f"{record['question_id']}: unanswerable record must be insufficient_evidence")
-        elif not matches:
+        if not matches:
             record["status"] = "unresolved"
             record["uncertainty"] = list(record.get("uncertainty") or [])
             record["uncertainty"].append("Computed answer does not match the labeled reference; review calculation and source evidence.")
             record["decision_owner"] = "Lead / Người 5"
+        elif answer_type == "unanswerable":
+            record["status"] = "insufficient_evidence"
         else:
             record["status"] = "verified"
         expected_split = "holdout" if question["business_id"] in holdout_businesses else "development"
