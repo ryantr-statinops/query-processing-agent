@@ -40,3 +40,22 @@ assert 'datafusion' not in sys.modules
             )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "")
+
+    def test_tracing_package_imports_do_not_run_audit(self):
+        code = """
+import sys
+from datamate.evaluation.tracing import (
+    INVENTORY_LOT_BALANCE_SQL, answers_match, validate_records,
+)
+assert 'sqlite3' not in sys.modules
+assert answers_match('number', 3, 3)
+assert 'WITH valid_receipts' in INVENTORY_LOT_BALANCE_SQL
+assert callable(validate_records)
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            result = subprocess.run(
+                [sys.executable, "-c", code], cwd=directory,
+                capture_output=True, text=True,
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "")

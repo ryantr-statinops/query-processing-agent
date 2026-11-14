@@ -29,12 +29,12 @@ from collections import Counter
 from datetime import datetime, timedelta
 from pathlib import Path
 import unicodedata
-try:
-    from .tracing_sql import INVENTORY_LOT_BALANCE_SQL, OUTSTANDING_DEBT_SQL, dedupe_exact_order_lines
-    from .trace_validation import validate_records
-except ImportError:  # direct `python scripts/verify_phase_criteria.py` invocation
-    from tracing_sql import INVENTORY_LOT_BALANCE_SQL, OUTSTANDING_DEBT_SQL, dedupe_exact_order_lines
-    from trace_validation import validate_records
+from datamate.evaluation.tracing import (
+    INVENTORY_LOT_BALANCE_SQL,
+    OUTSTANDING_DEBT_SQL,
+    dedupe_exact_order_lines,
+    validate_records,
+)
 
 
 def resolve_physical_source(path):

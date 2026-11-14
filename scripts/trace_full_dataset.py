@@ -10,12 +10,12 @@ try:
     from .trace_definitions_base8 import get_base8_definitions
     from .trace_definitions_part1 import get_part1_definitions
     from .trace_definitions_part2 import get_part2_definitions
-    from .trace_validation import validate_records
 except ImportError:  # direct `python scripts/trace_full_dataset.py` invocation
     from trace_definitions_base8 import get_base8_definitions
     from trace_definitions_part1 import get_part1_definitions
     from trace_definitions_part2 import get_part2_definitions
-    from trace_validation import validate_records
+
+from datamate.evaluation.tracing.validation import validate_records
 
 def main():
     rep = json.load(open("configs/representative_questions.json", encoding="utf-8"))
