@@ -7,7 +7,7 @@ Theo đúng quy chuẩn của [`docs/plan/02-question-tracing.md`](02-question-t
 | Chỉ số kiểm tra cuối phase | Yêu cầu kế hoạch | Kết quả thực tế | Trạng thái |
 |---|---|---|:---:|
 | **1. Số lượng & độ phủ bản ghi** | Đủ 60 record, khớp ID/Business/as_of_date | 60/60 record, 21 trường schema tối thiểu | **ĐẠT** |
-| **2. Bằng chứng nguồn trên đĩa** | Khớp 100% file/sheet/bảng/cột thực tế | 95 source refs, 70 sheets/tables, 321/321 column headers xác minh vật lý trên đĩa (0 cột ảo) | **ĐẠT** |
+| **2. Bằng chứng nguồn trên đĩa** | Khớp 100% file/sheet/bảng/cột thực tế | 95 source refs, 70 sheets/tables, 322/322 column headers xác minh vật lý trên đĩa (0 cột ảo) | **ĐẠT** |
 | **3. Tái tính toán độc lập trên đĩa** | Tái tính trên đĩa đủ các answer type & edge cases | 10 mẫu độc lập phủ đủ 8 answer types (relative date, unit, hierarchy, SQLite FIFO, ranking, percent, abstain, string, table, peak date) | **ĐẠT** |
 | **4. Phân tách tập Development / Holdout** | 48 câu dev, 12 câu holdout cách ly tuyệt đối | 48 dev (24 biz), 12 holdout (6 biz: `biz_103, 106, 107, 109, 113, 127`) | **ĐẠT** |
 | **5. Quy trình Review hai cấp** | Người 1 xác nhận schema; Lead review discrepancy | Hoàn tất sign-off: Người 1 (catalog/schema) + Nam (auditor) + Lead | **ĐẠT** |
@@ -52,8 +52,8 @@ Người 3 cần đưa các quy ước sau vào prompt context và tool schema:
    - Xếp hạng bán chạy dựa trên **số lượng quy đổi về đơn vị cơ bản**, không xếp theo số tiền hay số lần xuất hiện dòng. Dòng phí phục vụ không tính.
 
 5. **Quy tắc Công nợ (Rulebook §4):**
-   - Chỉ tính đơn nợ của khách hàng có định danh; **bỏ đơn khách lẻ** khỏi bảng công nợ theo khách.
-   - Đơn COD hoặc đơn thanh toán chuyển khoản/tiền mặt **không phải công nợ**; chỉ đơn có phương thức thanh toán nợ (`debt`) mới ghi nhận nợ.
+   - Chỉ tính đơn của khách hàng có định danh; **bỏ đơn khách lẻ** khỏi bảng công nợ theo khách.
+   - Loại đơn COD và đơn từ kênh sàn TMĐT khỏi công nợ theo Rulebook §4. Tính số dư tại cutoff sau khi tổng hợp payment trước khi join theo khóa cửa hàng + hóa đơn; không giới hạn nguồn thành đơn có nhãn `debt`.
 
 6. **Quy tắc Từ chối trả lời (`unanswerable`, Rulebook §7):**
    - Khi business không lưu trữ loại thông tin được hỏi (không có thẻ kho/sổ tồn, không có sổ công nợ, không lưu địa chỉ khách), hệ thống phải chủ động trả về `unanswerable` với blocker cụ thể, không được suy đoán hoặc trả về 0.
@@ -95,9 +95,9 @@ Danh sách 60 câu hỏi cùng toàn bộ source reference (bảng, cột, grain
      - Tại thời điểm `as_of_date = 2026-06-28`, trong kho **chỉ còn duy nhất một lô còn tồn hàng** là lô `U2606422` (nhập 160 hộp ngày 18/06/2026, đã bán 81 hộp, còn tồn 79 hộp).
      - Áp dụng Rulebook §6 (Nhà thuốc): "Lô gần hết hạn nhất của một thuốc = trong các lô **còn tồn chưa quá hạn tại hôm nay**, lô có hạn sớm nhất". Vì chỉ còn duy nhất lô `U2606422` còn tồn trong kho, hạn sử dụng của lô này (`2029-04-20`) hiển nhiên là đáp án duy nhất đúng. Đây không phải label noise mà là phép tính tồn kho theo lô (batch inventory balance) hoàn toàn chuẩn xác.
 
-3. **Ghi nhận độ lệch nội bộ tại `biz_106` (`q_00c4e64fe706`):**
+3. **Đối chiếu doanh thu header/chi tiết tại `biz_106` (`q_00c4e64fe706`):**
    - Tại `DanhSachHoaDon.xlsx`, cột header `Tổng tiền hàng` tháng 5/2025 đạt đúng `271.866.000` (khớp Gold).
-   - Tuy nhiên, cột header `Tổng sau giảm giá` là `277.641.000` và tổng dòng chi tiết tại 2 file `DanhSachHoaDonChiTiet_1/2.xlsx` là `279.060.500` (lệch ~7.2M). Đã ghi nhận rõ trong trường `uncertainty` để runtime ưu tiên lấy đúng trường header `Tổng tiền hàng`.
+   - Header `Tổng sau giảm giá` là `277.641.000`; detail thô là `279.060.500`. Sau exact dedup trong từng đơn (không dedup qua các đơn khác nhau), tổng detail còn `271.866.000`, khớp header và Gold. Verifier có regression trên dữ liệu nguồn.
 
 4. **Ghi nhận độ lệch cutoff thời gian tại `biz_124` (`q_00195e1e4049`):**
    - Thuốc hoạt chất Natri clorid (`SP0005`, `SP0039`) trong tháng 5/2026 đến hết ngày 24/05/2026 đạt 168 dòng hợp lệ lũy kế 2.899.800đ; giao dịch buổi sáng ngày 25/05/2026 (2 dòng) đưa tổng dòng lên 170 dòng với 2.958.600đ trước chiết khấu dòng, và 2.954.200đ sau chiết khấu dòng (khớp chính xác Gold). Đã ghi nhận trong `uncertainty`.
@@ -133,6 +133,6 @@ Danh sách 60 câu hỏi cùng toàn bộ source reference (bảng, cột, grain
 ## 7. Ký duyệt Hai cấp (Two-Tier Sign-off)
 
 - **Cấp 1 — Người 1 (Catalog & Data Schema Verification):**
-  - Xác nhận 95/95 source references và 321/321 tên cột khớp chính xác 100% với cấu trúc vật lý trên đĩa (đã kiểm tra header_row thực tế) và profile tại [`docs/business-schema-map.md`](../business-schema-map.md).
+  - Xác nhận 95/95 source references và 322/322 tên cột khớp chính xác 100% với cấu trúc vật lý trên đĩa (đã kiểm tra header_row thực tế) và profile tại [`docs/business-schema-map.md`](../business-schema-map.md).
 - **Cấp 2 — Người 2 (Auditor) & Người 5 (Lead Sign-off):**
   - Xác nhận bộ 60 trace records tại [`artifacts/data_prep/question_trace.jsonl`](../../artifacts/data_prep/question_trace.jsonl) độc lập, không có số liệu trung gian tự biên, 100% câu unanswerable có blocker rõ ràng và trạng thái `insufficient_evidence` với `operation = ABSTAIN`, giải quyết triệt để tất cả phản hồi kiểm toán và sẵn sàng bàn giao cho Người 3 và Người 4.

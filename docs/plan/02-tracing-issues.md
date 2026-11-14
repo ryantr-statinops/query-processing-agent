@@ -74,16 +74,25 @@ Theo **Rulebook §7**, hệ thống phải chủ động từ chối trả lời
 - **Mô tả:** Tại `biz_106`, doanh thu tháng 5/2025 có sự bất nhất nội bộ:
   - Header `DanhSachHoaDon.xlsx`, cột `Tổng tiền hàng`: `271.866.000 đ` (khớp Gold).
   - Header `DanhSachHoaDon.xlsx`, cột `Tổng sau giảm giá`: `277.641.000 đ`.
-  - Tổng cột `Thành tiền` ở 2 file chi tiết `DanhSachHoaDonChiTiet_1/2.xlsx`: `279.060.500 đ` (lệch ~7.2 triệu).
-- **Khắc phục:** Gold ưu tiên độ tin cậy của cột `Tổng tiền hàng` ở bảng Header hóa đơn. Runtime cần lưu ý policy ưu tiên nguồn khi có xung đột header vs chi tiết.
+  - Tổng dòng chi tiết thô ban đầu: `279.060.500 đ`.
+- **Tái kiểm tra:** Exact dedup các dòng giống hệt chỉ trong cùng mã đơn (giữ dòng giống hệt nếu thuộc đơn khác). Tổng chi tiết sau dedup là `271.866.000 đ`, khớp cột `Tổng tiền hàng` và Gold. Verifier có regression trên nguồn cho kết luận này.
+- **Kết luận:** Không dùng ưu tiên header để che độ lệch; dedup chi tiết đúng grain trước khi tổng hợp. Reviewer confirmation được theo dõi riêng với kiểm tra kỹ thuật.
 
 ### Issue 9: Cutoff thời gian và Chiết khấu dòng hàng (`q_00195e1e4049` — `biz_124`)
 - **Mô tả:** Doanh thu thuốc Natri clorid tháng 5/2026: Đến hết ngày 24/05/2026 đạt 168 dòng hợp lệ lũy kế 2.899.800 đ. Buổi sáng ngày `as_of_date = 2026-05-25` phát sinh thêm 2 dòng hợp lệ đưa tổng lên 170 dòng với 2.958.600 đ.
 - **Khắc phục:** Sau khi trừ 4.400 đ tiền chiết khấu/khuyến mãi trực tiếp trên dòng hàng, doanh thu ròng đạt đúng `2.954.200 đ` (khớp 100% với Gold). Runtime phải tính cả các đơn hàng phát sinh trong ngày `as_of_date` và trừ chiết khấu dòng hàng theo Rulebook §1.
 
 ### Issue 10: Phân biệt Phương thức Thanh toán Công nợ (`q_0a76d3680594` — `biz_123`)
-- **Mô tả:** Khi lập bảng xếp hạng khách hàng nợ tiền nhiều nhất, nếu gom cả các đơn COD chưa đối soát hoặc chuyển khoản chưa thu tiền sẽ dẫn đến sai lệch danh sách.
-- **Khắc phục:** Áp dụng Rulebook §4: Chỉ những hóa đơn có phương thức thanh toán tường minh là nợ (`PhuongThucTT = 'debt'`) mới được ghi nhận vào dư nợ khách hàng.
+- **Mô tả:** Câu hỏi yêu cầu số dư khách hàng còn phải thu tại ngày 12/07/2025. Cách cũ chỉ giữ `PhuongThucTT = 'debt'`, trái Rulebook §4.
+- **Tái tính:** Cộng payment theo khóa cửa hàng + hóa đơn đến cutoff trước khi join vào đơn; loại đơn hủy, COD và đơn từ kênh sàn TMĐT; giữ số dư chưa thu khác theo rulebook. Top 5 tái tính từ SQLite khớp Gold.
+- **Kết luận:** Trace được tái tính và so sánh kỹ thuật pass. Reviewer vẫn cần xác nhận kết luận nghiệp vụ độc lập.
+
+## Trạng thái kiểm tra và bàn giao
+
+- **Kiểm tra kỹ thuật:** regression typed answer, metadata/ID/split, tồn kho và công nợ chạy độc lập; generator so sánh `computed_answer` với reference thay vì tin cờ `match` có sẵn.
+- **Discrepancy còn mở:** verifier phải kết thúc khác 0 nếu có trace `unresolved`. Lần nghiệm thu hiện tại: 60 trace khớp reference, 322/322 cột nguồn hợp lệ, 10 phép tính live pass, không còn discrepancy kỹ thuật.
+- **Lỗi kỹ thuật baseline:** `uv sync --locked` không thể build package do checkout thiếu `src/datamate/__init__.py`; full unittest giữ nguyên 4 lỗi import `datamate` từ baseline. 6 regression tracing mới pass.
+- **Reviewer:** tên reviewer trong trace không phải xác nhận mới. Chưa có xác nhận người review cho hai kết luận đã tái tính; cần hoàn tất sign-off trước khi báo PR sẵn sàng merge.
 
 ---
 
