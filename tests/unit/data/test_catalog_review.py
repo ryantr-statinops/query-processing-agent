@@ -1,5 +1,4 @@
 """Evidence gates: serial dates, grain, and semantic join validation."""
-import importlib.util
 from collections import Counter
 from pathlib import Path
 import tempfile
@@ -9,9 +8,8 @@ import os
 import json
 import unittest
 
-SPEC = importlib.util.spec_from_file_location("catalog_review", Path(__file__).resolve().parents[1] / "scripts/review_data_catalog.py")
-review = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(review)
+from datamate.data.catalog_audit import review as review
+from tests.support import REPO_ROOT
 
 
 class CatalogReviewTests(unittest.TestCase):
@@ -147,7 +145,7 @@ class CatalogReviewTests(unittest.TestCase):
                 (business / "README.md").write_text("## File\n- `Danh sách.csv` (csv)\n## Cột trong `Danh sách.csv`\n- **Mã đơn**: mã đơn\n- **Tên hàng**: tên hàng\n", encoding="utf-8")
                 (business / "Danh sách.csv").write_text("Mã đơn,Tên hàng\n001,Hàng A\n", encoding="utf-8")
             env = dict(os.environ, PYTHONIOENCODING="cp1252")
-            run = subprocess.run([sys.executable, str(Path(__file__).resolve().parents[1] / "scripts/build_data_catalog.py"),
+            run = subprocess.run([sys.executable, str(REPO_ROOT / "scripts/build_data_catalog.py"),
                                   "--train-root", str(train), "--output", str(output)], capture_output=True, env=env)
             self.assertEqual(run.returncode, 0, run.stderr.decode("cp1252", errors="replace"))
             self.assertIn("\\u00e1", run.stdout.decode("ascii"))

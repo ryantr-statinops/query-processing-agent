@@ -12,13 +12,13 @@ question + business_id + as_of_date
   → verify evidence and serialize a typed answer
 ```
 
-This is a target design, not a runnable implementation yet. Model choice, retrieval method, plan format and package layout remain open until the data tracing phase is complete.
+The version 0.1.0 inference contract and guardrails are implemented. The contract remains a proposal with open decisions; model integration and a runnable inference path are pending. Package boundaries are described in [the current package architecture](docs/architecture/package-structure.md).
 
 ## Data and rules
 
 - Competition rules and answer format: [docs/01-competition.md](docs/01-competition.md).
 - Data totals and per-business inventory: [docs/data-inventory.md](docs/data-inventory.md).
-- Initial read-only schema scan: [docs/data-schema-catalog.md](docs/data-schema-catalog.md). Workbook headers and dimensions still need verification.
+- Read-only schema catalog: [docs/data-schema-catalog.md](docs/data-schema-catalog.md). Catalog and tracing tools provide the documented source evidence; detailed generated artifacts remain local.
 - Representative set: `configs/representative_questions.json` contains 60 train questions, two per business. Twelve are from the manifest holdout group and have already been exposed during exploration; they are not an independent holdout evaluation set.
 - The source packages, rulebooks, labels, models and generated experiment artifacts are local and must not be committed.
 
@@ -32,11 +32,11 @@ uv run --locked --no-sync python scripts/run_pipeline.py
 
 This verifies/extracts the datasets, checks their JSONL and business-directory structure, prepares the Qwen3.5-9B Q4_K_M weights (about 5.68 GB), and writes JSON reports under `artifacts/`. Use `--data-only` to skip model weights, `--skip-data-setup` to use extracted data, or `--skip-model-download` to skip model verification/download. Individual checks can also run with `scripts/inspect_data.py` and `scripts/check_environment.py`.
 
-The pipeline prepares inputs only. Inference and model benchmarking become available after the `src/datamate` runtime is rebuilt.
+The pipeline prepares inputs only. Inference and model benchmarking become available after the `src/datamate` runtime is rebuilt. See the [script index](scripts/README.md) for supported preparation, catalog and tracing commands, plus archived tools.
 
 ## Current status
 
-`src/` contains only a rebuild marker; there is no supported inference entrypoint or baseline command today. The data setup script remains at `scripts/setup_data.py`. The old source tree was removed, so the checked-in tests and experiment scripts that import `datamate` require a new package scaffold or replacement before they can serve as passing project checks.
+`src/datamate` contains inference-contract guardrails, catalog-audit tools and development tracing helpers. There is no supported inference entrypoint or runtime baseline command today. Runtime loaders, execution, model integration and ranking remain future work. Four historical test modules stay discoverable under `tests/legacy/` and report import errors for those missing runtime packages; the other suites cover the implemented packages and contracts.
 
 Do not run a full benchmark or treat historical reports as current solver performance. The team plan defines the gates for data validation, inference design, runtime and evaluation.
 

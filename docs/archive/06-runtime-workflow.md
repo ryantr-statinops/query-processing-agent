@@ -2,6 +2,8 @@
 
 > Historical note: this page describes the removed text-to-SQL solver. Its module paths and CLI instructions are not runnable in the current repository. The active design proposal is in [the current harness overview](../02-harness.md).
 
+The archived solver implementations are retained under `scripts/legacy/`. Their former root script paths remain compatibility wrappers and still require the missing runtime packages. See the [script index](../../scripts/README.md) for the old-to-new path map.
+
 The [archived methods notes](03-methods.md) describe proposed extensions to that solver.
 
 ```mermaid
@@ -28,7 +30,7 @@ flowchart TD
 
 ## 2. Collect examples, then fit the models
 
-**Collection** used the Qwen weights to generate examples for a separate model. The [collector script](../../scripts/collect_candidates.py) reads `train/questions.jsonl`, runs the old pipeline and compares candidate answers with `train/answers.jsonl` using a local evaluator that has since been removed. It writes one JSONL record per question, including questions with zero retained candidates.
+**Collection** used the Qwen weights to generate examples for a separate model. The [collector script](../../scripts/legacy/collect_candidates.py) reads `train/questions.jsonl`, runs the old pipeline and compares candidate answers with `train/answers.jsonl` using a local evaluator that has since been removed. It writes one JSONL record per question, including questions with zero retained candidates.
 
 | Field | What it records |
 | --- | --- |
@@ -41,7 +43,7 @@ flowchart TD
 
 For example, suppose the reference says five cups of peach tea were sold. A candidate that sums the quantity for peach tea and returns `5` gets label `1`. A candidate that counts two order lines instead gets label `0`, even if its SQL executes successfully. This is the difference the reranker tries to learn from candidate features.
 
-**Fitting and evaluation** used the [experiment script](../../scripts/evaluate_experiment.py) to read saved traces and fit a logistic-regression reranker and optional candidate policy. This script depends on the removed package and is not a current runnable workflow.
+**Fitting and evaluation** used the [experiment script](../../scripts/legacy/evaluate_experiment.py) to read saved traces and fit a logistic-regression reranker and optional candidate policy. This script depends on the removed package and is not a current runnable workflow.
 
 The [seed-2026 manifest](../../configs/splits/seed_2026.json) keeps all questions from one business in the same group. The archived workflow collected all 3,000 questions and compared strategies within development folds. Its holdout numbers are historical and must not be presented as current system performance. Keep public-test results out of fitting and configuration selection.
 
@@ -54,13 +56,13 @@ From the repository root, with the training kit and GGUF weights in place, run t
 ```powershell
 uv sync --locked
 $run = "artifacts/full_train_$(Get-Date -Format yyyyMMdd_HHmmss)"
-uv run python scripts/collect_candidates.py --candidates 3 --output "$run/train_candidates.jsonl"
+uv run python scripts/legacy/collect_candidates.py --candidates 3 --output "$run/train_candidates.jsonl"
 ```
 
 For a quick check, pass `--limit 10 --candidates 1` and use a separate output path. `--limit` takes the first rows in file order. Use the complete trace set for the grouped experiment. After the collector exits successfully and the trace contains 3,000 question records, run the second command in the same PowerShell session.
 
 ```powershell
-uv run python scripts/evaluate_experiment.py `
+uv run python scripts/legacy/evaluate_experiment.py `
     --candidates "$run/train_candidates.jsonl" `
     --manifest configs/splits/seed_2026.json `
     --output "$run/experiment_metrics.json"

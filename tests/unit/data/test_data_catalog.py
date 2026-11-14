@@ -1,14 +1,11 @@
 """Synthetic checks for the standalone read-only catalog scanner."""
-import importlib.util
 from pathlib import Path
 import sqlite3
 import tempfile
 import unittest
 import zipfile
 
-SPEC = importlib.util.spec_from_file_location("catalog_scan", Path(__file__).resolve().parents[1] / "scripts/build_data_catalog.py")
-scan = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(scan)
+from datamate.data.catalog_audit import build as scan
 
 
 class CatalogTests(unittest.TestCase):

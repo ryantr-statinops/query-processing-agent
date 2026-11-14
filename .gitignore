@@ -14,3 +14,4 @@ __pycache__/
 
 /analysis/*.json
 /analysis/*.md
+!/analysis/README.md
