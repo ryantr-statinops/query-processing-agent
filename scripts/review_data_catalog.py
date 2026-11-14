@@ -591,9 +591,8 @@ def question_sources(question, business):
     else:
         if "sales_lines" in roles and "orders" in roles:
             required.add("orders")
-        if "nhom hang" in text or "hoat chat" in text or "hang nao" in text or "mat hang" in text or "hang ban chay" in text:
-            if "products" in roles:
-                required.add("products")
+        if "nhom hang" in text or ("nhom " in text and "khach" not in text and "than thiet" not in text) or "hoat chat" in text or "hang nao" in text or "mat hang" in text or "hang ban chay" in text:
+            required.add("products")
         if "hoat chat" in text:
             required.add("drug_attributes")
         if "nhom" in text and ("khach" in text or "than thiet" in text):
@@ -608,6 +607,10 @@ def question_sources(question, business):
         missing.append("Missing source role: " + role)
     refs = {t["source_ref"] for t in selected}
     edges = [e for e in business["validated_join_unions"] if set(e["left_sources"] + e["right_sources"]).issubset(refs)]
+    if "products" in required and "sales_lines" in required:
+        product_joins = [e for e in edges if {"sales_lines", "products"}.issubset({e["semantic_relation"].split(" -> ")[0], e["semantic_relation"].split(" -> ")[1]})]
+        if not product_joins:
+            missing.append("Missing approved join: sales_lines -> products")
     unresolved = [t["source_ref"] for t in selected if t["grain_status"] != "verified"]
     bad_edges = [e["id"] for e in edges if e["status"] == "needs_review" or e.get("name_normalization_review", {}).get("status") == "needs_review"]
     caveats = [{"source_ref": t["source_ref"], "exact_duplicate_excess_rows": t["exact_duplicate_excess_rows"]} for t in selected if t["exact_duplicate_excess_rows"]]

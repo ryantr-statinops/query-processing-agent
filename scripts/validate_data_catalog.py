@@ -125,6 +125,18 @@ def validate(output):
         assert sample["as_of_date"] == question["as_of_date"]
         approved_ids = {e["id"] for b in businesses for e in b["validated_join_unions"]}
         assert set(question["join_edges"]).issubset(approved_ids)
+        folded_question = review.base.fold(sample["question"])
+        asks_product_group = "nhom" in folded_question and "khach" not in folded_question and "than thiet" not in folded_question
+        asks_ingredient = "hoat chat" in folded_question
+        if asks_product_group or asks_ingredient:
+            roles = {tables[ref]["logical_role"] for ref in question["source_refs"]}
+            assert "products" in roles, f"{question['question_id']} missing product master source"
+            product_edge = any(
+                {"sales_lines", "products"}.issubset(set(e["semantic_relation"].split(" -> ")))
+                for b in businesses for e in b["validated_join_unions"]
+                if e["id"] in question["join_edges"]
+            )
+            assert product_edge, f"{question['question_id']} missing approved sales-to-product join"
         for ref, columns in question["source_columns"].items():
             assert ref in tables and set(columns).issubset({c["name"] for c in tables[ref]["columns"]})
     assert catalog["review_provenance"]["script_sha256"] == base.digest(Path(__file__).with_name("review_data_catalog.py"))

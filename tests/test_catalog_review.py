@@ -15,6 +15,42 @@ SPEC.loader.exec_module(review)
 
 
 class CatalogReviewTests(unittest.TestCase):
+    def test_product_group_question_requires_product_catalog(self):
+        tables = [
+            {"source_ref": "biz_127/chi_tiet_don.csv", "logical_role": "sales_lines", "columns": [{"name": "Mã mặt hàng"}], "grain_status": "verified", "exact_duplicate_excess_rows": 0},
+            {"source_ref": "biz_127/don_hang.csv", "logical_role": "orders", "columns": [{"name": "Mã đơn hàng"}], "grain_status": "verified", "exact_duplicate_excess_rows": 0},
+            {"source_ref": "biz_127/san_pham.csv", "logical_role": "products", "columns": [{"name": "Mã sản phẩm bán"}, {"name": "Danh mục"}], "grain_status": "verified", "exact_duplicate_excess_rows": 0},
+        ]
+        edge = {"id": "lines-products", "left_sources": [tables[0]["source_ref"]], "right_sources": [tables[2]["source_ref"]], "semantic_relation": "sales_lines -> products", "status": "verified", "left_unmatched_non_null_rows": 0, "left_null_rows": 0}
+        business = {"business_id": "biz_127", "split_group": "development", "tables": tables, "validated_join_unions": [edge]}
+        question = {"id": "q_group", "as_of_date": "2026-02-28", "business_id": "biz_127", "question": "Xem giúp tháng 2/2026 nhóm hải sản chiếm bao nhiêu % doanh thu?"}
+        result = review.question_sources(question, business)
+        self.assertEqual(result["status"], "source_contract_ready")
+        self.assertIn(tables[2]["source_ref"], result["source_refs"])
+        self.assertIn("Danh mục", result["source_columns"][tables[2]["source_ref"]])
+        self.assertIn("lines-products", result["join_edges"])
+
+    def test_product_group_contract_without_catalog_or_join_needs_review(self):
+        tables = [
+            {"source_ref": "biz_127/chi_tiet_don.csv", "logical_role": "sales_lines", "columns": [{"name": "Mã mặt hàng"}], "grain_status": "verified", "exact_duplicate_excess_rows": 0},
+            {"source_ref": "biz_127/don_hang.csv", "logical_role": "orders", "columns": [{"name": "Mã đơn hàng"}], "grain_status": "verified", "exact_duplicate_excess_rows": 0},
+        ]
+        business = {"business_id": "biz_127", "split_group": "development", "tables": tables, "validated_join_unions": []}
+        question = {"id": "q_group", "as_of_date": "2026-02-28", "business_id": "biz_127", "question": "Xem giúp tháng 2/2026 nhóm hải sản chiếm bao nhiêu % doanh thu?"}
+        result = review.question_sources(question, business)
+        self.assertEqual(result["status"], "needs_review")
+        self.assertTrue(any("products" in item for item in result["missing_evidence"]))
+
+    def test_customer_group_question_does_not_require_product_group(self):
+        tables = [
+            {"source_ref": "biz_demo/sales.csv", "logical_role": "sales_lines", "columns": [{"name": "Total"}], "grain_status": "verified", "exact_duplicate_excess_rows": 0},
+            {"source_ref": "biz_demo/customers.csv", "logical_role": "customers", "columns": [{"name": "Customer group"}], "grain_status": "verified", "exact_duplicate_excess_rows": 0},
+        ]
+        business = {"business_id": "biz_demo", "split_group": "development", "tables": tables, "validated_join_unions": []}
+        question = {"id": "q_customer_group", "as_of_date": "2026-02-28", "business_id": "biz_demo", "question": "Doanh thu nhóm khách hàng thân thiết là bao nhiêu?"}
+        result = review.question_sources(question, business)
+        self.assertNotIn("Missing source role: products", result["missing_evidence"])
+
     def test_serial_requires_brackets_and_independent_date(self):
         values = ["01/01/2025", "45658", "1 thg 1 2025"]
         report, resolved = review.csv_serial_evidence(values, ["a", "b", "c"], {"b": {"2025-01-01"}}, "2025-12-31")
