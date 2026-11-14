@@ -23,5 +23,6 @@ module-name = "datamate"
 
 [dependency-groups]
 dev = [
+    "jsonschema>=4.23,<5",
     "openpyxl>=3.1.5,<4",
 ]

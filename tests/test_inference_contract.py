@@ -3,11 +3,7 @@ import unittest
 from pathlib import Path
 
 from datamate.agent import guardrails as g
-
-try:
-    from jsonschema import Draft202012Validator
-except ImportError:  # pragma: no cover - optional validation dependency
-    Draft202012Validator = None
+from jsonschema import Draft202012Validator
 
 CONTRACT_PATH = Path(__file__).resolve().parents[1] / "configs" / "inference_contract.json"
 
@@ -117,8 +113,6 @@ class ContractDocumentTests(unittest.TestCase):
             self.assertTrue(decision["question"])
 
     def test_contract_is_a_valid_json_schema(self):
-        if Draft202012Validator is None:
-            self.skipTest("jsonschema is not installed")
         Draft202012Validator.check_schema(self.contract)
 
     def test_examples_cover_every_answer_type_and_failure_mode(self):
@@ -158,8 +152,6 @@ class ContractDocumentTests(unittest.TestCase):
         for example in self.contract["x-examples"]:
             with self.subTest(example=example["name"]):
                 if example["validator"] == "schema":
-                    if Draft202012Validator is None:
-                        self.skipTest("jsonschema is not installed")
                     validator = Draft202012Validator(self._target_schema(example["target"]))
                     errors = list(validator.iter_errors(example["instance"]))
                     if example["expect"] == "valid":
