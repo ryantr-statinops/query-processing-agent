@@ -1,5 +1,4 @@
 """Evidence gates: serial dates, grain, and semantic join validation."""
-import importlib.util
 from collections import Counter
 from pathlib import Path
 import tempfile
@@ -9,9 +8,7 @@ import os
 import json
 import unittest
 
-SPEC = importlib.util.spec_from_file_location("catalog_review", Path(__file__).resolve().parents[1] / "scripts/review_data_catalog.py")
-review = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(review)
+from datamate.data.catalog_audit import review as review
 
 
 class CatalogReviewTests(unittest.TestCase):

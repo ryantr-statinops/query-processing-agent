@@ -6,6 +6,22 @@ import unittest
 
 
 class PackageImportTests(unittest.TestCase):
+    def test_catalog_imports_do_not_run_an_audit(self):
+        code = """
+from datamate.data.catalog_audit import build, review, validate
+assert review.base is build
+assert validate.review is review
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            result = subprocess.run(
+                [sys.executable, "-c", code], cwd=directory,
+                capture_output=True, text=True,
+            )
+            from pathlib import Path
+            self.assertEqual(list(Path(directory).iterdir()), [])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "")
+
     def test_guardrail_facade_preserves_identity_and_lazy_datafusion(self):
         code = """
 import sys
