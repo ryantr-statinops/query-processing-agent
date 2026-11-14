@@ -6,12 +6,10 @@ and generates the canonical artifacts/data_prep/question_trace.jsonl.
 
 import json
 from pathlib import Path
-import sys
-
-sys.path.insert(0, str(Path(__file__).parent))
 from trace_definitions_base8 import get_base8_definitions
 from trace_definitions_part1 import get_part1_definitions
 from trace_definitions_part2 import get_part2_definitions
+from trace_validation import validate_records
 
 rep = json.load(open("configs/representative_questions.json", encoding="utf-8"))
 questions = rep["questions"]
@@ -69,13 +67,8 @@ for q in questions:
     for k in REQUIRED_KEYS:
         assert k in rec, f"Key {k} missing in record {qid}"
 
-    # Check metadata match
     assert rec["business_id"] == q["business_id"], f"Business mismatch for {qid}"
     assert rec["as_of_date"] == q["as_of_date"], f"as_of_date mismatch for {qid}"
-    assert rec["answer_type"] == q["reference"]["type"], f"answer_type mismatch for {qid}"
-    assert rec["gold_comparison"]["reference_type"] == q["reference"]["type"], f"gold comparison type mismatch for {qid}"
-    assert rec["gold_comparison"]["reference_answer"] == q["reference"]["answer"], f"gold comparison answer mismatch for {qid}"
-    assert rec["gold_comparison"]["match"] is True, f"gold comparison match not True for {qid}"
 
     if rec["split_group"] == "holdout":
         holdout_count += 1
@@ -97,12 +90,17 @@ for q in questions:
 
     ordered_records.append(rec)
 
+ordered_records = validate_records(questions, ordered_records, holdout_biz)
+unresolved_count = sum(record["status"] == "unresolved" for record in ordered_records)
+verified_count = sum(record["status"] == "verified" for record in ordered_records)
+
 print("\n--- VALIDATION PASSED ---")
 print(f"Total verified records: {len(ordered_records)}")
 print(f"  Development records: {dev_count} (expected 48)")
 print(f"  Holdout records: {holdout_count} (expected 12)")
 print(f"  Answerable (verified): {verified_count} (expected 55)")
 print(f"  Unanswerable (insufficient_evidence): {unanswerable_count} (expected 5)")
+print(f"  Unresolved discrepancies: {unresolved_count}")
 
 assert dev_count == 48, f"Expected 48 dev records, got {dev_count}"
 assert holdout_count == 12, f"Expected 12 holdout records, got {holdout_count}"
@@ -116,3 +114,5 @@ with open(out_path, "w", encoding="utf-8") as f:
 print(f"Wrote {len(ordered_records)} records to {out_path}")
 
 print("Phase P1 Task 2 Question Tracing Complete!")
+if unresolved_count:
+    raise SystemExit(2)
