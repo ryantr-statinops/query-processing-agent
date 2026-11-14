@@ -262,4 +262,3 @@ def main(argv=None, *, repo_root):
     if args.write_report:
         handoff(review.load_json(args.output / "data_catalog.json"), result, repo_root=repo_root)
     print(json.dumps(result))
-

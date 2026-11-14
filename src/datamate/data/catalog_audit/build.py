@@ -640,4 +640,3 @@ def main(argv=None, *, repo_root):
     if args.write_docs:
         write_document(result, repo_root / "docs/data-schema-catalog.md")
     print(json.dumps({"businesses": len(result["businesses"]), "tables": sum(len(b["tables"]) for b in result["businesses"]), "errors": result["errors"], "source_unchanged": True}))
-

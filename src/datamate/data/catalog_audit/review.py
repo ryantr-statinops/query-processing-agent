@@ -718,4 +718,3 @@ def main(argv=None, *, repo_root):
         base.write_document(catalog, repo_root / "docs/data-schema-catalog.md")
     print(json.dumps({"date_reviews": catalog["date_reviews"], "grain_counts": dict(Counter(t["grain_status"] for b in catalog["businesses"] for t in b["tables"])),
                       "question_source_contracts": dict(Counter(q["status"] for q in source_map))}))
-
