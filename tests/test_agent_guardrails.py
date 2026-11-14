@@ -666,6 +666,104 @@ class ToolCallPolicyTests(unittest.TestCase):
         with self.assertRaises(g.GuardrailError):
             g.validate_tool_call("search_entities", {"query": " "})
 
+    def test_get_schema_requires_allowlisted_tables_and_known_arguments(self):
+        with self.assertRaises(g.GuardrailError) as caught:
+            g.validate_tool_call(
+                "get_schema",
+                {"tables": ["information_schema.tables"]},
+                allowed_tables=["orders"],
+            )
+        self.assertEqual(caught.exception.code, "unknown_table")
+
+        with self.assertRaises(g.GuardrailError) as caught:
+            g.validate_tool_call(
+                "get_schema",
+                {"tables": ["orders"], "gold_answer": "leak"},
+                allowed_tables=["orders"],
+            )
+        self.assertEqual(caught.exception.code, "invalid_tool_argument")
+
+        result = g.validate_tool_call(
+            "get_schema",
+            {"tables": ["ORDERS"], "detail": "full"},
+            allowed_tables=["orders"],
+        )
+        self.assertEqual(result["arguments"]["tables"], ["orders"])
+
+    def test_search_entities_checks_requested_tables_and_columns(self):
+        allowlist = {"orders": ["order_id", "amount"]}
+        with self.assertRaises(g.GuardrailError) as caught:
+            g.validate_tool_call(
+                "search_entities",
+                {"query": "shop", "tables": ["other"]},
+                allowed_tables=["orders"],
+                allowed_columns=allowlist,
+            )
+        self.assertEqual(caught.exception.code, "unknown_table")
+
+        with self.assertRaises(g.GuardrailError) as caught:
+            g.validate_tool_call(
+                "search_entities",
+                {"query": "shop", "tables": ["orders"], "columns": ["secret"]},
+                allowed_tables=["orders"],
+                allowed_columns=allowlist,
+            )
+        self.assertEqual(caught.exception.code, "unknown_column")
+
+        with self.assertRaises(g.GuardrailError) as caught:
+            g.validate_tool_call(
+                "search_entities",
+                {"query": "shop", "gold_answer": "leak"},
+                allowed_tables=["orders"],
+                allowed_columns=allowlist,
+            )
+        self.assertEqual(caught.exception.code, "invalid_tool_argument")
+
+    def test_sample_rows_requires_allowlisted_table_and_columns(self):
+        allowlist = {"orders": ["order_id", "amount"]}
+        with self.assertRaises(g.GuardrailError) as caught:
+            g.validate_tool_call(
+                "sample_rows",
+                {"table": "information_schema.tables"},
+                allowed_tables=["orders"],
+                allowed_columns=allowlist,
+            )
+        self.assertEqual(caught.exception.code, "unknown_table")
+
+        with self.assertRaises(g.GuardrailError) as caught:
+            g.validate_tool_call(
+                "sample_rows",
+                {"table": "orders", "columns": ["secret"]},
+                allowed_tables=["orders"],
+                allowed_columns=allowlist,
+            )
+        self.assertEqual(caught.exception.code, "unknown_column")
+
+        result = g.validate_tool_call(
+            "sample_rows",
+            {"table": "ORDERS", "columns": ["amount"], "limit": 5},
+            allowed_tables=["orders"],
+            allowed_columns=allowlist,
+        )
+        self.assertEqual(result["arguments"]["table"], "orders")
+
+    def test_run_sql_rejects_unknown_arguments_and_bad_row_limit(self):
+        with self.assertRaises(g.GuardrailError) as caught:
+            g.validate_tool_call(
+                "run_sql",
+                {"sql": "SELECT * FROM orders", "gold_answer": "leak"},
+                allowed_tables=["orders"],
+            )
+        self.assertEqual(caught.exception.code, "invalid_tool_argument")
+
+        with self.assertRaises(g.GuardrailError) as caught:
+            g.validate_tool_call(
+                "run_sql",
+                {"sql": "SELECT * FROM orders", "max_rows": 201},
+                allowed_tables=["orders"],
+            )
+        self.assertEqual(caught.exception.code, "invalid_tool_argument")
+
     def test_run_sql_without_probe_marks_static_only(self):
         result = g.validate_tool_call(
             "run_sql",
