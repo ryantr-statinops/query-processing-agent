@@ -1,16 +1,20 @@
 # Hướng dẫn đọc tài liệu DataMate
 
-Tài liệu này dành cho mentor và thành viên mới. Repo đang trong giai đoạn rebuild: solver cũ đã được gỡ, catalog còn là bản quét ban đầu, còn kiến trúc agentic RAG là đề xuất chờ xác nhận bằng truy vết data.
+Tài liệu này dành cho mentor và thành viên mới. Repo đang trong giai đoạn rebuild: solver cũ đã được gỡ, catalog và tracing đã có công cụ xác minh; inference contract v0 và guardrails đã được merge. Runtime end-to-end chưa được triển khai.
 
 ## Lộ trình đọc cho mentor
 
 1. [README dự án](../README.md) — mục tiêu, trạng thái hiện tại và những gì chưa chạy được.
 2. [Luật cuộc thi và answer contract](01-competition.md) — giới hạn phải tuân thủ khi thiết kế hệ thống.
-3. [Data inventory](data-inventory.md), rồi [schema catalog ban đầu](data-schema-catalog.md) — quy mô data và phần cấu trúc cần xác minh. Catalog hiện chưa xác nhận đầy đủ header Excel, row counts và độ phủ ngày.
+3. [Data inventory](data-inventory.md), rồi [schema catalog ban đầu](data-schema-catalog.md) — quy mô data và phần cấu trúc cần xác minh. Xem thêm handoff catalog và tracing để biết bằng chứng và giới hạn kiểm tra.
 4. [Bộ 60 câu train đại diện](../configs/representative_questions.json) — phạm vi câu hỏi được chọn; có 12 câu thuộc holdout đã tiếp xúc nhãn, nên không đại diện cho đánh giá holdout độc lập.
 5. [Kiến trúc agentic RAG đề xuất](architecture/agentic-rag.md) — graph thành phần, sequence của một lượt hỏi đáp, ranh giới dữ liệu và các quyết định còn mở.
 6. [Kế hoạch rebuild theo team](plan/rebuild.md) — các phase, ownership và gate.
 7. Mở brief theo vai trò cần review: [Người 1 — data catalog](plan/01-data-catalog.md), [Người 2 — truy vết](plan/02-question-tracing.md), [Người 3 — inference](plan/03-agentic-rag-inference.md), [Người 4 — runtime](plan/04-baseline-runtime.md), [Người 5 — đánh giá và tích hợp](plan/05-evaluation-integration.md).
+
+## Kiến trúc package hiện hành
+
+[Package structure](architecture/package-structure.md) mô tả code hiện có, hướng phụ thuộc và các package runtime còn thiếu. Tài liệu trong archive là thiết kế solver cũ.
 
 ## Các điểm nên review
 

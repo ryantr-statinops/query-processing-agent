@@ -1,5 +1,9 @@
-# Source tree reset
+# DataMate source
 
-The previous DataMate solver implementation was removed to make room for the rebuilt project. The competition data, rules, split manifest, and data setup/download scripts remain in the repository.
+`datamate.agent` implements the inference-contract guardrails. Catalog audit and
+trace audit helpers are being moved into their package boundaries as part of the
+structure refactor. Runtime loaders, execution, model integration and the inference
+entrypoint remain future work.
 
-Next: inspect representative training questions against their business packages, record the data paths and applicable rules in `docs/data-inventory.md`, then design a minimal baseline from those findings.
+See [the current package architecture](../docs/architecture/package-structure.md)
+for dependency rules and the distinction between existing code and planned runtime.
