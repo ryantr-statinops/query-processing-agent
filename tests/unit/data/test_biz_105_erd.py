@@ -2,7 +2,9 @@ import re
 import unittest
 from pathlib import Path
 
-ERD_PATH = Path(__file__).resolve().parents[1] / "docs" / "architecture" / "biz_105-erd.md"
+from tests.support import REPO_ROOT
+
+ERD_PATH = REPO_ROOT / "docs" / "architecture" / "biz_105-erd.md"
 
 
 class Biz105ErdTests(unittest.TestCase):

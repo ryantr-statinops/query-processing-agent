@@ -5,7 +5,9 @@ from pathlib import Path
 from datamate.agent import guardrails as g
 from jsonschema import Draft202012Validator
 
-CONTRACT_PATH = Path(__file__).resolve().parents[1] / "configs" / "inference_contract.json"
+from tests.support import REPO_ROOT
+
+CONTRACT_PATH = REPO_ROOT / "configs" / "inference_contract.json"
 
 
 class ContractDocumentTests(unittest.TestCase):
