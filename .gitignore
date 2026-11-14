@@ -11,3 +11,6 @@
 *.gguf
 __pycache__/
 *.py[cod]
+
+/analysis/*.json
+/analysis/*.md
