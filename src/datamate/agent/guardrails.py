@@ -1969,6 +1969,9 @@ def build_submission_record(
 def validate_internal_result(result: Mapping[str, Any]) -> bool:
     """Validate the contract-level per-question record without JSON Schema."""
 
+    if not isinstance(result, Mapping):
+        raise GuardrailError("invalid_model_output", "internal result must be an object")
+
     required = {
         "contract_version",
         "question_id",
@@ -1981,13 +1984,27 @@ def validate_internal_result(result: Mapping[str, Any]) -> bool:
         "errors",
         "diagnostics",
     }
+    allowed = required | {"plan", "evidence", "tool_calls"}
     missing = required - set(result)
+    missing |= {"plan", "evidence", "tool_calls"} - set(result)
     if missing:
         raise GuardrailError(
             "invalid_model_output",
             "internal result is missing fields",
             detail={"missing": sorted(missing)},
         )
+    unknown = set(result) - allowed
+    if unknown:
+        raise GuardrailError(
+            "invalid_model_output",
+            "internal result contains unknown fields",
+            detail={"unknown_fields": sorted(str(key) for key in unknown)},
+        )
+
+    if not isinstance(result["question_id"], str) or not _QUESTION_ID.fullmatch(result["question_id"]):
+        raise GuardrailError("invalid_model_output", "question_id does not match the contract")
+    if not isinstance(result["business_id"], str) or not _BUSINESS_ID.fullmatch(result["business_id"]):
+        raise GuardrailError("invalid_model_output", "business_id does not match the contract")
     if result["contract_version"] != CONTRACT_VERSION:
         raise GuardrailError(
             "invalid_model_output",
@@ -2003,7 +2020,18 @@ def validate_internal_result(result: Mapping[str, Any]) -> bool:
         raise GuardrailError("invalid_model_output", f"unknown reason code: {reason}")
 
     answer = result["answer"]
+    if not isinstance(answer, Mapping) or set(answer) != {"type", "answer"}:
+        raise GuardrailError(
+            "invalid_model_output",
+            "answer must contain exactly type and answer",
+        )
     validate_typed_answer(answer)
+    if result["plan"] is not None and not isinstance(result["plan"], Mapping):
+        raise GuardrailError("invalid_model_output", "plan must be an object or null")
+    if not isinstance(result["evidence"], list):
+        raise GuardrailError("invalid_model_output", "evidence must be an array")
+    if not isinstance(result["tool_calls"], list):
+        raise GuardrailError("invalid_model_output", "tool_calls must be an array")
 
     if status == "answered":
         if reason != "ok":
@@ -2016,7 +2044,10 @@ def validate_internal_result(result: Mapping[str, Any]) -> bool:
                 "invalid_model_output",
                 "answered result cannot use unanswerable answer type",
             )
-        if not isinstance(result.get("verification"), Mapping) or not result["verification"].get("passed"):
+        if (
+            not isinstance(result.get("verification"), Mapping)
+            or result["verification"].get("passed") is not True
+        ):
             raise GuardrailError(
                 "verification_failed",
                 "answered result requires passed verification",

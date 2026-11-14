@@ -506,6 +506,37 @@ class SubmissionAndResultTests(unittest.TestCase):
         with self.assertRaises(g.GuardrailError):
             g.validate_internal_result(result)
 
+    def test_internal_result_requires_all_root_contract_fields(self):
+        for field in ("plan", "evidence", "tool_calls"):
+            with self.subTest(field=field):
+                result = self.internal_result()
+                del result[field]
+                with self.assertRaises(g.GuardrailError):
+                    g.validate_internal_result(result)
+
+    def test_internal_result_rejects_malformed_ids(self):
+        for field, value in (
+            ("question_id", "q_valid\n"),
+            ("business_id", "information_schema"),
+        ):
+            with self.subTest(field=field):
+                result = self.internal_result()
+                result[field] = value
+                with self.assertRaises(g.GuardrailError):
+                    g.validate_internal_result(result)
+
+    def test_internal_result_requires_boolean_verification_status(self):
+        result = self.internal_result()
+        result["verification"] = {"passed": "false"}
+        with self.assertRaises(g.GuardrailError):
+            g.validate_internal_result(result)
+
+    def test_internal_result_rejects_unknown_root_fields(self):
+        result = self.internal_result()
+        result["unexpected"] = True
+        with self.assertRaises(g.GuardrailError):
+            g.validate_internal_result(result)
+
     def test_diagnostic_record_keeps_reason(self):
         result = self.internal_result()
         result.update(
