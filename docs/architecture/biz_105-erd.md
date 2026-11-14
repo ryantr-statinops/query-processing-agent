@@ -84,16 +84,16 @@ The 17 monthly relations are vertical partitions of one logical `SALES_LINE` ent
 ```mermaid
 erDiagram
     SALES_LINE }o--o{ PRICE_HISTORY : "R1 product name + effective date (candidate)"
-    SALES_LINE }o--|| UNIT_CONVERSION : "R2 product name (candidate)"
-    SALES_LINE }o--|| STOCK_SNAPSHOT : "R3 product name at as-of snapshot (candidate)"
+    SALES_LINE }o--o| UNIT_CONVERSION : "R2 product name (candidate)"
+    SALES_LINE }o--o| STOCK_SNAPSHOT : "R3 product name at as-of snapshot (candidate)"
     SALES_LINE }o--o{ PURCHASE_LINE : "R4 product name (candidate)"
-    PURCHASE_LINE }o--|| UNIT_CONVERSION : "R5 product name (candidate)"
-    PURCHASE_LINE }o--|| STOCK_SNAPSHOT : "R6 product name (candidate)"
-    SALES_LINE }o--|| SALES_ORDER : "R7 invoice id rollup (candidate key)"
+    PURCHASE_LINE }o--o| UNIT_CONVERSION : "R5 product name (candidate)"
+    PURCHASE_LINE }o--o| STOCK_SNAPSHOT : "R6 product name (candidate)"
+    SALES_LINE }o--o| SALES_ORDER : "R7 invoice id rollup (candidate key)"
     PRICE_HISTORY ||--o{ PRICE_HISTORY : "R8 next effective milestone (verified concept)"
     STOCK_SNAPSHOT ||--o{ SALES_LINE : "R9 snapshot only (verified grain)"
     SALES_LINE }o--|| CALENDAR : "R11 transaction date (verified column)"
-    PURCHASE_LINE }o--|| SUPPLIER : "R12 supplier name rollup (candidate)"
+    PURCHASE_LINE }o--o| SUPPLIER : "R12 supplier name rollup (candidate)"
 
     SALES_LINE {
         string Hang "product name text"

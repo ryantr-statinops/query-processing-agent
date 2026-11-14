@@ -74,6 +74,18 @@ class Biz105ErdTests(unittest.TestCase):
             with self.subTest(relationship=index):
                 self.assertRegex(self.text, rf"\| R{index} \|")
 
+    def test_unmeasured_or_sparse_joins_allow_missing_matches(self):
+        for relationship in (
+            'SALES_LINE }o--o| UNIT_CONVERSION : "R2',
+            'SALES_LINE }o--o| STOCK_SNAPSHOT : "R3',
+            'PURCHASE_LINE }o--o| UNIT_CONVERSION : "R5',
+            'PURCHASE_LINE }o--o| STOCK_SNAPSHOT : "R6',
+            'SALES_LINE }o--o| SALES_ORDER : "R7',
+            'PURCHASE_LINE }o--o| SUPPLIER : "R12',
+        ):
+            with self.subTest(relationship=relationship):
+                self.assertIn(relationship, self.text)
+
     def test_join_contract_includes_name_and_temporal_columns(self):
         self.assertIn("normalised `Hàng` = normalised `ten_hang`", self.text)
         self.assertIn("`Ngày áp dụng <= Ngày giao dịch`", self.text)
