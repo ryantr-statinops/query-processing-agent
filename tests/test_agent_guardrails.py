@@ -547,6 +547,18 @@ class SubmissionAndResultTests(unittest.TestCase):
         with self.assertRaises(g.GuardrailError):
             g.validate_internal_result(result)
 
+        result = self.internal_result()
+        result.update(
+            {
+                "execution_status": "unanswerable",
+                "reason_code": "unsupported_source_role",
+                "answer": {"type": "unanswerable", "answer": None},
+                "verification": None,
+            }
+        )
+        with self.assertRaises(g.GuardrailError):
+            g.validate_internal_result(result)
+
     def test_internal_result_rejects_unknown_root_fields(self):
         result = self.internal_result()
         result["unexpected"] = True
@@ -810,6 +822,32 @@ class ToolCallPolicyTests(unittest.TestCase):
                 allowed_tables=["orders"],
             )
         self.assertEqual(caught.exception.code, "invalid_tool_argument")
+
+    def test_tool_option_values_match_contract_types_and_ranges(self):
+        for detail in (None, [], "verbose"):
+            with self.subTest(detail=detail):
+                with self.assertRaises(g.GuardrailError):
+                    g.validate_tool_call(
+                        "get_schema",
+                        {"detail": detail},
+                        allowed_tables=["orders"],
+                    )
+
+        for min_score in (True, -0.1, 1.1, "0.8"):
+            with self.subTest(min_score=min_score):
+                with self.assertRaises(g.GuardrailError):
+                    g.validate_tool_call(
+                        "search_entities",
+                        {"query": "shop", "min_score": min_score},
+                        allowed_tables=["orders"],
+                    )
+
+        valid = g.validate_tool_call(
+            "search_entities",
+            {"query": "shop", "min_score": 0.8},
+            allowed_tables=["orders"],
+        )
+        self.assertEqual(valid["arguments"]["min_score"], 0.8)
 
     def test_run_sql_without_probe_marks_static_only(self):
         result = g.validate_tool_call(

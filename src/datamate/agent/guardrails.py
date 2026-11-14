@@ -1537,7 +1537,10 @@ def validate_tool_call(
                 "get_schema.tables cannot exceed 21 tables",
                 detail={"limit": 21, "count": len(tables)},
             )
-        if "detail" in arguments and arguments["detail"] not in {"summary", "full"}:
+        if "detail" in arguments and (
+            not isinstance(arguments["detail"], str)
+            or arguments["detail"] not in {"summary", "full"}
+        ):
             raise GuardrailError(
                 "invalid_tool_argument",
                 "get_schema.detail must be summary or full",
@@ -1565,6 +1568,13 @@ def validate_tool_call(
                 "invalid_tool_argument",
                 "search_entities.limit must be between 1 and 50",
             )
+        if "min_score" in arguments:
+            min_score = arguments["min_score"]
+            if not _is_finite_number(min_score) or not 0 <= min_score <= 1:
+                raise GuardrailError(
+                    "invalid_tool_argument",
+                    "search_entities.min_score must be a finite number between 0 and 1",
+                )
         normalized = {**dict(arguments), "query": query.strip(), "limit": limit}
         if "tables" in arguments:
             normalized["tables"] = _allowlisted_names(
@@ -2047,6 +2057,12 @@ def validate_internal_result(result: Mapping[str, Any]) -> bool:
         raise GuardrailError("invalid_model_output", "evidence must be an array")
     if not isinstance(result["tool_calls"], list):
         raise GuardrailError("invalid_model_output", "tool_calls must be an array")
+    verification = result["verification"]
+    if not isinstance(verification, Mapping) or not isinstance(verification.get("passed"), bool):
+        raise GuardrailError(
+            "invalid_model_output",
+            "verification must be an object with a boolean passed field",
+        )
 
     if status == "answered":
         if reason != "ok":
@@ -2060,8 +2076,7 @@ def validate_internal_result(result: Mapping[str, Any]) -> bool:
                 "answered result cannot use unanswerable answer type",
             )
         if (
-            not isinstance(result.get("verification"), Mapping)
-            or result["verification"].get("passed") is not True
+            verification["passed"] is not True
         ):
             raise GuardrailError(
                 "verification_failed",
