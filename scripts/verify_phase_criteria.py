@@ -2,7 +2,7 @@
 Independent Phase P1 Task 2 Criteria Verifier.
 Strictly verifies all 5 completion criteria defined in docs/plan/02-question-tracing.md:
 1. Exactly 60 records matching ID, business_id, and as_of_date in configs/representative_questions.json.
-2. Grounded source_refs (all physical files exist on disk, verified sheets and 321/321 columns physically on disk).
+2. Grounded source_refs (all physical files exist on disk, verified sheets and 322/322 columns physically on disk).
 3. Live recomputations on raw disk data across all 8 answer types & edge cases:
    - Relative date resolution (biz_107 - Number)
    - Unit conversion & weighted average (biz_109 - Number)
@@ -190,7 +190,7 @@ def main():
                         verified_cols += 1
 
     assert verified_cols == total_declared_cols, f"Mismatch: verified {verified_cols} cols but declared {total_declared_cols} cols"
-    assert verified_cols == 321, f"Expected exactly 321 verified columns, got {verified_cols}"
+    assert verified_cols == 322, f"Expected exactly 322 verified columns, got {verified_cols}"
 
     print(f"\n[CRITERION 2 PASSED] Physical file, sheet, and column grounding:")
     print(f"  - Verified {checked_sources} source references exist physically on disk.")

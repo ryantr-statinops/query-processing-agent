@@ -299,10 +299,10 @@ def get_part2_definitions(q_map, get_split):
         "answer_type": "table",
         "source_refs": [
             {"path": "train/data/biz_123/pos.sqlite", "sheet": "khach_hang", "columns": ["MaKhachHang", "TenGoi"], "role": "customer directory table"},
-            {"path": "train/data/biz_123/pos.sqlite", "sheet": "don_hang", "columns": ["MaHoaDon", "MaKhachHang", "NgayLap", "TongThanhToan", "PhuongThucTT", "TinhTrang"], "role": "invoice orders table"},
+            {"path": "train/data/biz_123/pos.sqlite", "sheet": "don_hang", "columns": ["MaHoaDon", "MaKhachHang", "NgayLap", "TongThanhToan", "PhuongThucTT", "KenhBanHang", "TinhTrang"], "role": "invoice orders table"},
             {"path": "train/data/biz_123/pos.sqlite", "sheet": "thanh_toan", "columns": ["MaHoaDon", "NgayGioThu", "SoTienThu"], "role": "payment receipts table"}
         ],
-        "required_columns": ["MaKhachHang", "TenGoi", "NgayLap", "TongThanhToan", "PhuongThucTT", "NgayGioThu", "SoTienThu"],
+        "required_columns": ["MaKhachHang", "TenGoi", "NgayLap", "TongThanhToan", "PhuongThucTT", "KenhBanHang", "NgayGioThu", "SoTienThu"],
         "grain": {"source": "one row per invoice / payment", "calculation_grain": "aggregate payments by store and invoice through cutoff before joining valid order balances by store/customer; rank top 5"},
         "join_edges": [{"from": "don_hang.MaKhachHang", "to": "khach_hang.MaKhachHang", "cardinality": "many_to_one"}],
         "rule_refs": [
