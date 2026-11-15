@@ -10,6 +10,7 @@ import unittest
 from jsonschema import Draft202012Validator
 
 from datamate.application.runner import _make_result, run
+from datamate.execution.sql import QueryResult
 
 
 class RuntimeRunnerTests(unittest.TestCase):
@@ -84,6 +85,44 @@ class RuntimeRunnerTests(unittest.TestCase):
         Draft202012Validator(contract).validate(result)
         self.assertEqual(result["execution_status"], "abstain")
         self.assertEqual(result["reason_code"], "invalid_model_output")
+
+    def test_over_deadline_result_is_abstained_and_logged_as_timeout(self):
+        candidate = {
+            "answer": {"type": "number", "answer": 5},
+            "candidate_plan": {"sql": "SELECT amount FROM sales"},
+            "verification": {"passed": True},
+            "features": {"sql_valid": True},
+            "result": QueryResult(
+                True,
+                ["amount"],
+                [[5]],
+                None,
+                15001,
+                source_refs=["catalog:biz_001:sales.csv"],
+                sql_validation={"ok": True, "statement_type": "select", "tables": ["sales"],
+                                "ctes": [], "plan_checked": True, "columns_checked": True,
+                                "warnings": []},
+            ),
+        }
+        result = _make_result(
+            {
+                "id": "q_synthetic0001",
+                "business_id": "biz_001",
+                "question": "What is total amount?",
+                "as_of_date": "2026-01-01",
+            },
+            candidate=candidate,
+            generator_configured=True,
+            duration_ms=15020,
+        )
+        self.assertEqual(result["execution_status"], "abstain")
+        self.assertEqual(result["reason_code"], "timeout")
+        self.assertEqual(result["answer"], {"type": "unanswerable", "answer": None})
+        self.assertEqual(result["tool_calls"][0]["status"], "timeout")
+        contract = json.loads(
+            pathlib.Path("configs/inference_contract.json").read_text(encoding="utf-8")
+        )
+        Draft202012Validator(contract).validate(result)
 
 
 if __name__ == "__main__":

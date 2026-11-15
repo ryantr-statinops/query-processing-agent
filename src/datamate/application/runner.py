@@ -119,7 +119,10 @@ def _error_for_candidate(candidate: Mapping[str, Any] | None) -> tuple[str, dict
     return "insufficient_evidence", None
 
 
-def _tool_call(candidate: Mapping[str, Any] | None) -> list[dict[str, Any]]:
+def _tool_call(
+    candidate: Mapping[str, Any] | None,
+    budget_error: GuardrailError | None = None,
+) -> list[dict[str, Any]]:
     if not candidate:
         return []
     result = candidate.get("result")
@@ -149,14 +152,29 @@ def _tool_call(candidate: Mapping[str, Any] | None) -> list[dict[str, Any]]:
             }
         ]
     plan = candidate.get("candidate_plan") or {}
-    status = "ok" if result.ok else "timeout" if result.error_code == "timeout" else "error"
-    raw_code = result.error_code or "internal_error"
-    error = None if result.ok else build_error(
-        raw_code if raw_code in _ERROR_CODES else "internal_error",
-        result.error or "SQL execution failed",
-        stage="execution",
-        detail={"elapsed_ms": result.elapsed_ms},
-    )
+    if budget_error is not None:
+        status = "timeout" if budget_error.code == "timeout" else "error"
+    elif result.ok:
+        status = "ok"
+    else:
+        status = "timeout" if result.error_code == "timeout" else "error"
+    raw_code = budget_error.code if budget_error else result.error_code or "internal_error"
+    if budget_error is not None:
+        error = build_error(
+            raw_code if raw_code in _ERROR_CODES else "internal_error",
+            budget_error.message,
+            stage="execution",
+            detail={"elapsed_ms": result.elapsed_ms},
+        )
+    elif result.ok:
+        error = None
+    else:
+        error = build_error(
+            raw_code if raw_code in _ERROR_CODES else "internal_error",
+            result.error or "SQL execution failed",
+            stage="execution",
+            detail={"elapsed_ms": result.elapsed_ms},
+        )
     return [
         {
             "call_id": "tc_1",
@@ -192,10 +210,25 @@ def _make_result(
     duration_ms: int,
     planner_note: str | None = None,
 ) -> dict[str, Any]:
+    result = candidate.get("result") if candidate else None
+    ledger = BudgetLedger()
+    budget_error = None
+    try:
+        if result is not None:
+            ledger.consume_retrieval_round()
+            ledger.consume_tool_call("run_sql", rows=len(result.rows))
+            ledger.tick(result.elapsed_ms, is_query=True)
+        non_query_elapsed = max(0, duration_ms - (result.elapsed_ms if result else 0))
+        if non_query_elapsed:
+            ledger.tick(non_query_elapsed)
+    except GuardrailError as error:
+        budget_error = error
+
     answer = candidate.get("answer") if candidate else None
     verification = candidate.get("verification") if candidate else None
     accepted = bool(
-        answer
+        budget_error is None
+        and answer
         and isinstance(verification, Mapping)
         and verification.get("passed") is True
         and (candidate.get("features") or {}).get("sql_valid") is True
@@ -203,6 +236,11 @@ def _make_result(
     if accepted:
         status, reason_code = "answered", "ok"
         answer = build_typed_answer(answer["type"], answer["answer"])
+    elif budget_error is not None:
+        reason_code = "timeout" if budget_error.code == "timeout" else "budget_exhausted"
+        status = map_outcome(reason_code)["execution_status"]
+        answer = build_typed_answer("unanswerable", None)
+        verification = _verification_for_abstain(reason_code)
     else:
         reason_code, error = _error_for_candidate(candidate) if generator_configured else (
             "invalid_model_output",
@@ -220,10 +258,18 @@ def _make_result(
             else _verification_for_abstain(reason_code)
         )
 
-    tool_calls = _tool_call(candidate)
-    result = candidate.get("result") if candidate else None
+    tool_calls = _tool_call(candidate, budget_error)
     errors: list[dict[str, Any]] = []
-    if not accepted:
+    if budget_error is not None:
+        errors = [
+            build_error(
+                budget_error.code if budget_error.code in _ERROR_CODES else "budget_exhausted",
+                budget_error.message,
+                stage="execution",
+                detail=budget_error.detail,
+            )
+        ]
+    elif not accepted:
         if not generator_configured:
             errors = [error]
         else:
@@ -245,14 +291,6 @@ def _make_result(
             for source in plan.get("sources", [])
         ]
 
-    ledger = BudgetLedger()
-    if result is not None:
-        try:
-            ledger.consume_retrieval_round()
-            ledger.consume_tool_call("run_sql", rows=len(result.rows))
-            ledger.tick(result.elapsed_ms, is_query=True)
-        except GuardrailError:
-            pass
     budget_usage = ledger.snapshot()
     budget_usage["elapsed_ms"] = duration_ms
 
