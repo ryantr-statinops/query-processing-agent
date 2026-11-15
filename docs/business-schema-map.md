@@ -3,7 +3,7 @@
 Bản đồ ngữ nghĩa **từng business** (30 `biz_*` + 14 `dev_*`), dựng từ 44 `README.md` trong `train/data` + `public_test/data`, đã **đối chiếu với header thật** đọc bằng `openpyxl`/`csv`/`sqlite3`.
 
 Trạng thái cột: **đã xác minh** = tên cột đọc từ file trùng README; **lệch** = README khác header thật (ghi rõ).
-Script sinh dữ liệu: `analysis/04_inventory.py`, `05_headers.py`, `06_header_rows.py`, `09_number_style.py`, `10_status_values.py`, `11_products.py`.
+Lệnh khảo sát nguồn: `uv run python -m analysis.sources inventory|headers|header-rows|number-style|statuses|products`.
 
 > Không sửa file nguồn. Mọi chuẩn hoá làm trong bộ nhớ.
 
