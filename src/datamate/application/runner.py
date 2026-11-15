@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import importlib.metadata
 import json
+import os
 import pathlib
 import time
 from collections.abc import Mapping
@@ -347,6 +348,20 @@ def run(
     data_root = pathlib.Path(data_root)
     result_root = pathlib.Path(result_root)
     questions = _load_questions(data_root)
+    if model_path is None and os.environ.get("DATAMATE_MODEL_PATH"):
+        model_path = pathlib.Path(os.environ["DATAMATE_MODEL_PATH"])
+    planner_init_error = None
+    if generator is None and model_path is not None:
+        model_file = pathlib.Path(model_path)
+        if model_file.exists():
+            try:
+                from datamate.generation.vllm_adapter import VllmPlanner
+
+                generator = VllmPlanner(model_file)
+            except Exception as exc:
+                generator = None
+                planner_init_error = f"vLLM adapter failed to load: {exc}"
+
     pipeline = CandidatePipeline(data_root, generator, count=1) if generator is not None else None
     submissions: list[dict[str, Any]] = []
     logs: list[dict[str, Any]] = []
@@ -398,12 +413,14 @@ def run(
         duration_ms = int((time.monotonic() - started) * 1000)
         planner_note = None
         if generator is None:
-            if model_path is None:
+            if planner_init_error:
+                planner_note = planner_init_error
+            elif model_path is None:
                 planner_note = "no local planner adapter is configured; baseline abstains safely"
             elif not pathlib.Path(model_path).is_file():
                 planner_note = f"model file does not exist: {model_path}; baseline abstains safely"
             else:
-                planner_note = "GGUF file exists but the local planner adapter is not integrated yet"
+                planner_note = "model file exists but the local planner adapter could not be initialized"
         internal = _make_result(
             request,
             candidate=accepted,
@@ -447,7 +464,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run the local DataMate baseline.")
     parser.add_argument("--data-root", type=pathlib.Path, default=pathlib.Path("/data"))
     parser.add_argument("--result-root", type=pathlib.Path, default=pathlib.Path("/result"))
-    parser.add_argument("--model-path", type=pathlib.Path, default=None)
+    env_model = os.environ.get("DATAMATE_MODEL_PATH")
+    parser.add_argument(
+        "--model-path",
+        type=pathlib.Path,
+        default=pathlib.Path(env_model) if env_model else None,
+    )
     return parser
 
 
