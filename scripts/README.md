@@ -15,6 +15,7 @@ catalog flags and source-evidence limitations are documented in the catalog hand
 | Catalog | `uv run python scripts/validate_data_catalog.py --help` | Validate artifact structure, source fingerprints, and review provenance. |
 | Tracing | `uv run python scripts/trace_full_dataset.py` | Rebuild the development trace from the checked-in definitions and representative questions. |
 | Tracing | `uv run python scripts/verify_phase_criteria.py` | Run the independent tracing criteria audit against local data. It reads local source records, may take several minutes, and exits non-zero when discrepancies remain. |
+| Evaluation | `uv run python scripts/evaluate_predictions.py --predictions <submission.jsonl>` | Score predictions on development businesses and write reproducibility metadata to `artifacts/evaluation/score.json`. Exposed holdout scoring requires `--split holdout --exploratory-holdout`. |
 | Analysis | `uv run python -m analysis.questions --help` and `uv run python -m analysis.sources --help` | Run local, exploratory question and source-file inspections. |
 
 The scanner, reviewer, and validator are implemented in
