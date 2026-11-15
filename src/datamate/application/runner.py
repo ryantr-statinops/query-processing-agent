@@ -363,11 +363,14 @@ def run(
                 from datamate.generation.vllm_adapter import VllmPlanner
 
                 generator = VllmPlanner(model_file)
+                if hasattr(generator, "warmup"):
+                    generator.warmup()
             except Exception as exc:
                 generator = None
                 planner_init_error = f"vLLM adapter failed to load: {exc}"
 
-    pipeline = CandidatePipeline(data_root, generator, count=1) if generator is not None else None
+    candidate_count = int(os.environ.get("DATAMATE_CANDIDATE_COUNT", "1"))
+    pipeline = CandidatePipeline(data_root, generator, count=candidate_count) if generator is not None else None
     submissions: list[dict[str, Any]] = []
     logs: list[dict[str, Any]] = []
 
@@ -411,7 +414,10 @@ def run(
                 for item in candidates
                 if item.get("answer")
                 and (item.get("verification") or {}).get("passed") is True
-                and (item.get("features") or {}).get("sql_valid") is True
+                and (
+                    item.get("answer", {}).get("type") == "unanswerable"
+                    or (item.get("features") or {}).get("sql_valid") is True
+                )
             ),
             candidates[0] if candidates else None,
         )

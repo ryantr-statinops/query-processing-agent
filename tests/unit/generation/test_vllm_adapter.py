@@ -40,6 +40,31 @@ class VllmPlannerTests(unittest.TestCase):
         self.assertIn("Rule 1:", prompt)
         self.assertIn("Candidate attempt: 1", prompt)
         self.assertIn('"sql": A valid read-only SQL SELECT statement.', prompt)
+        self.assertTrue(prompt.endswith("<|im_start|>assistant\n<think>\n\n</think>\n"))
+
+    def test_vllm_planner_get_config_hash_is_deterministic_and_dynamic(self):
+        p1 = VllmPlanner("models/model_a.gguf", gpu_memory_utilization=0.80)
+        p2 = VllmPlanner("models/model_a.gguf", gpu_memory_utilization=0.80)
+        p3 = VllmPlanner("models/model_b.gguf", gpu_memory_utilization=0.80)
+        self.assertEqual(p1.get_config_hash(), p2.get_config_hash())
+        self.assertNotEqual(p1.get_config_hash(), p3.get_config_hash())
+
+    def test_vllm_planner_cache_failure_fail_fast(self):
+        planner = VllmPlanner("models/dummy.gguf")
+        planner._init_error = RuntimeError("CUDA OOM test")
+        with self.assertRaises(RuntimeError) as caught:
+            planner._ensure_engine()
+        self.assertIn("previously failed", str(caught.exception))
+
+    def test_vllm_planner_warmup_records_load_time(self):
+        planner = VllmPlanner("models/dummy.gguf")
+        mock_llm = MagicMock()
+        mock_llm.generate.return_value = []
+        planner._llm = mock_llm
+        planner._sampling_params = MagicMock()
+        load_ms = planner.warmup()
+        self.assertIsInstance(load_ms, float)
+        mock_llm.generate.assert_called_once()
 
     def test_vllm_planner_ensure_engine_fails_gracefully_without_vllm(self):
         planner = VllmPlanner("models/dummy_model.gguf")
