@@ -10,8 +10,8 @@ import unittest
 from datamate.application.answers import answer_from_result
 from datamate.application.candidates import CandidatePipeline
 from datamate.data.catalog import BusinessCatalog
-from datamate.data.splits import build_split_manifest
 from datamate.evaluation.labels import answers_match, pa_reward
+from datamate.evaluation.splits import build_split_manifest
 from datamate.execution.sql import execute_select
 from datamate.generation.local_gguf import parse_candidate_json
 
@@ -24,7 +24,10 @@ class AnswerTests(unittest.TestCase):
         self.assertEqual(pa_reward({"type": "abstain"}, {"type": "number", "answer": 12}), 0)
 
     def test_unanswerable_is_typed(self):
-        self.assertEqual(answer_from_result("unanswerable", [], []), {"type": "unanswerable"})
+        self.assertEqual(
+            answer_from_result("unanswerable", [], []),
+            {"type": "unanswerable", "answer": None},
+        )
 
 
 class CatalogTests(unittest.TestCase):
@@ -51,19 +54,19 @@ class CandidatePipelineTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as temp:
             data_root = pathlib.Path(temp)
-            business = data_root / "data" / "biz_1"
+            business = data_root / "data" / "biz_001"
             business.mkdir(parents=True)
             (business / "records.csv").write_text("item,total\napples,4\n", encoding="utf-8")
             catalog = BusinessCatalog(business)
             try:
                 pipeline = CandidatePipeline(data_root, FakeGenerator(), count=1)
                 candidates = pipeline.generate(
-                    {"id": "q1", "business_id": "biz_1", "question": "total?", "as_of_date": "2026-01-01"},
+                    {"id": "q_synthetic0001", "business_id": "biz_001", "question": "total?", "as_of_date": "2026-01-01"},
                     catalog,
                 )
                 self.assertEqual(len(candidates), 1)
                 self.assertEqual(candidates[0]["answer"], {"type": "number", "answer": 4})
-                self.assertTrue(candidates[0]["result"]["ok"])
+                self.assertTrue(candidates[0]["result"].ok)
                 self.assertIn("sql_valid", candidates[0]["features"])
             finally:
                 catalog.close()
@@ -98,11 +101,11 @@ class RunnerSmokeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             root = pathlib.Path(temp)
             data_root = root / "data"
-            business = data_root / "data" / "biz_1"
+            business = data_root / "data" / "biz_001"
             business.mkdir(parents=True)
             (business / "records.csv").write_text("item,total\napples,4\n", encoding="utf-8")
             (data_root / "questions.jsonl").write_text(
-                json.dumps({"id": "q1", "business_id": "biz_1", "question": "total?", "as_of_date": "2026-01-01"}) + "\n",
+                json.dumps({"id": "q_synthetic0001", "business_id": "biz_001", "question": "total?", "as_of_date": "2026-01-01"}) + "\n",
                 encoding="utf-8",
             )
             (data_root / "calendar.csv").write_text("date,weekday\n2026-01-01,4\n", encoding="utf-8")
@@ -116,7 +119,10 @@ class RunnerSmokeTests(unittest.TestCase):
                 text=True,
             )
             submission = json.loads((result_root / "submission.jsonl").read_text(encoding="utf-8"))
-            self.assertEqual(submission, {"id": "q1", "type": "abstain"})
+            self.assertEqual(
+                submission,
+                {"id": "q_synthetic0001", "type": "unanswerable", "answer": None},
+            )
             log = json.loads((result_root / "logs" / "questions.jsonl").read_text(encoding="utf-8"))
             self.assertTrue({"id", "answer", "elapsed_ms", "thinking", "code", "output"}.issubset(log))
 
