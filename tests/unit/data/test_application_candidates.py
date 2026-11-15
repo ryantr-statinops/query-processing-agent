@@ -30,6 +30,10 @@ class TypedAnswerTests(unittest.TestCase):
 
 
 class CandidatePipelineTests(unittest.TestCase):
+    def test_candidate_attempts_are_limited_by_the_tool_budget(self):
+        with self.assertRaises(ValueError):
+            CandidatePipeline(pathlib.Path("."), object(), count=4)
+
     def test_valid_fake_plan_executes_and_verifies_with_source_refs(self):
         class FakeGenerator:
             def generate_one(self, question, schema, index, rules, calendar):

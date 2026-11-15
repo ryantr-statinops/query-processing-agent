@@ -31,14 +31,14 @@ class CandidatePipeline:
         *,
         timeout_seconds: float = MAX_QUERY_TIMEOUT_SECONDS,
     ) -> None:
-        if not isinstance(count, int) or isinstance(count, bool) or count < 1:
-            raise ValueError("candidate count must be a positive integer")
+        if not isinstance(count, int) or isinstance(count, bool) or not 1 <= count <= 3:
+            raise ValueError("candidate count must be between 1 and 3")
         self.data_root = pathlib.Path(data_root)
         self.generator = generator
         self.count = count
         self.timeout_seconds = timeout_seconds
 
-    def _business_dir(self, business_id: str) -> pathlib.Path:
+    def business_dir(self, business_id: str) -> pathlib.Path:
         candidates = (self.data_root / "data" / business_id, self.data_root / business_id)
         for path in candidates:
             if path.is_dir():
@@ -127,7 +127,7 @@ class CandidatePipeline:
         request = validate_request(question)
         owns_catalog = catalog is None
         if catalog is None:
-            catalog = BusinessCatalog(self._business_dir(request["business_id"]))
+            catalog = BusinessCatalog(self.business_dir(request["business_id"]))
         try:
             schema = catalog.schema_text(request["question"])
             rules = self._context_file("rulebook.md")
