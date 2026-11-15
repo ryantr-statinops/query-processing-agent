@@ -123,6 +123,62 @@ class CandidatePipelineTests(unittest.TestCase):
             finally:
                 catalog.close()
 
+    def test_candidate_pipeline_handles_unanswerable_plan(self):
+        class UnanswerableGenerator:
+            def generate_one(self, question, schema, index, rules, calendar):
+                return {"type": "unanswerable", "reason": "No stock table found"}
+
+        with tempfile.TemporaryDirectory() as folder:
+            root = pathlib.Path(folder)
+            business_dir = root / "data" / "biz_001"
+            business_dir.mkdir(parents=True)
+            (business_dir / "sales.csv").write_text("amount\n4\n", encoding="utf-8")
+            catalog = BusinessCatalog(business_dir)
+            try:
+                candidate = CandidatePipeline(root, UnanswerableGenerator(), count=1).generate(
+                    {
+                        "id": "q_synthetic0001",
+                        "business_id": "biz_001",
+                        "question": "What is current stock?",
+                        "as_of_date": "2026-01-01",
+                    },
+                    catalog,
+                )[0]
+                self.assertEqual(candidate["answer"], {"type": "unanswerable", "answer": None})
+                self.assertTrue(candidate["verification"]["passed"])
+                self.assertTrue(candidate["features"]["sql_valid"])
+            finally:
+                catalog.close()
+
+    def test_candidate_pipeline_cleans_markdown_sql_and_semicolons(self):
+        class MarkdownGenerator:
+            def generate_one(self, question, schema, index, rules, calendar):
+                return {
+                    "sql": "```sql\nSELECT SUM(amount) AS total FROM sales;\n```",
+                    "type": "Number",
+                }
+
+        with tempfile.TemporaryDirectory() as folder:
+            root = pathlib.Path(folder)
+            business_dir = root / "data" / "biz_001"
+            business_dir.mkdir(parents=True)
+            (business_dir / "sales.csv").write_text("amount\n8\n", encoding="utf-8")
+            catalog = BusinessCatalog(business_dir)
+            try:
+                candidate = CandidatePipeline(root, MarkdownGenerator(), count=1).generate(
+                    {
+                        "id": "q_synthetic0001",
+                        "business_id": "biz_001",
+                        "question": "What is total amount?",
+                        "as_of_date": "2026-01-01",
+                    },
+                    catalog,
+                )[0]
+                self.assertEqual(candidate["answer"], {"type": "number", "answer": 8})
+                self.assertTrue(candidate["result"].ok)
+            finally:
+                catalog.close()
+
 
 class CandidateJsonTests(unittest.TestCase):
     def test_parses_fenced_and_embedded_candidate_json(self):

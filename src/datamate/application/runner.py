@@ -227,16 +227,21 @@ def _make_result(
 
     answer = candidate.get("answer") if candidate else None
     verification = candidate.get("verification") if candidate else None
+    is_unanswerable = bool(answer and answer.get("type") == "unanswerable")
     accepted = bool(
         budget_error is None
         and answer
         and isinstance(verification, Mapping)
         and verification.get("passed") is True
-        and (candidate.get("features") or {}).get("sql_valid") is True
+        and (is_unanswerable or (candidate.get("features") or {}).get("sql_valid") is True)
     )
     if accepted:
-        status, reason_code = "answered", "ok"
-        answer = build_typed_answer(answer["type"], answer["answer"])
+        if is_unanswerable:
+            status, reason_code = "abstain", "insufficient_evidence"
+            answer = build_typed_answer("unanswerable", None)
+        else:
+            status, reason_code = "answered", "ok"
+            answer = build_typed_answer(answer["type"], answer["answer"])
     elif budget_error is not None:
         reason_code = "timeout" if budget_error.code == "timeout" else "budget_exhausted"
         status = map_outcome(reason_code)["execution_status"]
