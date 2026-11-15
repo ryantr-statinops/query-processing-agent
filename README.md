@@ -38,6 +38,8 @@ The pipeline prepares inputs only. The baseline runner is available, but without
 
 `src/datamate` contains inference-contract guardrails, a generic CSV/Excel/SQLite catalog loader, bounded read-only DataFusion execution, a fake-planner candidate pipeline, a fail-closed `python -m datamate` runner, and a development scorer. Synthetic integration tests verify submission and diagnostic JSONL against the contract. The runner has no local GGUF inference adapter yet, so its normal CLI path emits a typed abstention until one is integrated. Semantic source mapping, ranking, Docker execution and measured model evaluation remain open.
 
+Full unittest discovery currently reports two historical import errors in `tests/legacy/` (`datamate.data.sources` and the removed deterministic solver's `datamate.application.plans`); the runtime, contract and active package suites pass.
+
 Do not run a full benchmark or treat historical reports as current solver performance. The team plan defines the gates for data validation, inference design, runtime and evaluation.
 
 ## Documentation

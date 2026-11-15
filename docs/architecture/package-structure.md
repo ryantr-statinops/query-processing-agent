@@ -55,5 +55,10 @@ source packages and models remain local under their ignored locations. A package
 build or synthetic contract pass does not establish model accuracy or semantic
 correctness.
 
+Two historical tests remain discoverable import errors under `tests/legacy/`:
+`test_business_sources` imports the retired `datamate.data.sources` helpers, and
+`test_deterministic` imports the removed solver's `datamate.application.plans`.
+They are outside the synthetic runtime path and are not silently skipped.
+
 Historical solver architecture is preserved under `docs/archive/`; it does not
 describe the current runtime implementation.

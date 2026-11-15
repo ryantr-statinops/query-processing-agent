@@ -63,3 +63,5 @@ Chạy vài câu đã trace qua một business mỗi định dạng; sau đó m�
 | R07 | `python -m datamate` đã có | Smoke chạy với model path thiếu và abstain an toàn | GGUF adapter, Docker/offline package acceptance và `predict.sh` evaluator run chưa đạt |
 
 **Đánh giá gate P3:** lát cắt synthetic qua được kiểm tra kỹ thuật và contract. CLI thật hiện chưa có planner nên luôn abstain; không dùng đầu ra này để báo PA hay coi như baseline chất lượng. P4 có thể bắt đầu với scorer và synthetic regression, nhưng đánh giá chất lượng model chỉ có ý nghĩa sau R05 và khi có prediction từ planner thật. Bộ 12 câu holdout đã lộ nhãn vẫn chỉ là exploratory.
+
+Full unittest discovery trên nhánh này chạy 224 test: 222 pass và hai import error cũ trong `tests/legacy/test_business_sources.py` (`datamate.data.sources`) và `tests/legacy/test_deterministic.py` (`datamate.application.plans`). Không có test runtime mới bị lỗi hoặc skip.
