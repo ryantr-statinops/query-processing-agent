@@ -11,11 +11,11 @@ dependencies = [
     "fastexcel>=0.12",
     "huggingface-hub>=0.30",
     "joblib>=1.6.0",
-    "mistralrs>=0.4",
     "numpy>=1.26",
     "orjson>=3.10",
     "polars>=1.0",
     "scikit-learn>=1.5",
+    "vllm>=0.6.0; sys_platform == 'linux'",
 ]
 
 [tool.uv.build-backend]
