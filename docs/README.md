@@ -10,7 +10,7 @@ Tài liệu này dành cho mentor và thành viên mới. Repo đang trong giai 
 4. [Bộ 60 câu train đại diện](../configs/representative_questions.json) — phạm vi câu hỏi được chọn; có 12 câu thuộc holdout đã tiếp xúc nhãn, nên không đại diện cho đánh giá holdout độc lập.
 5. [Kiến trúc agentic RAG đề xuất](architecture/agentic-rag.md) — graph thành phần, sequence của một lượt hỏi đáp, ranh giới dữ liệu và các quyết định còn mở.
 6. [Kế hoạch rebuild theo team](plan/rebuild.md) — các phase, ownership và gate.
-7. Mở brief theo vai trò cần review: [Người 1 — data catalog](plan/01-data-catalog.md), [Người 2 — truy vết](plan/02-question-tracing.md), [Người 3 — inference](plan/03-agentic-rag-inference.md), [Người 4 — runtime](plan/04-baseline-runtime.md), [Người 5 — đánh giá và tích hợp](plan/05-evaluation-integration.md).
+7. Mở brief theo vai trò cần review: [Người 1 — data catalog](plan/01-data-catalog.md), [Người 2 — truy vết](plan/02-question-tracing.md), [Người 3 — inference](plan/03-agentic-rag-inference.md), [Người 4 — runtime](plan/04-baseline-runtime.md), [Người 5 — đánh giá và tích hợp](plan/05-evaluation-integration.md), [Người 6 — Docker và submission](plan/06-docker-submission.md).
 
 ## Kiến trúc package hiện hành
 
