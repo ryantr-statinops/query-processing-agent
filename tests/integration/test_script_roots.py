@@ -47,6 +47,21 @@ class ScriptRootTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("sentinel", result.stderr)
 
+    def test_phase_verifier_failure_survives_optimized_python(self):
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-O",
+                "-c",
+                "from scripts.verify_phase_criteria import require; require(False, 'sentinel')",
+            ],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("sentinel", result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

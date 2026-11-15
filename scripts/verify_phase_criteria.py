@@ -39,6 +39,15 @@ from datamate.evaluation.tracing import (
 ROOT = Path(__file__).resolve().parents[1]
 
 
+class CriteriaCheckError(RuntimeError):
+    """A declared tracing criterion failed on local evidence."""
+
+
+def require(condition, message="phase criteria validation failed"):
+    if not condition:
+        raise CriteriaCheckError(message)
+
+
 def resolve_physical_source(path):
     """Resolve a uniquely similar local filename when a checkout mangled Unicode names."""
     candidate = Path(path)
@@ -77,14 +86,14 @@ def main():
     # CRITERION 1: 60 records matching ID / business / as_of_date
     # ---------------------------------------------------------
     trace_path = ROOT / "artifacts/data_prep/question_trace.jsonl"
-    assert trace_path.exists(), f"Missing trace artifact at {trace_path}"
+    require(trace_path.exists(), f"Missing trace artifact at {trace_path}")
 
     traces = [json.loads(l) for l in open(trace_path, encoding="utf-8") if l.strip()]
-    assert len(traces) == 60, f"Expected 60 traces, got {len(traces)}"
+    require(len(traces) == 60, f"Expected 60 traces, got {len(traces)}")
 
     rep_file = json.loads((ROOT / "configs/representative_questions.json").read_text(encoding="utf-8"))
     q_map = {q["id"]: q for q in rep_file["questions"]}
-    assert len(q_map) == 60, f"Expected 60 representative questions, got {len(q_map)}"
+    require(len(q_map) == 60, f"Expected 60 representative questions, got {len(q_map)}")
 
     split_manifest = json.loads((ROOT / "configs/splits/seed_2026.json").read_text(encoding="utf-8"))
     traces = validate_records(rep_file["questions"], traces, set(split_manifest["holdout_businesses"]))
@@ -98,15 +107,15 @@ def main():
 
     for t in traces:
         qid = t["question_id"]
-        assert qid in q_map, f"Unknown question ID: {qid}"
+        require(qid in q_map, f"Unknown question ID: {qid}")
         ref = q_map[qid]
         for k in REQUIRED_KEYS:
-            assert k in t, f"Missing key '{k}' in question {qid}"
-        assert t["business_id"] == ref["business_id"], f"Business mismatch for {qid}"
-        assert t["as_of_date"] == ref["as_of_date"], f"as_of_date mismatch for {qid}"
-        assert t["answer_type"] == ref["reference"]["type"], f"answer_type mismatch for {qid}"
-        assert t["gold_comparison"]["reference_type"] == ref["reference"]["type"], f"Gold type mismatch for {qid}"
-        assert t["gold_comparison"]["reference_answer"] == ref["reference"]["answer"], f"Gold answer mismatch for {qid}"
+            require(k in t, f"Missing key '{k}' in question {qid}")
+        require(t["business_id"] == ref["business_id"], f"Business mismatch for {qid}")
+        require(t["as_of_date"] == ref["as_of_date"], f"as_of_date mismatch for {qid}")
+        require(t["answer_type"] == ref["reference"]["type"], f"answer_type mismatch for {qid}")
+        require(t["gold_comparison"]["reference_type"] == ref["reference"]["type"], f"Gold type mismatch for {qid}")
+        require(t["gold_comparison"]["reference_answer"] == ref["reference"]["answer"], f"Gold answer mismatch for {qid}")
 
     print("\n[CRITERION 1 PASSED] 60 records verified:")
     print(f"  - Total records: 60")
@@ -138,7 +147,7 @@ def main():
                 declared_absolute = ROOT / declared_absolute
             if Path(p).resolve() != declared_absolute.resolve():
                 source_aliases.append((declared_path, p))
-            assert os.path.exists(p), f"Source file does not exist on disk: {p} in question {qid}"
+            require(os.path.exists(p), f"Source file does not exist on disk: {p} in question {qid}")
             checked_sources += 1
 
             # Check excel
@@ -148,7 +157,7 @@ def main():
                 wb = wb_cache[p]
                 sheet = s.get("sheet")
                 if sheet and sheet != "README":
-                    assert sheet in wb.sheetnames, f"[{qid}] Sheet '{sheet}' not in {p}. Real sheets: {wb.sheetnames[:5]}"
+                    require(sheet in wb.sheetnames, f"[{qid}] Sheet '{sheet}' not in {p}. Real sheets: {wb.sheetnames[:5]}")
                     verified_sheets += 1
                     ws = wb[sheet]
                     hrow_idx = s.get("header_row", 1) - 1
@@ -159,9 +168,9 @@ def main():
                             break
                         elif i > hrow_idx:
                             break
-                    assert header, f"[{qid}] Header empty at {p}::{sheet} row {hrow_idx+1}"
+                    require(header, f"[{qid}] Header empty at {p}::{sheet} row {hrow_idx+1}")
                     for col in s.get("columns", []):
-                        assert col in header, f"[{qid}] Col '{col}' not in {p}::{sheet}. Real cols: {header}"
+                        require(col in header, f"[{qid}] Col '{col}' not in {p}::{sheet}. Real cols: {header}")
                         verified_cols += 1
 
             # Check csv
@@ -172,10 +181,10 @@ def main():
                         h = next(rdr, [])
                         csv_cache[p] = [c.replace("\ufeff", "").strip() for c in h]
                 header = csv_cache[p]
-                assert header, f"[{qid}] CSV header empty at {p}"
+                require(header, f"[{qid}] CSV header empty at {p}")
                 for col in s.get("columns", []):
                     col_clean = col.replace("\ufeff", "").strip()
-                    assert col_clean in header, f"[{qid}] Col '{col}' not in {p}. Real cols: {header}"
+                    require(col_clean in header, f"[{qid}] Col '{col}' not in {p}. Real cols: {header}")
                     verified_cols += 1
 
             # Check sqlite
@@ -191,14 +200,14 @@ def main():
                             tables[tbl] = cols
                         sqlite_cache[p] = tables
                     tbl_info = sqlite_cache[p]
-                    assert table in tbl_info, f"[{qid}] Table '{table}' not in {p}. Real tables: {list(tbl_info.keys())[:5]}"
+                    require(table in tbl_info, f"[{qid}] Table '{table}' not in {p}. Real tables: {list(tbl_info.keys())[:5]}")
                     verified_sheets += 1
                     for col in s.get("columns", []):
-                        assert col in tbl_info[table], f"[{qid}] Col '{col}' not in {p}::{table}. Real cols: {tbl_info[table]}"
+                        require(col in tbl_info[table], f"[{qid}] Col '{col}' not in {p}::{table}. Real cols: {tbl_info[table]}")
                         verified_cols += 1
 
-    assert verified_cols == total_declared_cols, f"Mismatch: verified {verified_cols} cols but declared {total_declared_cols} cols"
-    assert verified_cols == 322, f"Expected exactly 322 verified columns, got {verified_cols}"
+    require(verified_cols == total_declared_cols, f"Mismatch: verified {verified_cols} cols but declared {total_declared_cols} cols")
+    require(verified_cols == 322, f"Expected exactly 322 verified columns, got {verified_cols}")
 
     print(f"\n[CRITERION 2 PASSED] Physical file, sheet, and column grounding:")
     print(f"  - Verified {checked_sources} source references exist physically on disk.")
@@ -225,7 +234,7 @@ def main():
         d = (datetime(1899, 12, 30) + timedelta(days=r[2])).strftime("%Y-%m-%d") if isinstance(r[2], (int, float)) else str(r[2])[:10]
         if d == "2026-04-17" and "hủy" not in st and "trả" not in st:
             rev_107 += val
-    assert rev_107 == 7490000, f"biz_107 rev mismatch: {rev_107}"
+    require(rev_107 == 7490000, f"biz_107 rev mismatch: {rev_107}")
     print(f"  1. [Relative Date (Number)]: biz_107 yesterday (2026-04-17) revenue = {rev_107:,} VND -> PASS")
 
     # Sample 2: biz_109 (Unit conversion & weighted average - Number)
@@ -242,7 +251,7 @@ def main():
             tot_spend += q * p
             tot_qty += q
     avg_box_109 = round(tot_spend / tot_qty)
-    assert avg_box_109 == 200556, f"biz_109 avg mismatch: {avg_box_109}"
+    require(avg_box_109 == 200556, f"biz_109 avg mismatch: {avg_box_109}")
     print(f"  2. [Unit Conversion (Number)]: biz_109 Omachi Jan 2025 avg price = {avg_box_109:,} VND (Spend: {tot_spend:,}, Boxes: {tot_qty}) -> PASS")
 
     # Sample 3: biz_103 (Hierarchical continuation rows with forward-fill - Boolean)
@@ -262,9 +271,14 @@ def main():
                     if val_str.isdigit():
                         sheet_rev += int(val_str)
         totals_103[sheet_name] = sheet_rev
-    assert totals_103["11.2025"] == 156289700 and totals_103["12.2025"] == 158205600 and totals_103["01.2026"] == 176720800
+    require(
+        totals_103["11.2025"] == 156289700
+        and totals_103["12.2025"] == 158205600
+        and totals_103["01.2026"] == 176720800,
+        f"biz_103 monthly totals mismatch: {totals_103}",
+    )
     inc_103 = totals_103["11.2025"] < totals_103["12.2025"] < totals_103["01.2026"]
-    assert inc_103 is True
+    require(inc_103 is True, f"biz_103 three-month revenue should increase: {totals_103}")
     print(f"  3. [Hierarchical Forward-Fill (Boolean)]: biz_103 3-month growth: {totals_103['11.2025']:,} < {totals_103['12.2025']:,} < {totals_103['01.2026']:,} -> True -> PASS")
 
     # Sample 4: biz_105 (Percent cancellation rate - Percent)
@@ -279,7 +293,7 @@ def main():
     tot_105 = len(orders_105)
     can_105 = sum(1 for st in orders_105.values() if "hủy" in st)
     pct_105 = round(can_105 / tot_105 * 100, 2)
-    assert pct_105 == 2.08, f"biz_105 pct mismatch: {pct_105}"
+    require(pct_105 == 2.08, f"biz_105 pct mismatch: {pct_105}")
     print(f"  4. [Percent Share (Percent)]: biz_105 June 2025 cancellation = {can_105} / {tot_105} = {pct_105}% -> PASS")
 
     # Sample 5: biz_123 (True FIFO Inventory Depletion & Expiry Date - Date)
@@ -295,9 +309,9 @@ def main():
             LIMIT 1
         """, {"cutoff": "2026-06-28 23:59:59"}).fetchone()
     conn_123.close()
-    assert fifo_row[0] == "2029-04-20", f"biz_123 expiry mismatch: {fifo_row}"
-    assert fifo_row[1] == "U2606422", f"biz_123 lot mismatch: {fifo_row}"
-    assert fifo_row[2] == 79, f"biz_123 remaining stock mismatch: {fifo_row}"
+    require(fifo_row[0] == "2029-04-20", f"biz_123 expiry mismatch: {fifo_row}")
+    require(fifo_row[1] == "U2606422", f"biz_123 lot mismatch: {fifo_row}")
+    require(fifo_row[2] == 79, f"biz_123 remaining stock mismatch: {fifo_row}")
     print(f"  5. [FIFO Inventory Balance (Date)]: biz_123 earliest active lot {fifo_row[1]} expiry = {fifo_row[0]} (79 units remaining; all prior lots depleted) -> PASS")
 
     # Sample 6: biz_106 (Ranking top-3 items - List)
@@ -334,8 +348,8 @@ def main():
     top3 = sorted(counts.items(), key=lambda x: -x[1])[:3]
     top3_names = [x[0] for x in top3]
     expected_top3 = ["Cà phê sữa (M)", "Trà đào cam sả (M)", "Cà phê đen (M)"]
-    assert top3_names == expected_top3, f"biz_106 top3 mismatch: {top3_names}"
-    assert [x[1] for x in top3] == [68, 50, 46], f"biz_106 quantities mismatch: {top3}"
+    require(top3_names == expected_top3, f"biz_106 top3 mismatch: {top3_names}")
+    require([x[1] for x in top3] == [68, 50, 46], f"biz_106 quantities mismatch: {top3}")
     print(f"  6. [Top-K Ranking (List)]: biz_106 top 3 drinks = {top3} -> PASS")
 
     # Exact duplicate line records within one order are data-export duplicates.
@@ -362,15 +376,15 @@ def main():
     unique_month_lines = dedupe_exact_order_lines(unique_month_lines)
     detail_total = sum(parse_money_106(row[8]) for row in unique_month_lines)
     header_total = sum(monthly_headers.values())
-    assert header_total == 271866000, f"biz_106 May header total mismatch: {header_total}"
-    assert detail_total == header_total, f"biz_106 exact-dedup detail/header mismatch: {detail_total} != {header_total}"
+    require(header_total == 271866000, f"biz_106 May header total mismatch: {header_total}")
+    require(detail_total == header_total, f"biz_106 exact-dedup detail/header mismatch: {detail_total} != {header_total}")
     print(f"  6a. [Exact Order-Line Dedup]: biz_106 May detail = header total {detail_total} -> PASS")
 
     # Sample 7: biz_112 (Insufficient evidence / Missing inventory ledger - Unanswerable)
     p112 = ROOT / "train/data/biz_112"
     files_112 = [f.name for f in p112.glob("*")]
     has_inventory = any("kho" in f.lower() or "ton" in f.lower() for f in files_112)
-    assert not has_inventory, f"biz_112 has unexpected inventory files: {files_112}"
+    require(not has_inventory, f"biz_112 has unexpected inventory files: {files_112}")
     print(f"  7. [Missing Evidence (Unanswerable)]: biz_112 verified absence of inventory/stock ledger -> PASS")
 
     # Sample 8: biz_114 (Top-selling product in base unit - String)
@@ -387,8 +401,8 @@ def main():
             if "/06/2025" in dt and "hủy" not in st.lower() and "trả" not in st.lower():
                 by_prod_114[prod] = by_prod_114.get(prod, 0) + sl
         top_prod_114 = sorted(by_prod_114.items(), key=lambda x: -x[1])[0]
-    assert top_prod_114[0] == "Gạch ống 8x8x18 Tuynel", f"biz_114 mismatch: {top_prod_114}"
-    assert top_prod_114[1] == 3149.0
+    require(top_prod_114[0] == "Gạch ống 8x8x18 Tuynel", f"biz_114 mismatch: {top_prod_114}")
+    require(top_prod_114[1] == 3149.0, f"biz_114 top product quantity mismatch: {top_prod_114}")
     print(f"  8. [Top Product in Base Unit (String)]: biz_114 June 2025 top product = '{top_prod_114[0]}' ({int(top_prod_114[1])} units) -> PASS")
 
     # Sample 9: biz_123 (Outstanding balance ranking table - Table)
@@ -399,7 +413,7 @@ def main():
     """, {"cutoff": "2025-07-12 23:59:59"}).fetchall()
     conn_debt.close()
     expected_debtors = [('Đỗ Đức An', 404500), ('Dương Tâm Bích', 158600), ('Phùng Hồng Nam', 126000), ('Bạch Dương Phúc', 116000), ('La Dương Thu', 92000)]
-    assert debtors_123 == expected_debtors, f"biz_123 debtors mismatch: {debtors_123}"
+    require(debtors_123 == expected_debtors, f"biz_123 debtors mismatch: {debtors_123}")
     print(f"  9. [Multi-Table Debt Balance (Table)]: biz_123 top 5 debtors = {debtors_123} -> PASS")
 
     # Sample 10: biz_117 (Daily Peak Ranking with Vietnamese Shorthand Currency Parsing - Date)
@@ -435,8 +449,8 @@ def main():
         if dt_str.startswith("2025-05") and "hủy" not in st and "trả" not in st:
             daily_117[dt_str] = daily_117.get(dt_str, 0) + val
     peak_day_117 = max(daily_117.items(), key=lambda x: x[1])
-    assert peak_day_117[0] == "2025-05-11", f"biz_117 peak date mismatch: {peak_day_117}"
-    assert peak_day_117[1] == 77634500, f"biz_117 peak revenue mismatch: {peak_day_117}"
+    require(peak_day_117[0] == "2025-05-11", f"biz_117 peak date mismatch: {peak_day_117}")
+    require(peak_day_117[1] == 77634500, f"biz_117 peak revenue mismatch: {peak_day_117}")
     print(f" 10. [Daily Peak Ranking / VND Currency Parsing (Date)]: biz_117 peak date = {peak_day_117[0]} ({peak_day_117[1]:,} VND) -> PASS")
 
     print("\n[CRITERION 3 PASSED] All 10 live audit recomputations passed 100% on raw disk data.")
@@ -446,13 +460,13 @@ def main():
     # ---------------------------------------------------------
     dev_traces = [t for t in traces if t["split_group"] == "development"]
     holdout_traces = [t for t in traces if t["split_group"] == "holdout"]
-    assert len(dev_traces) == 48, f"Expected 48 dev traces, got {len(dev_traces)}"
-    assert len(holdout_traces) == 12, f"Expected 12 holdout traces, got {len(holdout_traces)}"
+    require(len(dev_traces) == 48, f"Expected 48 dev traces, got {len(dev_traces)}")
+    require(len(holdout_traces) == 12, f"Expected 12 holdout traces, got {len(holdout_traces)}")
 
     splits = json.loads((ROOT / "configs/splits/seed_2026.json").read_text(encoding="utf-8"))
     holdout_biz = set(splits["holdout_businesses"])
     for t in holdout_traces:
-        assert t["business_id"] in holdout_biz, f"Holdout trace {t['question_id']} belongs to non-holdout business {t['business_id']}"
+        require(t["business_id"] in holdout_biz, f"Holdout trace {t['question_id']} belongs to non-holdout business {t['business_id']}")
 
     print(f"\n[CRITERION 4 PASSED] Grouped Split Isolation:")
     print(f"  - Development set: 48 questions across 24 businesses (isolated for development).")
@@ -466,28 +480,28 @@ def main():
     statuses = Counter(t["status"] for t in traces)
     types = Counter(t["answer_type"] for t in traces)
 
-    assert len(traces) == 60, f"Expected 60 traces, got {len(traces)}"
-    assert all(t.get("reviewer") for t in traces), "Every trace must have an assigned reviewer"
-    assert all(t.get("status") in ["verified", "insufficient_evidence", "source_missing", "unresolved"] for t in traces), "Unexpected trace status"
+    require(len(traces) == 60, f"Expected 60 traces, got {len(traces)}")
+    require(all(t.get("reviewer") for t in traces), "Every trace must have an assigned reviewer")
+    require(all(t.get("status") in ["verified", "insufficient_evidence", "source_missing", "unresolved"] for t in traces), "Unexpected trace status")
     unresolved = [t for t in traces if t["status"] == "unresolved"]
-    assert all(t.get("rule_refs") for t in traces), "Every trace must cite specific competition rulebook clauses"
+    require(all(t.get("rule_refs") for t in traces), "Every trace must cite specific competition rulebook clauses")
 
     # Verify all 5 unanswerable questions have status 'insufficient_evidence' and explicit blocker rationales
     unanswerable_traces = [t for t in traces if t["answer_type"] == "unanswerable"]
-    assert len(unanswerable_traces) == 5, f"Expected 5 unanswerable traces, got {len(unanswerable_traces)}"
+    require(len(unanswerable_traces) == 5, f"Expected 5 unanswerable traces, got {len(unanswerable_traces)}")
     for ut in unanswerable_traces:
-        assert ut["status"] == "insufficient_evidence", f"Unanswerable trace {ut['question_id']} status must be 'insufficient_evidence', got {ut['status']}"
+        require(ut["status"] == "insufficient_evidence", f"Unanswerable trace {ut['question_id']} status must be 'insufficient_evidence', got {ut['status']}")
         calc = ut.get("calculation", {})
         op = calc.get("operation", "")
         reason = calc.get("reason", "") or calc.get("result", "")
-        assert op == "ABSTAIN", f"Unanswerable trace {ut['question_id']} invalid operation: {op}"
-        assert len(reason) > 15, f"Unanswerable trace {ut['question_id']} lacks explicit blocker rationale: {reason}"
+        require(op == "ABSTAIN", f"Unanswerable trace {ut['question_id']} invalid operation: {op}")
+        require(len(reason) > 15, f"Unanswerable trace {ut['question_id']} lacks explicit blocker rationale: {reason}")
 
     # Verify decision_owner is set on all traces with uncertainty
     unresolved = [t for t in traces if t["status"] == "unresolved"]
     for tr in unresolved:
-        assert tr.get("decision_owner"), f"Unresolved trace {tr['question_id']} needs a decision owner"
-        assert tr.get("uncertainty"), f"Unresolved trace {tr['question_id']} needs a discrepancy reason"
+        require(tr.get("decision_owner"), f"Unresolved trace {tr['question_id']} needs a decision owner")
+        require(tr.get("uncertainty"), f"Unresolved trace {tr['question_id']} needs a discrepancy reason")
     uncertainty_traces = [t for t in traces if t.get("uncertainty")]
 
     print(f"\n[CRITERION 5 PASSED] Programmatic Two-Tier Review Verification:")
@@ -508,4 +522,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except (CriteriaCheckError, ValueError, OSError, KeyError, IndexError, TypeError) as error:
+        print(f"[CRITERIA FAILED] {error}", file=sys.stderr)
+        raise SystemExit(1) from error
