@@ -16,94 +16,103 @@ base = review.base
 QUALITY_COLUMNS = ["business_id", "source_ref", "column", "metric", "value", "denominator", "status"]
 
 
+class CatalogValidationError(ValueError):
+    """A catalog invariant failed during explicit validation."""
+
+
+def require(condition, message="catalog validation failed"):
+    if not condition:
+        raise CatalogValidationError(message)
+
+
 def validate(output, *, repo_root):
     catalog = review.load_json(output / "data_catalog.json")
     businesses = catalog["businesses"]
     ids = [b["business_id"] for b in businesses]
-    assert len(ids) == len(set(ids)) == 30 and set(ids) == {f"biz_{i}" for i in range(101, 131)}
+    require(len(ids) == len(set(ids)) == 30 and set(ids) == {f"biz_{i}" for i in range(101, 131)}, 'catalog invariant failed: len(ids) == len(set(ids)) == 30 and set(ids) == {f"biz_{i}" for i in range(101, 131)}')
     tables = {t["source_ref"]: t for b in businesses for t in b["tables"]}
-    assert len(tables) == sum(len(b["tables"]) for b in businesses) == 339
+    require(len(tables) == sum(len(b["tables"]) for b in businesses) == 339, 'catalog invariant failed: len(tables) == sum(len(b["tables"]) for b in businesses) == 339')
     train = Path(catalog["source_root"])
     before = base.snapshot(train)
-    assert before == catalog["source_fingerprints"], "Source fingerprints differ from initial catalog"
-    assert len(before) == 162
-    assert catalog["archive_checksum"].startswith("not_verified")
+    require(before == catalog["source_fingerprints"], "Source fingerprints differ from initial catalog")
+    require(len(before) == 162, 'catalog invariant failed: len(before) == 162')
+    require(catalog["archive_checksum"].startswith("not_verified"), 'catalog invariant failed: catalog["archive_checksum"].startswith("not_verified")')
     header_checks = 0
     for business in businesses:
         files = defaultdict(list)
-        assert (train / business["readme"]).is_file()
+        require((train / business["readme"]).is_file(), 'catalog invariant failed: (train / business["readme"]).is_file()')
         for table in business["tables"]:
             suffix = "#" + table["sheet_or_table"] if table["sheet_or_table"] else ""
-            assert table["source_ref"] == business["business_id"] + "/" + table["file"] + suffix
+            require(table["source_ref"] == business["business_id"] + "/" + table["file"] + suffix, 'catalog invariant failed: table["source_ref"] == business["business_id"] + "/" + table["file"] + suffix')
             path = (train / "data" / business["business_id"] / table["file"]).resolve()
-            assert path.is_file() and path.is_relative_to((train / "data" / business["business_id"]).resolve())
+            require(path.is_file() and path.is_relative_to((train / "data" / business["business_id"]).resolve()), 'catalog invariant failed: path.is_file() and path.is_relative_to((train / "data" / business["business_id"]).resolve())')
             files[table["file"]].append(table)
-            assert len({c["name"] for c in table["columns"]}) == len(table["columns"])
-            assert table["grain_status"] != "verified" or table.get("grain_review") or table.get("grain_evidence")
+            require(len({c["name"] for c in table["columns"]}) == len(table["columns"]), 'catalog invariant failed: len({c["name"] for c in table["columns"]}) == len(table["columns"])')
+            require(table["grain_status"] != "verified" or table.get("grain_review") or table.get("grain_evidence"), 'catalog invariant failed: table["grain_status"] != "verified" or table.get("grain_review") or table.get("grain_evidence")')
             for col in table["columns"]:
-                assert 0 <= col["blank_or_null"] <= table["data_rows"]
+                require(0 <= col["blank_or_null"] <= table["data_rows"], 'catalog invariant failed: 0 <= col["blank_or_null"] <= table["data_rows"]')
                 if "date_profile" in col:
                     p = col["date_profile"]
-                    assert p["parsed"] + p["invalid"] + col["blank_or_null"] == table["data_rows"]
+                    require(p["parsed"] + p["invalid"] + col["blank_or_null"] == table["data_rows"], 'catalog invariant failed: p["parsed"] + p["invalid"] + col["blank_or_null"] == table["data_rows"]')
             for key in table["reviewed_keys"].values():
-                assert set(key["columns"]).issubset({c["name"] for c in table["columns"]})
-                assert 0 <= key["distinct"] <= table["data_rows"] - key["null_rows"]
+                require(set(key["columns"]).issubset({c["name"] for c in table["columns"]}), 'catalog invariant failed: set(key["columns"]).issubset({c["name"] for c in table["columns"]})')
+                require(0 <= key["distinct"] <= table["data_rows"] - key["null_rows"], 'catalog invariant failed: 0 <= key["distinct"] <= table["data_rows"] - key["null_rows"]')
         for filename, grouped in files.items():
             targets = {t["sheet_or_table"]: t for t in grouped}
             observed = set()
             for sheet, rows, sql_columns in base.source_tables(train / "data" / business["business_id"] / filename):
-                assert sheet in targets
+                require(sheet in targets, 'catalog invariant failed: sheet in targets')
                 table = targets[sheet]
                 columns = [c["name"] for c in table["columns"]]
                 if sql_columns is not None:
-                    assert columns == sql_columns
+                    require(columns == sql_columns, 'catalog invariant failed: columns == sql_columns')
                 else:
                     actual = next(row for physical, row in rows if physical == table["header_row_1based"])
-                    assert list(map(str, actual)) == columns, table["source_ref"]
+                    require(list(map(str, actual)) == columns, table["source_ref"])
                 observed.add(sheet)
                 header_checks += 1
-            assert observed == set(targets)
+            require(observed == set(targets), 'catalog invariant failed: observed == set(targets)')
         for edge in business["validated_join_edges"]:
-            assert edge["left"] in tables and edge["right"] in tables
+            require(edge["left"] in tables and edge["right"] in tables, 'catalog invariant failed: edge["left"] in tables and edge["right"] in tables')
             left, right = tables[edge["left"]], tables[edge["right"]]
-            assert set(edge["left_columns"]).issubset({c["name"] for c in left["columns"]})
-            assert set(edge["right_columns"]).issubset({c["name"] for c in right["columns"]})
-            assert edge["left_matched_rows"] + edge["left_unmatched_non_null_rows"] + edge["left_null_rows"] == edge["left_rows"]
-            assert edge["right_matched_rows"] + edge["right_unmatched_non_null_rows"] + edge["right_null_rows"] == edge["right_rows"]
-            assert edge["left_join_rows"] == edge["inner_join_rows"] + edge["left_rows"] - edge["left_matched_rows"]
+            require(set(edge["left_columns"]).issubset({c["name"] for c in left["columns"]}), 'catalog invariant failed: set(edge["left_columns"]).issubset({c["name"] for c in left["columns"]})')
+            require(set(edge["right_columns"]).issubset({c["name"] for c in right["columns"]}), 'catalog invariant failed: set(edge["right_columns"]).issubset({c["name"] for c in right["columns"]})')
+            require(edge["left_matched_rows"] + edge["left_unmatched_non_null_rows"] + edge["left_null_rows"] == edge["left_rows"], 'catalog invariant failed: edge["left_matched_rows"] + edge["left_unmatched_non_null_rows"] + edge["left_null_rows"] == edge["left_rows"]')
+            require(edge["right_matched_rows"] + edge["right_unmatched_non_null_rows"] + edge["right_null_rows"] == edge["right_rows"], 'catalog invariant failed: edge["right_matched_rows"] + edge["right_unmatched_non_null_rows"] + edge["right_null_rows"] == edge["right_rows"]')
+            require(edge["left_join_rows"] == edge["inner_join_rows"] + edge["left_rows"] - edge["left_matched_rows"], 'catalog invariant failed: edge["left_join_rows"] == edge["inner_join_rows"] + edge["left_rows"] - edge["left_matched_rows"]')
         for edge in business["validated_join_unions"]:
-            assert set(edge["left_sources"] + edge["right_sources"]).issubset(tables)
-            assert edge["left_rows"] == sum(tables[r]["data_rows"] for r in edge["left_sources"])
-            assert edge["right_rows"] == sum(tables[r]["data_rows"] for r in edge["right_sources"])
-            assert edge["left_matched_rows"] + edge["left_unmatched_non_null_rows"] + edge["left_null_rows"] == edge["left_rows"]
-            assert edge["right_matched_rows"] + edge["right_unmatched_non_null_rows"] + edge["right_null_rows"] == edge["right_rows"]
-            assert edge["left_join_rows"] == edge["inner_join_rows"] + edge["left_rows"] - edge["left_matched_rows"]
+            require(set(edge["left_sources"] + edge["right_sources"]).issubset(tables), 'catalog invariant failed: set(edge["left_sources"] + edge["right_sources"]).issubset(tables)')
+            require(edge["left_rows"] == sum(tables[r]["data_rows"] for r in edge["left_sources"]), 'catalog invariant failed: edge["left_rows"] == sum(tables[r]["data_rows"] for r in edge["left_sources"])')
+            require(edge["right_rows"] == sum(tables[r]["data_rows"] for r in edge["right_sources"]), 'catalog invariant failed: edge["right_rows"] == sum(tables[r]["data_rows"] for r in edge["right_sources"])')
+            require(edge["left_matched_rows"] + edge["left_unmatched_non_null_rows"] + edge["left_null_rows"] == edge["left_rows"], 'catalog invariant failed: edge["left_matched_rows"] + edge["left_unmatched_non_null_rows"] + edge["left_null_rows"] == edge["left_rows"]')
+            require(edge["right_matched_rows"] + edge["right_unmatched_non_null_rows"] + edge["right_null_rows"] == edge["right_rows"], 'catalog invariant failed: edge["right_matched_rows"] + edge["right_unmatched_non_null_rows"] + edge["right_null_rows"] == edge["right_rows"]')
+            require(edge["left_join_rows"] == edge["inner_join_rows"] + edge["left_rows"] - edge["left_matched_rows"], 'catalog invariant failed: edge["left_join_rows"] == edge["inner_join_rows"] + edge["left_rows"] - edge["left_matched_rows"]')
     seen_metrics, quality_refs = set(), set()
     with (output / "source_quality.csv").open(encoding="utf-8-sig", newline="") as stream:
         reader = csv.DictReader(stream)
-        assert reader.fieldnames == QUALITY_COLUMNS
+        require(reader.fieldnames == QUALITY_COLUMNS, 'catalog invariant failed: reader.fieldnames == QUALITY_COLUMNS')
         for row in reader:
-            assert set(row) == set(QUALITY_COLUMNS) and None not in row and all(v is not None for v in row.values())
-            assert row["source_ref"] in tables
+            require(set(row) == set(QUALITY_COLUMNS) and None not in row and all(v is not None for v in row.values()), 'catalog invariant failed: set(row) == set(QUALITY_COLUMNS) and None not in row and all(v is not None for v in row.values())')
+            require(row["source_ref"] in tables, 'catalog invariant failed: row["source_ref"] in tables')
             table = tables[row["source_ref"]]
-            assert row["business_id"] == row["source_ref"].split("/", 1)[0]
+            require(row["business_id"] == row["source_ref"].split("/", 1)[0], 'catalog invariant failed: row["business_id"] == row["source_ref"].split("/", 1)[0]')
             key = tuple(row[n] for n in ("business_id", "source_ref", "column", "metric"))
-            assert key not in seen_metrics, key
+            require(key not in seen_metrics, key)
             seen_metrics.add(key)
             quality_refs.add(row["source_ref"])
-            assert int(row["denominator"]) >= 0
+            require(int(row["denominator"]) >= 0, 'catalog invariant failed: int(row["denominator"]) >= 0')
             if row["metric"] == "data_rows":
-                assert int(row["value"]) == table["data_rows"]
+                require(int(row["value"]) == table["data_rows"], 'catalog invariant failed: int(row["value"]) == table["data_rows"]')
             elif row["metric"] in ("summary_label_rows", "summary_rows_without_order_id"):
-                assert int(row["value"]) == table["row_kind_review"][row["metric"]]
+                require(int(row["value"]) == table["row_kind_review"][row["metric"]], 'catalog invariant failed: int(row["value"]) == table["row_kind_review"][row["metric"]]')
             elif row["metric"] == "blank_or_null":
                 col = next(c for c in table["columns"] if c["name"] == row["column"])
-                assert int(row["value"]) == col["blank_or_null"]
+                require(int(row["value"]) == col["blank_or_null"], 'catalog invariant failed: int(row["value"]) == col["blank_or_null"]')
             elif row["metric"].startswith("date_"):
                 col = next(c for c in table["columns"] if c["name"] == row["column"])
                 value = col["date_profile"][row["metric"][5:]]
-                assert row["value"] == ("" if value is None else str(value))
-    assert quality_refs == set(tables)
+                require(row["value"] == ("" if value is None else str(value)), 'catalog invariant failed: row["value"] == ("" if value is None else str(value))')
+    require(quality_refs == set(tables), 'catalog invariant failed: quality_refs == set(tables)')
     source_map = review.load_json(output / "question_source_map.json")
     samples = review.load_json(repo_root / "configs/representative_questions.json")["questions"]
     train_questions = {}
@@ -111,44 +120,44 @@ def validate(output, *, repo_root):
         for line in stream:
             if line.strip():
                 question = json.loads(line, object_pairs_hook=review.strict_pairs)
-                assert question["id"] not in train_questions
+                require(question["id"] not in train_questions, 'catalog invariant failed: question["id"] not in train_questions')
                 train_questions[question["id"]] = question
-    assert len(source_map) == len({q["question_id"] for q in source_map}) == 60
-    assert {q["question_id"] for q in source_map} == {q["id"] for q in samples}
+    require(len(source_map) == len({q["question_id"] for q in source_map}) == 60, 'catalog invariant failed: len(source_map) == len({q["question_id"] for q in source_map}) == 60')
+    require({q["question_id"] for q in source_map} == {q["id"] for q in samples}, 'catalog invariant failed: {q["question_id"] for q in source_map} == {q["id"] for q in samples}')
     for question in source_map:
         sample = next(q for q in samples if q["id"] == question["question_id"])
         actual = train_questions[question["question_id"]]
-        assert all(sample[k] == actual[k] for k in ("business_id", "as_of_date", "question"))
-        assert sample["business_id"] == question["business_id"]
-        assert sample["as_of_date"] == question["as_of_date"]
+        require(all(sample[k] == actual[k] for k in ("business_id", "as_of_date", "question")), 'catalog invariant failed: all(sample[k] == actual[k] for k in ("business_id", "as_of_date", "question"))')
+        require(sample["business_id"] == question["business_id"], 'catalog invariant failed: sample["business_id"] == question["business_id"]')
+        require(sample["as_of_date"] == question["as_of_date"], 'catalog invariant failed: sample["as_of_date"] == question["as_of_date"]')
         approved_ids = {e["id"] for b in businesses for e in b["validated_join_unions"]}
-        assert set(question["join_edges"]).issubset(approved_ids)
+        require(set(question["join_edges"]).issubset(approved_ids), 'catalog invariant failed: set(question["join_edges"]).issubset(approved_ids)')
         folded_question = review.base.fold(sample["question"])
         asks_product_group = "nhom" in folded_question and "khach" not in folded_question and "than thiet" not in folded_question
         asks_ingredient = "hoat chat" in folded_question
         if asks_product_group or asks_ingredient:
             roles = {tables[ref]["logical_role"] for ref in question["source_refs"]}
-            assert "products" in roles, f"{question['question_id']} missing product master source"
+            require("products" in roles, f"{question['question_id']} missing product master source")
             product_edge = any(
                 {"sales_lines", "products"}.issubset(set(e["semantic_relation"].split(" -> ")))
                 for b in businesses for e in b["validated_join_unions"]
                 if e["id"] in question["join_edges"]
             )
-            assert product_edge, f"{question['question_id']} missing approved sales-to-product join"
+            require(product_edge, f"{question['question_id']} missing approved sales-to-product join")
         for ref, columns in question["source_columns"].items():
-            assert ref in tables and set(columns).issubset({c["name"] for c in tables[ref]["columns"]})
-    assert catalog["review_provenance"]["script_sha256"] == base.digest(Path(review.__file__))
-    assert catalog["review_provenance"]["base_artifact_sha256"] == base.digest(output / "data_catalog.initial.json")
+            require(ref in tables and set(columns).issubset({c["name"] for c in tables[ref]["columns"]}), 'catalog invariant failed: ref in tables and set(columns).issubset({c["name"] for c in tables[ref]["columns"]})')
+    require(catalog["review_provenance"]["script_sha256"] == base.digest(Path(review.__file__)), 'catalog invariant failed: catalog["review_provenance"]["script_sha256"] == base.digest(Path(review.__file__))')
+    require(catalog["review_provenance"]["base_artifact_sha256"] == base.digest(output / "data_catalog.initial.json"), 'catalog invariant failed: catalog["review_provenance"]["base_artifact_sha256"] == base.digest(output / "data_catalog.initial.json")')
     initial_public = subprocess.check_output(["git", "show", "HEAD:docs/data-schema-catalog.md"], cwd=repo_root).decode("utf-8").split("## public_test", 1)[1]
     current_doc = (repo_root / "docs/data-schema-catalog.md").read_text(encoding="utf-8")
-    assert initial_public.strip() == current_doc.split("## public_test", 1)[1].strip()
-    assert before == base.snapshot(train), "Source changed during validation"
+    require(initial_public.strip() == current_doc.split("## public_test", 1)[1].strip(), 'catalog invariant failed: initial_public.strip() == current_doc.split("## public_test", 1)[1].strip()')
+    require(before == base.snapshot(train), "Source changed during validation")
     whitespace = subprocess.run(["git", "diff", "--check"], cwd=repo_root, capture_output=True, text=True)
-    assert whitespace.returncode == 0, whitespace.stdout + whitespace.stderr
+    require(whitespace.returncode == 0, whitespace.stdout + whitespace.stderr)
     test_command = [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-p", "*catalog*.py", "-v"]
     test_run = subprocess.run(test_command, cwd=repo_root, capture_output=True, text=True, encoding="utf-8", errors="replace")
     (output / "catalog_tests.log").write_text(test_run.stdout + test_run.stderr, encoding="utf-8")
-    assert test_run.returncode == 0, test_run.stderr
+    require(test_run.returncode == 0, test_run.stderr)
     test_count = re.search(r"Ran (\d+) tests?", test_run.stderr)
     return {"status": "passed", "businesses": 30, "tables": 339, "physical_header_checks": header_checks,
             "quality_schema": QUALITY_COLUMNS, "quality_records": len(seen_metrics), "question_source_records": 60,
