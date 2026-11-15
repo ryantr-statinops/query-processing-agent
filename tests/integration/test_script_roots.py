@@ -2,6 +2,8 @@
 
 import os
 from pathlib import Path
+import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -29,6 +31,21 @@ class ScriptRootTests(unittest.TestCase):
                 os.chdir(original)
         self.assertEqual(resolved, expected)
         self.assertTrue(resolved.is_file())
+
+    def test_generator_validation_survives_optimized_python(self):
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-O",
+                "-c",
+                "from scripts.trace_full_dataset import require; require(False, 'sentinel')",
+            ],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("sentinel", result.stderr)
 
 
 if __name__ == "__main__":

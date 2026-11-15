@@ -19,6 +19,13 @@ from datamate.evaluation.tracing.validation import validate_records
 
 ROOT = Path(__file__).resolve().parents[1]
 
+
+def require(condition, message):
+    """Keep data validation active even when Python is run with ``-O``."""
+    if not condition:
+        raise ValueError(message)
+
+
 def main():
     rep = json.loads((ROOT / "configs/representative_questions.json").read_text(encoding="utf-8"))
     questions = rep["questions"]
@@ -52,7 +59,7 @@ def main():
     print(f"After Part 2: {len(traces)} traces.")
 
     # 4. Rigorous Validation against representative_questions.json
-    assert len(traces) == 60, f"Expected 60 traces, got {len(traces)}"
+    require(len(traces) == 60, f"Expected 60 traces, got {len(traces)}")
 
     REQUIRED_KEYS = [
         "question_id", "business_id", "split_group", "question", "as_of_date",
@@ -69,15 +76,15 @@ def main():
     ordered_records = []
     for q in questions:
         qid = q["id"]
-        assert qid in traces, f"Missing trace for {qid}"
+        require(qid in traces, f"Missing trace for {qid}")
         rec = traces[qid]
 
         # Check keys
         for k in REQUIRED_KEYS:
-            assert k in rec, f"Key {k} missing in record {qid}"
+            require(k in rec, f"Key {k} missing in record {qid}")
 
-        assert rec["business_id"] == q["business_id"], f"Business mismatch for {qid}"
-        assert rec["as_of_date"] == q["as_of_date"], f"as_of_date mismatch for {qid}"
+        require(rec["business_id"] == q["business_id"], f"Business mismatch for {qid}")
+        require(rec["as_of_date"] == q["as_of_date"], f"as_of_date mismatch for {qid}")
 
         if rec["split_group"] == "holdout":
             holdout_count += 1
@@ -86,13 +93,13 @@ def main():
 
         if rec["answer_type"] == "unanswerable":
             unanswerable_count += 1
-            assert rec["status"] == "insufficient_evidence", f"Unanswerable question {qid} must have status 'insufficient_evidence', got {rec['status']}"
+            require(rec["status"] == "insufficient_evidence", f"Unanswerable question {qid} must have status 'insufficient_evidence', got {rec['status']}")
             calc = rec.get("calculation", {})
             reason = calc.get("reason", "") or calc.get("result", "")
-            assert len(reason) > 15, f"Unanswerable question {qid} lacks explicit blocker reason"
+            require(len(reason) > 15, f"Unanswerable question {qid} lacks explicit blocker reason")
         else:
             verified_count += 1
-            assert rec["status"] == "verified", f"Invalid status for {qid}"
+            require(rec["status"] == "verified", f"Invalid status for {qid}")
 
         ordered_records.append(rec)
 
@@ -109,8 +116,8 @@ def main():
     print(f"  Unanswerable (insufficient_evidence): {unanswerable_count} (expected 5)")
     print(f"  Unresolved discrepancies: {unresolved_count}")
 
-    assert dev_count == 48, f"Expected 48 dev records, got {dev_count}"
-    assert holdout_count == 12, f"Expected 12 holdout records, got {holdout_count}"
+    require(dev_count == 48, f"Expected 48 dev records, got {dev_count}")
+    require(holdout_count == 12, f"Expected 12 holdout records, got {holdout_count}")
 
     # 5. Write canonical artifacts
     out_path = ROOT / "artifacts/data_prep/question_trace.jsonl"
