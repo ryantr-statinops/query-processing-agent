@@ -160,6 +160,12 @@ class BusinessCatalog:
         # Drop the Rust-backed session and its in-memory table providers.
         self.context = None
 
+    def __enter__(self) -> "BusinessCatalog":
+        return self
+
+    def __exit__(self, exc_type: Any, exc: Any, traceback: Any) -> None:
+        self.close()
+
     @property
     def table_names(self) -> list[str]:
         return [table.name for table in self.tables]
