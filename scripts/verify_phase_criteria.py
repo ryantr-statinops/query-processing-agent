@@ -36,14 +36,19 @@ from datamate.evaluation.tracing import (
     validate_records,
 )
 
+ROOT = Path(__file__).resolve().parents[1]
+
 
 def resolve_physical_source(path):
     """Resolve a uniquely similar local filename when a checkout mangled Unicode names."""
-    if os.path.exists(path):
-        return path
-    parent, name = os.path.split(path)
-    if not os.path.isdir(parent):
-        return path
+    candidate = Path(path)
+    if not candidate.is_absolute():
+        candidate = ROOT / candidate
+    if candidate.exists():
+        return str(candidate)
+    parent, name = candidate.parent, candidate.name
+    if not parent.is_dir():
+        return str(candidate)
 
     def normalize(value):
         ascii_text = unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode().casefold()
@@ -56,7 +61,7 @@ def resolve_physical_source(path):
     )
     if ranked and ranked[0][0] >= 0.85 and (len(ranked) == 1 or ranked[0][0] - ranked[1][0] >= 0.10):
         return ranked[0][1]
-    return path
+    return str(candidate)
 
 
 def main():
@@ -71,17 +76,17 @@ def main():
     # ---------------------------------------------------------
     # CRITERION 1: 60 records matching ID / business / as_of_date
     # ---------------------------------------------------------
-    trace_path = Path("artifacts/data_prep/question_trace.jsonl")
+    trace_path = ROOT / "artifacts/data_prep/question_trace.jsonl"
     assert trace_path.exists(), f"Missing trace artifact at {trace_path}"
 
     traces = [json.loads(l) for l in open(trace_path, encoding="utf-8") if l.strip()]
     assert len(traces) == 60, f"Expected 60 traces, got {len(traces)}"
 
-    rep_file = json.load(open("configs/representative_questions.json", encoding="utf-8"))
+    rep_file = json.loads((ROOT / "configs/representative_questions.json").read_text(encoding="utf-8"))
     q_map = {q["id"]: q for q in rep_file["questions"]}
     assert len(q_map) == 60, f"Expected 60 representative questions, got {len(q_map)}"
 
-    split_manifest = json.load(open("configs/splits/seed_2026.json", encoding="utf-8"))
+    split_manifest = json.loads((ROOT / "configs/splits/seed_2026.json").read_text(encoding="utf-8"))
     traces = validate_records(rep_file["questions"], traces, set(split_manifest["holdout_businesses"]))
 
     REQUIRED_KEYS = [
@@ -128,7 +133,10 @@ def main():
             declared_path = s.get("path")
             if not declared_path: continue
             p = resolve_physical_source(declared_path)
-            if p != declared_path:
+            declared_absolute = Path(declared_path)
+            if not declared_absolute.is_absolute():
+                declared_absolute = ROOT / declared_absolute
+            if Path(p).resolve() != declared_absolute.resolve():
                 source_aliases.append((declared_path, p))
             assert os.path.exists(p), f"Source file does not exist on disk: {p} in question {qid}"
             checked_sources += 1
@@ -206,7 +214,7 @@ def main():
     print("\n[CRITERION 3] Running Live Raw Disk Recomputations across all 8 answer types:")
 
     # Sample 1: biz_107 (Relative date + returns excluded - Number)
-    wb = openpyxl.load_workbook("train/data/biz_107/SoBanHang.xlsx", data_only=True, read_only=True)
+    wb = openpyxl.load_workbook(ROOT / "train/data/biz_107/SoBanHang.xlsx", data_only=True, read_only=True)
     ws = wb["Sheet1"]
     rev_107 = 0
     for r in ws.iter_rows(min_row=2, values_only=True):
@@ -221,7 +229,7 @@ def main():
     print(f"  1. [Relative Date (Number)]: biz_107 yesterday (2026-04-17) revenue = {rev_107:,} VND -> PASS")
 
     # Sample 2: biz_109 (Unit conversion & weighted average - Number)
-    wb_109 = openpyxl.load_workbook("train/data/biz_109/DuLieuBanHang.xlsx", data_only=True, read_only=True)
+    wb_109 = openpyxl.load_workbook(ROOT / "train/data/biz_109/DuLieuBanHang.xlsx", data_only=True, read_only=True)
     ws_sp = wb_109["DanhSachSanPham"]
     target_codes = {r[3] for r in ws_sp.iter_rows(min_row=2, values_only=True) if r and len(r) > 6 and "omachi" in str(r[6]).lower() and "sườn hầm" in str(r[6]).lower()}
     ws_nhap = wb_109["DanhSachNhapHang"]
@@ -238,7 +246,7 @@ def main():
     print(f"  2. [Unit Conversion (Number)]: biz_109 Omachi Jan 2025 avg price = {avg_box_109:,} VND (Spend: {tot_spend:,}, Boxes: {tot_qty}) -> PASS")
 
     # Sample 3: biz_103 (Hierarchical continuation rows with forward-fill - Boolean)
-    wb_103 = openpyxl.load_workbook("train/data/biz_103/DonHang_ChiTiet.xlsx", data_only=True, read_only=True)
+    wb_103 = openpyxl.load_workbook(ROOT / "train/data/biz_103/DonHang_ChiTiet.xlsx", data_only=True, read_only=True)
     totals_103 = {}
     for sheet_name in ["11.2025", "12.2025", "01.2026"]:
         ws_103 = wb_103[sheet_name]
@@ -260,7 +268,7 @@ def main():
     print(f"  3. [Hierarchical Forward-Fill (Boolean)]: biz_103 3-month growth: {totals_103['11.2025']:,} < {totals_103['12.2025']:,} < {totals_103['01.2026']:,} -> True -> PASS")
 
     # Sample 4: biz_105 (Percent cancellation rate - Percent)
-    wb_105 = openpyxl.load_workbook("train/data/biz_105/SoBanHang_1.xlsx", data_only=True, read_only=True)
+    wb_105 = openpyxl.load_workbook(ROOT / "train/data/biz_105/SoBanHang_1.xlsx", data_only=True, read_only=True)
     ws_105 = wb_105["Thang 06 2025"]
     orders_105 = {}
     for r in ws_105.iter_rows(min_row=3, values_only=True):
@@ -275,7 +283,7 @@ def main():
     print(f"  4. [Percent Share (Percent)]: biz_105 June 2025 cancellation = {can_105} / {tot_105} = {pct_105}% -> PASS")
 
     # Sample 5: biz_123 (True FIFO Inventory Depletion & Expiry Date - Date)
-    conn_123 = sqlite3.connect("train/data/biz_123/pos.sqlite")
+    conn_123 = sqlite3.connect(ROOT / "train/data/biz_123/pos.sqlite")
     fifo_row = conn_123.execute(f"""
             WITH lot_balances AS ({INVENTORY_LOT_BALANCE_SQL})
             SELECT lb.HanSuDung, lb.MaLo, lb.ton_kho
@@ -303,7 +311,7 @@ def main():
             if len(p) == 3: return f"{p[2]}-{p[1].zfill(2)}-{p[0].zfill(2)}"
         return str(v)[:10]
 
-    wb_hd = openpyxl.load_workbook("train/data/biz_106/DanhSachHoaDon.xlsx", data_only=True, read_only=True)
+    wb_hd = openpyxl.load_workbook(ROOT / "train/data/biz_106/DanhSachHoaDon.xlsx", data_only=True, read_only=True)
     target_invs = set()
     for r in wb_hd.active.iter_rows(min_row=4, values_only=True):
         if not r or len(r) < 10: continue
@@ -313,7 +321,7 @@ def main():
         if "2026-08-17" <= dt <= "2026-08-19" and "hủy" not in st and "trả" not in st:
             target_invs.add(code)
 
-    wb2 = openpyxl.load_workbook("train/data/biz_106/DanhSachHoaDonChiTiet_2.xlsx", data_only=True, read_only=True)
+    wb2 = openpyxl.load_workbook(ROOT / "train/data/biz_106/DanhSachHoaDonChiTiet_2.xlsx", data_only=True, read_only=True)
     counts = {}
     for r in wb2.active.iter_rows(min_row=4, values_only=True):
         if not r or len(r) < 6: continue
@@ -335,7 +343,7 @@ def main():
         return int(str(value or "0").replace(",", "").replace(".", ""))
 
     monthly_headers = {}
-    wb_month = openpyxl.load_workbook("train/data/biz_106/DanhSachHoaDon.xlsx", data_only=True, read_only=True)
+    wb_month = openpyxl.load_workbook(ROOT / "train/data/biz_106/DanhSachHoaDon.xlsx", data_only=True, read_only=True)
     for row in wb_month.active.iter_rows(min_row=4, values_only=True):
         if not row or len(row) < 10:
             continue
@@ -346,7 +354,7 @@ def main():
     wb_month.close()
     unique_month_lines = []
     for detail_name in ("DanhSachHoaDonChiTiet_1.xlsx", "DanhSachHoaDonChiTiet_2.xlsx"):
-        wb_month_detail = openpyxl.load_workbook(f"train/data/biz_106/{detail_name}", data_only=True, read_only=True)
+        wb_month_detail = openpyxl.load_workbook(ROOT / "train/data/biz_106" / detail_name, data_only=True, read_only=True)
         for row in wb_month_detail.active.iter_rows(min_row=5, values_only=True):
             if row and len(row) > 8 and str(row[0]).strip() in monthly_headers:
                 unique_month_lines.append(tuple(row))
@@ -359,14 +367,14 @@ def main():
     print(f"  6a. [Exact Order-Line Dedup]: biz_106 May detail = header total {detail_total} -> PASS")
 
     # Sample 7: biz_112 (Insufficient evidence / Missing inventory ledger - Unanswerable)
-    p112 = Path("train/data/biz_112")
+    p112 = ROOT / "train/data/biz_112"
     files_112 = [f.name for f in p112.glob("*")]
     has_inventory = any("kho" in f.lower() or "ton" in f.lower() for f in files_112)
     assert not has_inventory, f"biz_112 has unexpected inventory files: {files_112}"
     print(f"  7. [Missing Evidence (Unanswerable)]: biz_112 verified absence of inventory/stock ledger -> PASS")
 
     # Sample 8: biz_114 (Top-selling product in base unit - String)
-    with open("train/data/biz_114/ban_hang.csv", encoding="utf-8") as f:
+    with (ROOT / "train/data/biz_114/ban_hang.csv").open(encoding="utf-8") as f:
         rdr = csv.reader(f)
         hdr_114 = [c.replace("\ufeff", "").strip() for c in next(rdr)]
         by_prod_114 = {}
@@ -384,7 +392,7 @@ def main():
     print(f"  8. [Top Product in Base Unit (String)]: biz_114 June 2025 top product = '{top_prod_114[0]}' ({int(top_prod_114[1])} units) -> PASS")
 
     # Sample 9: biz_123 (Outstanding balance ranking table - Table)
-    conn_debt = sqlite3.connect("train/data/biz_123/pos.sqlite")
+    conn_debt = sqlite3.connect(ROOT / "train/data/biz_123/pos.sqlite")
     debtors_123 = conn_debt.execute(f"""
         WITH debt_rows AS ({OUTSTANDING_DEBT_SQL})
         SELECT TenGoi, so_tien_no FROM debt_rows ORDER BY so_tien_no DESC LIMIT 5
@@ -411,7 +419,7 @@ def main():
         cleaned = re.sub(r"[^\d]", "", s)
         return int(cleaned) if cleaned else 0
 
-    wb_117 = openpyxl.load_workbook("train/data/biz_117/SoBanHang.xlsx", data_only=True, read_only=True)
+    wb_117 = openpyxl.load_workbook(ROOT / "train/data/biz_117/SoBanHang.xlsx", data_only=True, read_only=True)
     ws_117 = wb_117["Tháng 05-2025"]
     daily_117 = {}
     for r in ws_117.iter_rows(min_row=3, values_only=True):
@@ -441,7 +449,7 @@ def main():
     assert len(dev_traces) == 48, f"Expected 48 dev traces, got {len(dev_traces)}"
     assert len(holdout_traces) == 12, f"Expected 12 holdout traces, got {len(holdout_traces)}"
 
-    splits = json.load(open("configs/splits/seed_2026.json", encoding="utf-8"))
+    splits = json.loads((ROOT / "configs/splits/seed_2026.json").read_text(encoding="utf-8"))
     holdout_biz = set(splits["holdout_businesses"])
     for t in holdout_traces:
         assert t["business_id"] in holdout_biz, f"Holdout trace {t['question_id']} belongs to non-holdout business {t['business_id']}"

@@ -17,12 +17,14 @@ except ImportError:  # direct `python scripts/trace_full_dataset.py` invocation
 
 from datamate.evaluation.tracing.validation import validate_records
 
+ROOT = Path(__file__).resolve().parents[1]
+
 def main():
-    rep = json.load(open("configs/representative_questions.json", encoding="utf-8"))
+    rep = json.loads((ROOT / "configs/representative_questions.json").read_text(encoding="utf-8"))
     questions = rep["questions"]
     q_map = {q["id"]: q for q in questions}
 
-    splits = json.load(open("configs/splits/seed_2026.json", encoding="utf-8"))
+    splits = json.loads((ROOT / "configs/splits/seed_2026.json").read_text(encoding="utf-8"))
     holdout_biz = set(splits["holdout_businesses"])
 
     def get_split(biz_id):
@@ -111,7 +113,7 @@ def main():
     assert holdout_count == 12, f"Expected 12 holdout records, got {holdout_count}"
 
     # 5. Write canonical artifacts
-    out_path = Path("artifacts/data_prep/question_trace.jsonl")
+    out_path = ROOT / "artifacts/data_prep/question_trace.jsonl"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with open(out_path, "w", encoding="utf-8") as f:
         for rec in ordered_records:
