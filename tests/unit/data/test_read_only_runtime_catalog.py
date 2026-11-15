@@ -7,6 +7,8 @@ import sqlite3
 import tempfile
 import unittest
 
+from openpyxl import Workbook
+
 from datamate.data.catalog import BusinessCatalog
 from datamate.execution.sql import execute_select
 
@@ -103,6 +105,27 @@ class RuntimeCatalogTests(unittest.TestCase):
                 self.assertTrue(result.ok, result.error)
                 self.assertEqual(result.rows, [[3]], result)
                 self.assertEqual(path.read_bytes(), before)
+            finally:
+                catalog.close()
+
+    def test_excel_sheet_is_registered_with_source_provenance(self):
+        with tempfile.TemporaryDirectory() as folder:
+            business_dir = pathlib.Path(folder) / "biz_001"
+            business_dir.mkdir()
+            path = business_dir / "sales.xlsx"
+            workbook = Workbook()
+            sheet = workbook.active
+            sheet.title = "April"
+            sheet.append(["Item name", "Net amount"])
+            sheet.append(["apples", 6])
+            workbook.save(path)
+            catalog = BusinessCatalog(business_dir)
+            try:
+                self.assertEqual(catalog.tables[0].source_ref, "catalog:biz_001:sales.xlsx:April")
+                result = execute_select(catalog, "SELECT SUM(net_amount) AS total FROM sales_april")
+                self.assertTrue(result.ok, result.error)
+                self.assertEqual(result.rows, [[6]])
+                self.assertEqual(result.source_refs, ["catalog:biz_001:sales.xlsx:April"])
             finally:
                 catalog.close()
 
