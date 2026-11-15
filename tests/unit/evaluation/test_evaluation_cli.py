@@ -75,6 +75,20 @@ class EvaluationCliTests(unittest.TestCase):
         self.assertTrue(report["metadata"]["exploratory_only"])
         self.assertEqual(report["overall"]["wrong"], 1)
 
+    def test_evaluation_records_reproducible_metadata_and_intent_grouping(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            predictions = self._fixture(root)
+            logs = root / "logs.jsonl"
+            logs.write_text('{"id":"q_dev1","elapsed_ms":150}\n{"id":"q_dev2","elapsed_ms":250}\n', encoding="utf-8")
+            output = root / "artifacts/score_with_logs.json"
+            report = evaluate_files(predictions, output_path=output, logs_path=logs, root=root)
+            self.assertIn("by_intent", report)
+            self.assertIn("prompt_config_hash", report["metadata"])
+            self.assertIsNotNone(report["metadata"]["latency_summary"])
+            self.assertEqual(report["metadata"]["latency_summary"]["count"], 2)
+            self.assertEqual(report["metadata"]["latency_summary"]["avg_ms"], 200.0)
+
 
 if __name__ == "__main__":
     unittest.main()
