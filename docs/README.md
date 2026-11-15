@@ -1,6 +1,6 @@
 # Hướng dẫn đọc tài liệu DataMate
 
-Tài liệu này dành cho mentor và thành viên mới. Repo đang trong giai đoạn rebuild: solver cũ đã được gỡ, catalog và tracing đã có công cụ xác minh; inference contract v0 và guardrails đã được merge. Runtime end-to-end chưa được triển khai.
+Tài liệu này dành cho mentor và thành viên mới. Repo đang trong giai đoạn rebuild: solver cũ đã được gỡ, catalog và tracing đã có công cụ xác minh; inference contract v0 và guardrails đã được merge. Hiện có lát cắt runtime synthetic dùng fake planner; model inference và đánh giá hiệu năng thực tế vẫn chưa có.
 
 ## Lộ trình đọc cho mentor
 
@@ -14,7 +14,7 @@ Tài liệu này dành cho mentor và thành viên mới. Repo đang trong giai 
 
 ## Kiến trúc package hiện hành
 
-[Package structure](architecture/package-structure.md) mô tả code hiện có, hướng phụ thuộc và các package runtime còn thiếu. Tài liệu trong archive là thiết kế solver cũ.
+[Package structure](architecture/package-structure.md) mô tả code hiện có, hướng phụ thuộc và các phần runtime còn thiếu. Tài liệu trong archive là thiết kế solver cũ.
 
 Tra cứu lệnh đang hỗ trợ trong [script index](../scripts/README.md). Các implementation solver cũ được giữ trong `scripts/legacy/` và chưa chạy được nếu thiếu runtime.
 
@@ -26,7 +26,7 @@ Tra cứu lệnh đang hỗ trợ trong [script index](../scripts/README.md). C�
 - Holdout exposure, business-level split và cách báo cáo kết quả có được trình bày trung thực không?
 - Những gì đang được đề xuất đã được phân biệt rõ với những gì đã chạy thật chưa?
 
-Model, vector index, plan format và runtime vẫn đang mở; kế hoạch hoãn các quyết định này đến sau data catalog và trace.
+GGUF model adapter, vector index, semantic source mapping và ranking vẫn đang mở. CLI hiện abstain an toàn khi chưa có planner; kết quả fake-planner chỉ xác nhận luồng kỹ thuật, không đo chất lượng dự đoán.
 
 ## Tài liệu bổ sung
 

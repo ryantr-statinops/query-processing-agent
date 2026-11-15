@@ -1,8 +1,10 @@
 # Script index
 
 Run commands from the repository root with the locked uv environment. The commands
-listed here are the supported preparation, catalog, and tracing interfaces. Detailed
-catalog flags and source-evidence limitations are documented in the catalog handoff.
+listed here are the supported preparation, runtime-baseline, evaluation, catalog, and
+tracing interfaces. The runner uses a fail-closed abstention until a local planner is
+integrated; synthetic fake planners are exercised by tests. Detailed catalog flags and
+source-evidence limitations are documented in the catalog handoff.
 
 ## Supported workflows
 
@@ -10,6 +12,8 @@ catalog flags and source-evidence limitations are documented in the catalog hand
 | --- | --- | --- |
 | Preparation | `uv run python scripts/run_pipeline.py --help` | Validate/extract local data and prepare optional model weights. Use `--data-only` to avoid model setup. |
 | Preparation checks | `uv run python scripts/inspect_data.py` and `uv run python scripts/check_environment.py` | Inspect local data and environment readiness. |
+| Runtime baseline | `uv run --locked --no-sync python -m datamate --help` | Show the offline runner arguments. Without an injected planner, the runner writes typed abstentions and per-question logs. |
+| Runtime entrypoint | `sh predict.sh` | Evaluator-compatible argument-free wrapper; currently fail-closed until the local GGUF planner is integrated. |
 | Catalog | `uv run python scripts/build_data_catalog.py --help` | Scan source files and produce the initial catalog artifacts. |
 | Catalog | `uv run python scripts/review_data_catalog.py --help` | Add read-only semantic and relationship evidence. |
 | Catalog | `uv run python scripts/validate_data_catalog.py --help` | Validate artifact structure, source fingerprints, and review provenance. |
@@ -19,9 +23,11 @@ catalog flags and source-evidence limitations are documented in the catalog hand
 | Analysis | `uv run python -m analysis.questions --help` and `uv run python -m analysis.sources --help` | Run local, exploratory question and source-file inspections. |
 
 The scanner, reviewer, and validator are implemented in
-`src/datamate/data/catalog_audit/`. Trace comparison and SQL audit helpers live in
-`src/datamate/evaluation/tracing/`. `trace_records.json` is a development input,
-not inference package data.
+`src/datamate/data/catalog_audit/`. Runtime catalog loading and read-only SQL live in
+`src/datamate/data/catalog.py` and `src/datamate/execution/sql.py`. Trace comparison
+and SQL audit helpers live in `src/datamate/evaluation/tracing/`; the split-aware
+scorer lives in `src/datamate/evaluation/`. `trace_records.json` is a development
+input, not inference package data.
 
 ## Archived solver tools
 

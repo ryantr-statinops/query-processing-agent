@@ -49,3 +49,17 @@ Chạy vài câu đã trace qua một business mỗi định dạng; sau đó m�
 - Chạy suite đã thống nhất cuối mỗi phase. Khi test cũ còn import package đã xóa, không ghi chúng là pass; cập nhật hoặc thay bằng kiểm tra phù hợp ở task implementation.
 
 **Đầu ra:** source code, lệnh setup/run, baseline traces, Docker smoke và hướng dẫn tái hiện lỗi; execution artifacts vẫn local.
+
+## Trạng thái implementation — 2026-11-15
+
+| Task | Trạng thái | Đã kiểm tra | Giới hạn còn lại |
+|---|---|---|---|
+| R01 | Runtime scaffold và CLI smoke có | `uv sync --locked`; `uv build`; `python -m datamate --help`; runner ghi submission/log | Docker acceptance và chạy `predict.sh` trong evaluator image còn lại |
+| R02 | Catalog generic cho CSV, Excel và SQLite | Fixture synthetic cho ba định dạng; SQLite bytes không đổi; source refs và header mapping được giữ | Chưa áp dụng semantic role/alias hoặc kiểm tra grain, coverage theo catalog review |
+| R03 | Fake planner nối được loader → validation → query → typed answer | Synthetic integration test kiểm tra submission và internal result bằng JSON Schema | Fake planner chỉ trả SQL/type; chưa đo độ đúng ngữ nghĩa câu hỏi |
+| R04 | SQL read-only có allow-list, logical plan, row cap và hard deadline | Regression cho DML, external reader, table lạ, row limit và timeout | DataFusion worker phải nạp lại catalog mỗi query; latency chưa được benchmark |
+| R05 | Chưa triển khai | — | Local GGUF adapter và schema-constrained generation đang chờ contract v0 được review |
+| R06 | Typed output, evidence policy và log tách riêng đã nối trong lát cắt synthetic | Schema kiểm tra cho internal result/submission; empty/null aggregate không thành zero | Verification hiện chỉ bao phủ provenance/shape/plan kỹ thuật; chưa xác nhận intent, date, grain, unit hoặc rulebook semantics |
+| R07 | `python -m datamate` đã có | Smoke chạy với model path thiếu và abstain an toàn | GGUF adapter, Docker/offline package acceptance và `predict.sh` evaluator run chưa đạt |
+
+**Đánh giá gate P3:** lát cắt synthetic qua được kiểm tra kỹ thuật và contract. CLI thật hiện chưa có planner nên luôn abstain; không dùng đầu ra này để báo PA hay coi như baseline chất lượng. P4 có thể bắt đầu với scorer và synthetic regression, nhưng đánh giá chất lượng model chỉ có ý nghĩa sau R05 và khi có prediction từ planner thật. Bộ 12 câu holdout đã lộ nhãn vẫn chỉ là exploratory.
