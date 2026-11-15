@@ -5,8 +5,11 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
+import platform
 import subprocess
+import sys
 from typing import Any
 
 from datamate.evaluation.grouped import evaluate_predictions_grouped
@@ -37,6 +40,27 @@ def _load_unique_jsonl(path: Path, id_field: str) -> dict[str, dict[str, Any]]:
     return records
 
 
+def _classify_intent(question_text: str) -> str:
+    """Heuristic classification of question intent for exploratory failure analysis."""
+    q = question_text.lower()
+    # Priority 1: Cancellation & refund
+    if any(k in q for k in ["hủy", "huỷ", "hoàn", "trả hàng"]):
+        return "cancellation"
+    # Priority 2: Comparisons, trends and percentages
+    if any(k in q for k in ["tăng", "giảm", "tỷ trọng", "tăng trưởng", "so với", "chênh lệch", "%", "phần trăm"]):
+        return "comparison"
+    # Priority 3: Ranking and extremum
+    if any(k in q for k in ["bán chạy", "top", "cao nhất", "thấp nhất", "nhiều nhất", "ít nhất", "xếp hạng", "thứ hạng"]):
+        return "ranking"
+    # Priority 4: Lookups & specific entities
+    if any(k in q for k in ["ngày nào", "tháng nào", "hôm nào", "ai", "ở đâu", "mã nào", "tên gì"]):
+        return "lookup"
+    # Priority 5: Aggregations & business metrics
+    if any(k in q for k in ["doanh thu", "dthu", "revenue", "tổng", "trung bình", "aov", "số đơn", "mấy đơn", "bao nhiêu", "đếm", "nợ", "công nợ", "tồn kho"]):
+        return "aggregation"
+    return "general"
+
+
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as stream:
@@ -51,6 +75,8 @@ def evaluate_files(
     output_path: Path,
     split: str = "development",
     exploratory_holdout: bool = False,
+    logs_path: Path | None = None,
+    pilot_48: bool = False,
     root: Path = ROOT,
 ) -> dict[str, Any]:
     if split not in {"development", "holdout"}:
@@ -78,6 +104,18 @@ def evaluate_files(
         for question in questions.values()
         if question.get("business_id") in selected_businesses
     ]
+    if pilot_48:
+        rep_path = root / "configs/representative_questions.json"
+        if not rep_path.is_file():
+            raise FileNotFoundError(f"Representative questions config not found at {rep_path}")
+        rep_data = json.loads(rep_path.read_text(encoding="utf-8"))
+        rep_ids = {q["id"] for q in rep_data.get("questions", [])}
+        selected_questions = [q for q in selected_questions if q["id"] in rep_ids]
+        if len(selected_questions) != 48:
+            raise ValueError(
+                f"Expected exactly 48 representative questions for development, got {len(selected_questions)}"
+            )
+
     selected_ids = {question["id"] for question in selected_questions}
     selected_references = {question_id: references[question_id] for question_id in selected_ids}
     selected_predictions = {question_id: predictions[question_id] for question_id in selected_ids if question_id in predictions}
@@ -102,6 +140,61 @@ def evaluate_files(
             {question_id: answer for question_id, answer in selected_references.items() if question_id in type_ids},
         )["overall"]
 
+    by_intent: dict[str, dict[str, Any]] = {}
+    for q in selected_questions:
+        q["_intent"] = _classify_intent(q.get("question", ""))
+    for intent in sorted({q["_intent"] for q in selected_questions}):
+        intent_questions = [q for q in selected_questions if q["_intent"] == intent]
+        intent_ids = {q["id"] for q in intent_questions}
+        by_intent[intent] = evaluate_predictions_grouped(
+            intent_questions,
+            {qid: a for qid, a in selected_predictions.items() if qid in intent_ids},
+            {qid: a for qid, a in selected_references.items() if qid in intent_ids},
+        )["overall"]
+
+    vllm_version = None
+    try:
+        import importlib.metadata
+        vllm_version = importlib.metadata.version("vllm")
+    except Exception:
+        pass
+
+    prompt_config_hash = None
+    try:
+        from datamate.generation.vllm_adapter import VllmPlanner
+
+        model_env = os.environ.get("DATAMATE_MODEL_PATH", "models/qwen3.5-9b-q4/Qwen3.5-9B-Q4_K_M.gguf")
+        prompt_config_hash = VllmPlanner(model_env).get_config_hash()
+    except Exception:
+        prompt_config_hash = hashlib.sha256(b"datamate-vllm-planner-v2").hexdigest()[:16]
+
+    latency_summary = None
+    if logs_path is not None and logs_path.is_file():
+        latencies: list[int] = []
+        try:
+            with logs_path.open(encoding="utf-8") as stream:
+                for line in stream:
+                    line = line.strip()
+                    if line:
+                        item = json.loads(line)
+                        if item.get("id") in selected_ids and "elapsed_ms" in item:
+                            val = item["elapsed_ms"]
+                            if isinstance(val, (int, float)):
+                                latencies.append(int(val))
+            if latencies:
+                latencies.sort()
+                latency_summary = {
+                    "count": len(latencies),
+                    "min_ms": latencies[0],
+                    "max_ms": latencies[-1],
+                    "avg_ms": round(sum(latencies) / len(latencies), 1),
+                    "p50_ms": latencies[len(latencies) // 2],
+                    "p90_ms": latencies[int(len(latencies) * 0.90)],
+                    "p95_ms": latencies[int(len(latencies) * 0.95)],
+                }
+        except Exception as log_err:
+            print(f"Warning: Failed to process logs from {logs_path}: {log_err}", file=sys.stderr)
+
     try:
         commit = subprocess.check_output(
             ["git", "rev-parse", "HEAD"], cwd=root, text=True, stderr=subprocess.DEVNULL
@@ -109,6 +202,7 @@ def evaluate_files(
     except (OSError, subprocess.SubprocessError):
         commit = None
     report["by_answer_type"] = by_answer_type
+    report["by_intent"] = by_intent
     report["metadata"] = {
         "split": split,
         "exploratory_only": split == "holdout",
@@ -124,6 +218,13 @@ def evaluate_files(
         "predictions_sha256": _sha256(predictions_path),
         "questions_sha256": _sha256(root / "train/questions.jsonl"),
         "references_sha256": _sha256(root / "train/answers.jsonl"),
+        "vllm_version": vllm_version,
+        "prompt_config_hash": prompt_config_hash,
+        "model_path": os.environ.get("DATAMATE_MODEL_PATH"),
+        "python_version": platform.python_version(),
+        "platform": platform.platform(),
+        "latency_summary": latency_summary,
+        "pilot_48": pilot_48,
         "commit": commit,
     }
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -134,8 +235,14 @@ def evaluate_files(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--predictions", required=True, type=Path, help="submission-style prediction JSONL")
+    parser.add_argument("--logs", type=Path, default=None, help="optional path to questions.jsonl logs")
     parser.add_argument("--output", type=Path, default=ROOT / "artifacts/evaluation/score.json")
     parser.add_argument("--split", choices=("development", "holdout"), default="development")
+    parser.add_argument(
+        "--pilot-48",
+        action="store_true",
+        help="evaluate on the 48 development representative exploration questions only",
+    )
     parser.add_argument(
         "--exploratory-holdout",
         action="store_true",
@@ -144,12 +251,15 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     predictions_path = args.predictions.resolve()
     output_path = args.output.resolve()
+    logs_path = args.logs.resolve() if args.logs else None
     try:
         report = evaluate_files(
             predictions_path,
             output_path=output_path,
             split=args.split,
             exploratory_holdout=args.exploratory_holdout,
+            logs_path=logs_path,
+            pilot_48=args.pilot_48,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

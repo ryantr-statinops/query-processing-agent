@@ -111,6 +111,19 @@ class CandidatePipeline:
             raise GuardrailError("invalid_model_output", "candidate plan must be a JSON object")
         sql = plan.get("sql")
         answer_type = plan.get("type", plan.get("answer_type"))
+        if isinstance(answer_type, str):
+            answer_type = answer_type.strip().lower()
+        if isinstance(sql, str):
+            sql = sql.strip()
+            if sql.startswith("```"):
+                lines = sql.splitlines()
+                if len(lines) >= 2 and lines[-1].startswith("```"):
+                    sql = "\n".join(lines[1:-1]).strip()
+            if sql.endswith(";"):
+                sql = sql[:-1].strip()
+
+        if answer_type == "unanswerable":
+            return {**dict(plan), "sql": sql or "SELECT 1", "type": "unanswerable"}
         if not isinstance(sql, str) or not sql.strip():
             raise GuardrailError("invalid_model_output", "candidate plan has no SQL")
         if not isinstance(answer_type, str):
@@ -145,6 +158,32 @@ class CandidatePipeline:
                         calendar,
                     )
                     plan = self._parse_plan(raw_plan)
+                    if plan["type"] == "unanswerable":
+                        answer = {"type": "unanswerable", "answer": None}
+                        contract_plan = self._contract_plan(
+                            request,
+                            plan,
+                            [],
+                            catalog,
+                        )
+                        verification = verify_evidence(
+                            plan=contract_plan,
+                            retrieved_sources=[],
+                            tool_results=[],
+                            answer=answer,
+                            execution_status="abstain",
+                            reason_code="insufficient_evidence",
+                        )
+                        candidates.append(
+                            {
+                                "plan": contract_plan,
+                                "answer": answer,
+                                "verification": verification,
+                                "features": {"sql_valid": True},
+                                "result": None,
+                            }
+                        )
+                        break
                     checked_call = validate_tool_call(
                         "run_sql",
                         {"sql": plan["sql"], "max_rows": 200, "purpose": "answer the question"},

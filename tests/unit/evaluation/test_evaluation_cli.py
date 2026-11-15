@@ -75,6 +75,44 @@ class EvaluationCliTests(unittest.TestCase):
         self.assertTrue(report["metadata"]["exploratory_only"])
         self.assertEqual(report["overall"]["wrong"], 1)
 
+    def test_evaluation_records_reproducible_metadata_and_intent_grouping(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            predictions = self._fixture(root)
+            logs = root / "logs.jsonl"
+            logs.write_text('{"id":"q_dev1","elapsed_ms":150}\n{"id":"q_dev2","elapsed_ms":250}\n', encoding="utf-8")
+            output = root / "artifacts/score_with_logs.json"
+            report = evaluate_files(predictions, output_path=output, logs_path=logs, root=root)
+            self.assertIn("by_intent", report)
+            self.assertIn("prompt_config_hash", report["metadata"])
+            self.assertIsNotNone(report["metadata"]["latency_summary"])
+            self.assertEqual(report["metadata"]["latency_summary"]["count"], 2)
+            self.assertEqual(report["metadata"]["latency_summary"]["avg_ms"], 200.0)
+
+    def test_latency_summary_filters_strictly_to_selected_questions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            predictions = self._fixture(root)
+            logs = root / "logs.jsonl"
+            # q_holdout should be excluded when scoring development
+            logs.write_text('{"id":"q_dev1","elapsed_ms":100}\n{"id":"q_holdout","elapsed_ms":9999}\n', encoding="utf-8")
+            output = root / "artifacts/score_filtered.json"
+            report = evaluate_files(predictions, output_path=output, logs_path=logs, root=root)
+            summary = report["metadata"]["latency_summary"]
+            self.assertEqual(summary["count"], 1)
+            self.assertEqual(summary["max_ms"], 100)
+
+    def test_pilot_48_asserts_exact_count_or_missing_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            predictions = self._fixture(root)
+            with self.assertRaises(FileNotFoundError):
+                evaluate_files(predictions, output_path=root / "out.json", pilot_48=True, root=root)
+            (root / "configs").mkdir(exist_ok=True)
+            (root / "configs/representative_questions.json").write_text('{"questions":[]}', encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "Expected exactly 48"):
+                evaluate_files(predictions, output_path=root / "out.json", pilot_48=True, root=root)
+
 
 if __name__ == "__main__":
     unittest.main()

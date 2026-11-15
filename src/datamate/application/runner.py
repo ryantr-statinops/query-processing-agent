@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import importlib.metadata
 import json
+import os
 import pathlib
 import time
 from collections.abc import Mapping
@@ -226,16 +227,21 @@ def _make_result(
 
     answer = candidate.get("answer") if candidate else None
     verification = candidate.get("verification") if candidate else None
+    is_unanswerable = bool(answer and answer.get("type") == "unanswerable")
     accepted = bool(
         budget_error is None
         and answer
         and isinstance(verification, Mapping)
         and verification.get("passed") is True
-        and (candidate.get("features") or {}).get("sql_valid") is True
+        and (is_unanswerable or (candidate.get("features") or {}).get("sql_valid") is True)
     )
     if accepted:
-        status, reason_code = "answered", "ok"
-        answer = build_typed_answer(answer["type"], answer["answer"])
+        if is_unanswerable:
+            status, reason_code = "abstain", "insufficient_evidence"
+            answer = build_typed_answer("unanswerable", None)
+        else:
+            status, reason_code = "answered", "ok"
+            answer = build_typed_answer(answer["type"], answer["answer"])
     elif budget_error is not None:
         reason_code = "timeout" if budget_error.code == "timeout" else "budget_exhausted"
         status = map_outcome(reason_code)["execution_status"]
@@ -347,7 +353,24 @@ def run(
     data_root = pathlib.Path(data_root)
     result_root = pathlib.Path(result_root)
     questions = _load_questions(data_root)
-    pipeline = CandidatePipeline(data_root, generator, count=1) if generator is not None else None
+    if model_path is None and os.environ.get("DATAMATE_MODEL_PATH"):
+        model_path = pathlib.Path(os.environ["DATAMATE_MODEL_PATH"])
+    planner_init_error = None
+    if generator is None and model_path is not None:
+        model_file = pathlib.Path(model_path)
+        if model_file.exists():
+            try:
+                from datamate.generation.vllm_adapter import VllmPlanner
+
+                generator = VllmPlanner(model_file)
+                if hasattr(generator, "warmup"):
+                    generator.warmup()
+            except Exception as exc:
+                generator = None
+                planner_init_error = f"vLLM adapter failed to load: {exc}"
+
+    candidate_count = int(os.environ.get("DATAMATE_CANDIDATE_COUNT", "1"))
+    pipeline = CandidatePipeline(data_root, generator, count=candidate_count) if generator is not None else None
     submissions: list[dict[str, Any]] = []
     logs: list[dict[str, Any]] = []
 
@@ -391,19 +414,24 @@ def run(
                 for item in candidates
                 if item.get("answer")
                 and (item.get("verification") or {}).get("passed") is True
-                and (item.get("features") or {}).get("sql_valid") is True
+                and (
+                    item.get("answer", {}).get("type") == "unanswerable"
+                    or (item.get("features") or {}).get("sql_valid") is True
+                )
             ),
             candidates[0] if candidates else None,
         )
         duration_ms = int((time.monotonic() - started) * 1000)
         planner_note = None
         if generator is None:
-            if model_path is None:
+            if planner_init_error:
+                planner_note = planner_init_error
+            elif model_path is None:
                 planner_note = "no local planner adapter is configured; baseline abstains safely"
             elif not pathlib.Path(model_path).is_file():
                 planner_note = f"model file does not exist: {model_path}; baseline abstains safely"
             else:
-                planner_note = "GGUF file exists but the local planner adapter is not integrated yet"
+                planner_note = "model file exists but the local planner adapter could not be initialized"
         internal = _make_result(
             request,
             candidate=accepted,
@@ -447,7 +475,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run the local DataMate baseline.")
     parser.add_argument("--data-root", type=pathlib.Path, default=pathlib.Path("/data"))
     parser.add_argument("--result-root", type=pathlib.Path, default=pathlib.Path("/result"))
-    parser.add_argument("--model-path", type=pathlib.Path, default=None)
+    env_model = os.environ.get("DATAMATE_MODEL_PATH")
+    parser.add_argument(
+        "--model-path",
+        type=pathlib.Path,
+        default=pathlib.Path(env_model) if env_model else None,
+    )
     return parser
 
 

@@ -36,7 +36,7 @@ The pipeline prepares inputs only. The baseline runner is available, but without
 
 ## Current status
 
-`src/datamate` contains inference-contract guardrails, a generic CSV/Excel/SQLite catalog loader, bounded read-only DataFusion execution, a fake-planner candidate pipeline, a fail-closed `python -m datamate` runner, and a development scorer. Synthetic integration tests verify submission and diagnostic JSONL against the contract. The runner has no local GGUF inference adapter yet, so its normal CLI path emits a typed abstention until one is integrated. Semantic source mapping, ranking, Docker execution and measured model evaluation remain open.
+`src/datamate` contains inference-contract guardrails, a generic CSV/Excel/SQLite catalog loader, bounded read-only DataFusion execution, an offline vLLM planner adapter (`VllmPlanner`) for Qwen3.5 GGUF models, a fail-closed `python -m datamate` runner, and a reproducible development scorer with latency and intent analytics. Synthetic integration and unit tests verify submission and diagnostic JSONL against the contract. The vLLM runtime and model weights require Linux container execution; semantic source mapping, ranking tuning, and live GPU benchmark scores remain open.
 
 Full unittest discovery currently reports two historical import errors in `tests/legacy/` (`datamate.data.sources` and the removed deterministic solver's `datamate.application.plans`); the runtime, contract and active package suites pass.
 

@@ -5,17 +5,19 @@ build-backend = "uv_build"
 [project]
 name = "query-processing-agent"
 version = "0.1.0"
-requires-python = ">=3.10, <3.14"
+requires-python = ">=3.11, <3.14"
 dependencies = [
     "datafusion>=43",
     "fastexcel>=0.12",
     "huggingface-hub>=0.30",
     "joblib>=1.6.0",
-    "mistralrs>=0.4",
     "numpy>=1.26",
     "orjson>=3.10",
     "polars>=1.0",
     "scikit-learn>=1.5",
+    "vllm==0.33.0; sys_platform == 'linux'",
+    "vllm-gguf-plugin>=0.0.2; sys_platform == 'linux'",
+    "gguf>=0.17.0; sys_platform == 'linux'",
 ]
 
 [tool.uv.build-backend]

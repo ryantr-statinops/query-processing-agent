@@ -26,7 +26,7 @@ Tra cứu lệnh đang hỗ trợ trong [script index](../scripts/README.md). C�
 - Holdout exposure, business-level split và cách báo cáo kết quả có được trình bày trung thực không?
 - Những gì đang được đề xuất đã được phân biệt rõ với những gì đã chạy thật chưa?
 
-GGUF model adapter, vector index, semantic source mapping và ranking vẫn đang mở. CLI hiện abstain an toàn khi chưa có planner; kết quả fake-planner chỉ xác nhận luồng kỹ thuật, không đo chất lượng dự đoán.
+Phase 4 đã tích hợp adapter `VllmPlanner` cho Qwen3.5 GGUF với cơ chế lazy load và hardened Docker container. Vector index, ranking nâng cao và đo đạc điểm số mô hình trên GPU thực tế sẽ được chạy khi triển khai trên hạ tầng Linux.
 
 ## Tài liệu bổ sung
 
