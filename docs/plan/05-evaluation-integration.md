@@ -30,7 +30,7 @@ Kiểm tra contract parseable, source refs có trong catalog, tool failures phâ
 
 Chạy kiểm tra tại cuối mỗi phase theo lựa chọn của lead. Báo PA, correct/wrong/abstain/unanswerable, coverage, latency và lỗi theo business/intent/source/stage. Giữ command, commit SHA, manifest SHA, config/model hash và environment metadata để tái lập. Không chấm/so điểm public-test để ra quyết định thiết kế.
 
-Lệnh scorer hiện hành: `uv run python scripts/evaluate_predictions.py --predictions <submission.jsonl>`. Mặc định chỉ chấm development businesses; holdout đã tiếp xúc cần cả `--split holdout --exploratory-holdout` và phải ghi rõ là exploratory. Báo cáo local gồm PA, coverage, latency nếu prediction có, phân nhóm business/answer type và checksum đầu vào. Runtime hiện chỉ được nối bằng fake planner trong synthetic test; CLI mặc định abstain cho đến khi local model adapter được tích hợp, nên chưa có model prediction hợp lệ để báo PA.
+Lệnh scorer hiện hành: `uv run python scripts/evaluate_predictions.py --predictions <submission.jsonl>`. Mở rộng trong Phase 4 với cờ `--pilot-48` (chấm nhanh 48 câu development), `--logs <predictions.jsonl>` (tính toán chi tiết p50/p90/mean latency), và phân tích theo intent (`by_intent`). Mặc định chỉ chấm development businesses; holdout đã tiếp xúc cần cả `--split holdout --exploratory-holdout` và phải ghi rõ là exploratory. Báo cáo local gồm PA, coverage, latency nếu prediction có, phân nhóm business/answer type/intent và checksum đầu vào. Ở Phase 4, `VllmPlanner` đã được nối vào pipeline và runner; adapter hỗ trợ lazy load và đã sẵn sàng cho evaluation khi triển khai trên môi trường Linux GPU.
 
 ### E07 — Ưu tiên và tích hợp
 

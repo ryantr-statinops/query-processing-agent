@@ -58,10 +58,13 @@ Chạy vài câu đã trace qua một business mỗi định dạng; sau đó m�
 | R02 | Catalog generic cho CSV, Excel và SQLite | Fixture synthetic cho ba định dạng; SQLite bytes không đổi; source refs và header mapping được giữ | Chưa áp dụng semantic role/alias hoặc kiểm tra grain, coverage theo catalog review |
 | R03 | Fake planner nối được loader → validation → query → typed answer | Synthetic integration test kiểm tra submission và internal result bằng JSON Schema | Fake planner chỉ trả SQL/type; chưa đo độ đúng ngữ nghĩa câu hỏi |
 | R04 | SQL read-only có allow-list, logical plan, row cap và hard deadline | Regression cho DML, external reader, table lạ, row limit và timeout | DataFusion worker phải nạp lại catalog mỗi query; latency chưa được benchmark |
-| R05 | Chưa triển khai | — | Local GGUF adapter và schema-constrained generation đang chờ contract v0 được review |
+| R05 | Đã hoàn thành (vLLM Adapter) | Lazy loading vLLM, greedy decoding, structured prompt, mock unit tests pass | Cần Linux container/WSL để chạy trực tiếp weights GGUF thật |
 | R06 | Typed output, evidence policy và log tách riêng đã nối trong lát cắt synthetic | Schema kiểm tra cho internal result/submission; empty/null aggregate không thành zero | Verification hiện chỉ bao phủ provenance/shape/plan kỹ thuật; chưa xác nhận intent, date, grain, unit hoặc rulebook semantics |
-| R07 | `python -m datamate` đã có | Smoke chạy với model path thiếu và abstain an toàn | GGUF adapter, Docker/offline package acceptance và `predict.sh` evaluator run chưa đạt |
+| R07 | Đã hoàn thành (vLLM Runner & Failure fixes) | `python -m datamate` nối `VllmPlanner`, xử lý unanswerable và làm sạch markdown SQL | Docker acceptance và chạy `predict.sh` trong evaluator image thực tế |
 
-**Đánh giá gate P3:** lát cắt synthetic qua được kiểm tra kỹ thuật và contract. CLI thật hiện chưa có planner nên luôn abstain; không dùng đầu ra này để báo PA hay coi như baseline chất lượng. P4 có thể bắt đầu với scorer và synthetic regression, nhưng đánh giá chất lượng model chỉ có ý nghĩa sau R05 và khi có prediction từ planner thật. Bộ 12 câu holdout đã lộ nhãn vẫn chỉ là exploratory.
+**Đánh giá gate P3 & P4:**
+- Lát cắt synthetic qua được kiểm tra kỹ thuật và contract.
+- Phase 4 đã tích hợp adapter `VllmPlanner` với cơ chế lazy-load cho vLLM, nâng cấp scorer mở rộng metadata tái lập và sửa các cụm lỗi thường gặp (markdown SQL code block, trailing semicolon, xử lý unanswerable thành abstain an toàn). Chi tiết tại [04-phase-4-vllm-evaluation.md](04-phase-4-vllm-evaluation.md).
+- Bộ 12 câu holdout đã lộ nhãn vẫn chỉ là exploratory; không tune hay fit model trên holdout.
 
-Full unittest discovery trên nhánh này chạy 224 test: 222 pass và hai import error cũ trong `tests/legacy/test_business_sources.py` (`datamate.data.sources`) và `tests/legacy/test_deterministic.py` (`datamate.application.plans`). Không có test runtime mới bị lỗi hoặc skip.
+Full unittest discovery trên nhánh này chạy 232 test: 230 pass và hai import error cũ trong `tests/legacy/test_business_sources.py` (`datamate.data.sources`) và `tests/legacy/test_deterministic.py` (`datamate.application.plans`). Không có test runtime mới bị lỗi hoặc skip.
