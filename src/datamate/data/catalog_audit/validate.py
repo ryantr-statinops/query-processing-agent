@@ -1,14 +1,10 @@
 """Validate catalog artifacts, physical source references and unchanged hashes."""
 from __future__ import annotations
 
-import argparse
 from collections import Counter, defaultdict
 import csv
 import json
 from pathlib import Path
-import subprocess
-import sys
-import re
 
 from . import review
 
@@ -148,27 +144,15 @@ def validate(output, *, repo_root):
             require(ref in tables and set(columns).issubset({c["name"] for c in tables[ref]["columns"]}), 'catalog invariant failed: ref in tables and set(columns).issubset({c["name"] for c in tables[ref]["columns"]})')
     require(catalog["review_provenance"]["script_sha256"] == base.digest(Path(review.__file__)), 'catalog invariant failed: catalog["review_provenance"]["script_sha256"] == base.digest(Path(review.__file__))')
     require(catalog["review_provenance"]["base_artifact_sha256"] == base.digest(output / "data_catalog.initial.json"), 'catalog invariant failed: catalog["review_provenance"]["base_artifact_sha256"] == base.digest(output / "data_catalog.initial.json")')
-    initial_public = subprocess.check_output(["git", "show", "HEAD:docs/data-schema-catalog.md"], cwd=repo_root).decode("utf-8").split("## public_test", 1)[1]
-    current_doc = (repo_root / "docs/data-schema-catalog.md").read_text(encoding="utf-8")
-    require(initial_public.strip() == current_doc.split("## public_test", 1)[1].strip(), 'catalog invariant failed: initial_public.strip() == current_doc.split("## public_test", 1)[1].strip()')
     require(before == base.snapshot(train), "Source changed during validation")
-    whitespace = subprocess.run(["git", "diff", "--check"], cwd=repo_root, capture_output=True, text=True)
-    require(whitespace.returncode == 0, whitespace.stdout + whitespace.stderr)
-    test_command = [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-p", "*catalog*.py", "-v"]
-    test_run = subprocess.run(test_command, cwd=repo_root, capture_output=True, text=True, encoding="utf-8", errors="replace")
-    (output / "catalog_tests.log").write_text(test_run.stdout + test_run.stderr, encoding="utf-8")
-    require(test_run.returncode == 0, test_run.stderr)
-    test_count = re.search(r"Ran (\d+) tests?", test_run.stderr)
     return {"status": "passed", "businesses": 30, "tables": 339, "physical_header_checks": header_checks,
             "quality_schema": QUALITY_COLUMNS, "quality_records": len(seen_metrics), "question_source_records": 60,
             "strict_json_no_duplicate_keys": True, "source_refs_reachable": True,
-            "fingerprints_before_after_match": True, "source_file_count": len(before), "public_test_document_unchanged": True,
-            "synthetic_tests": {"status": "passed", "count": int(test_count[1]) if test_count else None, "log": "artifacts/data_prep/catalog_tests.log"},
-            "git_diff_check": "passed",
+            "fingerprints_before_after_match": True, "source_file_count": len(before),
             "official_archive_checksum": "not_verified", "review_acceptance": "Person 2 / lead pending"}
 
 
-def handoff(catalog, validation, *, repo_root):
+def handoff(catalog, validation, *, repo_root, git_state):
     tables = [t for b in catalog["businesses"] for t in b["tables"]]
     counts = Counter(t["grain_status"] for t in tables)
     pairs = [e for b in catalog["businesses"] for e in b["validated_join_edges"]]
@@ -176,7 +160,6 @@ def handoff(catalog, validation, *, repo_root):
     joins = Counter(e["status"] for e in edges)
     source_map = catalog["question_source_map"]
     original = catalog["review_provenance"]["initial_grains_needs_review"]
-    git_state = subprocess.check_output(["git", "status", "--short"], cwd=repo_root).decode("utf-8").strip()
     lines = ["# Bàn giao Data Catalog D01–D05", "", "Báo cáo kỹ thuật dựa trên train local; chưa thay thế xác nhận nghiệm thu của Người 2/lead.", "",
              "## Kết quả và coverage", "", "| Hạng mục | Kết quả |", "|---|---|",
              "| D01 | Đủ 30 business, 30 README, 162 file; 339 nguồn bảng, kiểm kê tái sử dụng từ lượt trước |",
@@ -258,16 +241,3 @@ def handoff(catalog, validation, *, repo_root):
               "## File và Git", "", "Phạm vi tạo/sửa: scripts/build_data_catalog.py (render catalog), scripts/review_data_catalog.py, scripts/validate_data_catalog.py; tests/*catalog*.py; docs/data-schema-catalog.md; báo cáo này. Artifact chi tiết ở artifacts/data_prep/ và vẫn gitignore.",
               "Không sửa train, không sửa package/runtime/trace của thành viên khác, không commit/push.", "", "Git status ghi trước khi xuất báo cáo:", "", "```text", git_state, "```", ""]
     (repo_root / "docs/data-catalog-handoff.md").write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
-
-
-def main(argv=None, *, repo_root):
-    repo_root = Path(repo_root).resolve()
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output", type=Path, default=repo_root / "artifacts/data_prep")
-    parser.add_argument("--write-report", action="store_true")
-    args = parser.parse_args(argv)
-    result = validate(args.output, repo_root=repo_root)
-    review.dump_json(args.output / "catalog_validation.json", result)
-    if args.write_report:
-        handoff(review.load_json(args.output / "data_catalog.json"), result, repo_root=repo_root)
-    print(json.dumps(result))
