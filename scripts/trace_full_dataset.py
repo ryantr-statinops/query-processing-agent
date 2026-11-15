@@ -8,10 +8,8 @@ import json
 from pathlib import Path
 try:
     from .trace_definitions_base8 import get_base8_definitions
-    from .trace_definitions_part2 import get_part2_definitions
 except ImportError:  # direct `python scripts/trace_full_dataset.py` invocation
     from trace_definitions_base8 import get_base8_definitions
-    from trace_definitions_part2 import get_part2_definitions
 
 from datamate.evaluation.tracing.validation import validate_records
 
@@ -52,7 +50,8 @@ def main():
     print(f"After Part 1: {len(traces)} traces.")
 
     # 3. Add Part 2
-    part2 = get_part2_definitions(q_map, get_split)
+    part2_path = Path(__file__).with_name("trace_records_part2.json")
+    part2 = json.loads(part2_path.read_text(encoding="utf-8"))
     for t in part2:
         traces[t["question_id"]] = t
     print(f"After Part 2: {len(traces)} traces.")
