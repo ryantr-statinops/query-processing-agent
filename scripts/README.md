@@ -15,6 +15,7 @@ catalog flags and source-evidence limitations are documented in the catalog hand
 | Catalog | `uv run python scripts/validate_data_catalog.py --help` | Validate artifact structure, source fingerprints, and review provenance. |
 | Tracing | `uv run python scripts/trace_full_dataset.py` | Rebuild the development trace from the checked-in definitions and representative questions. |
 | Tracing | `uv run python scripts/verify_phase_criteria.py` | Run the independent tracing criteria audit against local data. It reads local source records, may take several minutes, and exits non-zero when discrepancies remain. |
+| Analysis | `uv run python -m analysis.questions --help` and `uv run python -m analysis.sources --help` | Run local, exploratory question and source-file inspections. |
 
 The scanner, reviewer, and validator are implemented in
 `src/datamate/data/catalog_audit/`. Trace comparison and SQL audit helpers live in
@@ -25,10 +26,11 @@ not inference package data.
 
 These implementations are retained for historical reference. Their runtime imports
 are not present in the current package, so they are not supported workflows yet.
-Compatibility wrappers remain at their former root paths for command and import
-stability; new references should use the implementation paths below.
+The former root-level compatibility wrappers have been removed. These archived
+implementations remain under `scripts/legacy/` and still require the runtime packages
+listed in the status column.
 
-| Former path | Implementation path | Status |
+| Former entry point | Implementation path | Status |
 | --- | --- | --- |
 | `scripts/benchmark_purchase_intent.py` | `scripts/legacy/benchmark_purchase_intent.py` | Requires removed application, data, evaluation, and ranking packages. |
 | `scripts/collect_candidates.py` | `scripts/legacy/collect_candidates.py` | Requires the removed candidate pipeline and local model runtime. |

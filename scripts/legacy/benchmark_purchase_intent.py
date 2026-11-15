@@ -291,7 +291,7 @@ def main():
     output.mkdir(parents=True, exist_ok=False)
     (output / "sample.json").write_text(json.dumps([{key: q[key] for key in ("id", "business_id", "in_scope")} for q in sample],
                                                     indent=2) + "\n", encoding="utf-8")
-    run_args = ["python", "scripts/benchmark_purchase_intent.py", "--model-dir", str(args.model_dir),
+    run_args = ["python", "scripts/legacy/benchmark_purchase_intent.py", "--model-dir", str(args.model_dir),
                 "--segmenter-dir", str(args.segmenter_dir)]
     revision_file = args.model_dir / "benchmark-revision.txt"
     command = ["$env:UV_CACHE_DIR = Join-Path (Get-Location) '.uv-cache'"]
