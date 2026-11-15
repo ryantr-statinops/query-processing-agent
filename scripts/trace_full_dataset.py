@@ -6,10 +6,6 @@ and generates the canonical artifacts/data_prep/question_trace.jsonl.
 
 import json
 from pathlib import Path
-try:
-    from .trace_definitions_base8 import get_base8_definitions
-except ImportError:  # direct `python scripts/trace_full_dataset.py` invocation
-    from trace_definitions_base8 import get_base8_definitions
 
 from datamate.evaluation.tracing.validation import validate_records
 
@@ -25,33 +21,28 @@ def require(condition, message):
 def main():
     rep = json.loads((ROOT / "configs/representative_questions.json").read_text(encoding="utf-8"))
     questions = rep["questions"]
-    q_map = {q["id"]: q for q in questions}
 
     splits = json.loads((ROOT / "configs/splits/seed_2026.json").read_text(encoding="utf-8"))
     holdout_biz = set(splits["holdout_businesses"])
 
-    def get_split(biz_id):
-        return "holdout" if biz_id in holdout_biz else "development"
-
-    # Combine definitions
+    definitions_path = Path(__file__).with_name("trace_records.json")
+    definition_groups = json.loads(definitions_path.read_text(encoding="utf-8"))
     traces = {}
 
     # 1. Base 8
-    base8 = get_base8_definitions(q_map, get_split)
+    base8 = definition_groups["base8"]
     for t in base8:
         traces[t["question_id"]] = t
     print(f"Loaded {len(base8)} base traces.")
 
     # 2. Add Part 1
-    part1_path = Path(__file__).with_name("trace_records_part1.json")
-    part1 = json.loads(part1_path.read_text(encoding="utf-8"))
+    part1 = definition_groups["part1"]
     for t in part1:
         traces[t["question_id"]] = t
     print(f"After Part 1: {len(traces)} traces.")
 
     # 3. Add Part 2
-    part2_path = Path(__file__).with_name("trace_records_part2.json")
-    part2 = json.loads(part2_path.read_text(encoding="utf-8"))
+    part2 = definition_groups["part2"]
     for t in part2:
         traces[t["question_id"]] = t
     print(f"After Part 2: {len(traces)} traces.")

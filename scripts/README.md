@@ -18,9 +18,8 @@ catalog flags and source-evidence limitations are documented in the catalog hand
 
 The scanner, reviewer, and validator are implemented in
 `src/datamate/data/catalog_audit/`. Trace comparison and SQL audit helpers live in
-`src/datamate/evaluation/tracing/`. The files `trace_records_part1.json`,
-`trace_records_part2.json` and `base_8_records.json` remain development inputs
-and are not inference package data.
+`src/datamate/evaluation/tracing/`. `trace_records.json` is a development input,
+not inference package data.
 
 ## Archived solver tools
 
