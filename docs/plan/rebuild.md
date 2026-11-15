@@ -14,7 +14,8 @@ Trong giai đoạn hiện tại, nhóm hoàn tất data catalog và trace câu m
 | 2 | Trace 60 câu từ input đến đáp án hoặc blocker | [02-question-tracing.md](02-question-tracing.md) |
 | 3 | Agentic RAG, tool boundary và inference contract | [03-agentic-rag-inference.md](03-agentic-rag-inference.md) |
 | 4 | Môi trường, loader, baseline và runtime | [04-baseline-runtime.md](04-baseline-runtime.md) |
-| 5 — Lead | Đánh giá, review, tích hợp và bàn giao | [05-evaluation-integration.md](05-evaluation-integration.md) |
+| 5 — Lead | Đánh giá, review, tích hợp và nghiệm thu | [05-evaluation-integration.md](05-evaluation-integration.md) |
+| 6 | Đóng gói Docker, Submission Generator và Nghiệm thu BTC | [06-docker-submission.md](06-docker-submission.md) |
 
 ## Checklist lead trước kickoff
 
@@ -38,7 +39,8 @@ L01–L04 và L06 xong trước kickoff; L05 được review trong buổi bắt 
 | P2 — Inference design | Người 3 so sánh retrieval/plan/tool contracts trên trace; Người 1/2 xác nhận grounding; Người 4 xác nhận khả thi; Người 5 chốt tiêu chí chấm | Contract v0 có ví dụ success/failure/insufficient evidence, được team review và version hóa |
 | P3 — Baseline runtime | Người 4 tích hợp theo contract; Người 3 hỗ trợ; Người 1/2 đối chiếu nguồn; Người 5 chấm ở cuối phase | Một lát cắt end-to-end chạy được; answer/log contract hợp lệ; lỗi tái hiện được |
 | P4 — Evaluate/expand | Cả nhóm sửa lỗi theo báo cáo; Người 5 quản lý tích hợp; mở rộng intent/business theo kết quả | Scorer tái lập, split đúng, acceptance đạt, giới hạn còn lại được ghi |
-| P5 — Freeze/handoff | Kiểm tra offline/Docker, lệnh chạy và tài liệu; chạy holdout sau code/config freeze theo protocol | Gói tuân thủ submission contract và kết quả được báo kèm giới hạn holdout đã tiếp xúc |
+| P5 — Freeze/evaluation | Cố định code/config, chạy đánh giá tập holdout theo protocol, đối soát chỉ số | Kết quả đánh giá đầy đủ, giới hạn holdout được công khai |
+| P6 — Docker & Submission | Đóng gói Docker vLLM theo chuẩn BTC cho team `zalotrunua`; sinh `/result/submission.jsonl` và logs; kiểm tra offline, reproducibility \|PA_1 - PA_2\| ≤ 0.03 và xuất archive .tar.gz + .md5 | Image build thành công, predict.sh chạy pass offline, tar uncompressed ≤ 100GB, md5 check OK |
 
 **Kiểm thử:** theo lựa chọn của lead, kiểm thử tập trung cuối mỗi phase. Trong phase, mỗi task ghi scenario và expected result. Tài liệu-only phase dùng review chéo và `git diff --check`; code phase dùng unit/integration phù hợp, cuối phase chạy acceptance. Repo hiện không có CI workflow; không báo CI pass khi chưa có pipeline.
 
