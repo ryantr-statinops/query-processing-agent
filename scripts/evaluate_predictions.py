@@ -5,8 +5,11 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
+import platform
 import subprocess
+import sys
 from typing import Any
 
 from datamate.evaluation.grouped import evaluate_predictions_grouped
@@ -38,30 +41,24 @@ def _load_unique_jsonl(path: Path, id_field: str) -> dict[str, dict[str, Any]]:
 
 
 def _classify_intent(question_text: str) -> str:
+    """Heuristic classification of question intent for exploratory failure analysis."""
     q = question_text.lower()
-    if any(k in q for k in ["doanh thu", "dthu", "revenue", "bán được bao nhiêu tiền", "thu về"]):
-        return "doanh_thu"
-    if any(k in q for k in ["tăng", "giảm", "%", "phần trăm", "so với"]):
-        return "phan_tram_thay_doi"
-    if any(k in q for k in ["trung bình", "tb một đơn", "aov"]):
-        return "gia_tri_trung_binh"
-    if any(k in q for k in ["số đơn", "bao nhiêu đơn", "mấy đơn"]):
-        return "so_don"
-    if any(k in q for k in ["hủy", "huỷ"]):
-        return "don_huy"
-    if any(k in q for k in ["bán chạy", "top", "mua nhiều nhất", "nhiều nhất"]):
-        return "ban_chay"
-    if any(k in q for k in ["ngày nào", "tháng nào", "hôm nào"]):
-        return "ngay_thang_cao_nhat"
-    if any(k in q for k in ["nợ", "công nợ", "chưa trả", "thiếu"]):
-        return "cong_no"
-    if any(k in q for k in ["kê đơn", "hoạt chất", "thuốc"]):
-        return "nha_thuoc"
-    if any(k in q for k in ["tồn kho", "hết hàng", "còn bao nhiêu"]):
-        return "ton_kho"
-    if any(k in q for k in ["nhập hàng", "phiếu nhập", "nhà cung cấp"]):
-        return "nhap_hang"
-    return "khac"
+    # Priority 1: Cancellation & refund
+    if any(k in q for k in ["hủy", "huỷ", "hoàn", "trả hàng"]):
+        return "cancellation"
+    # Priority 2: Comparisons, trends and percentages
+    if any(k in q for k in ["tăng", "giảm", "tỷ trọng", "tăng trưởng", "so với", "chênh lệch", "%", "phần trăm"]):
+        return "comparison"
+    # Priority 3: Ranking and extremum
+    if any(k in q for k in ["bán chạy", "top", "cao nhất", "thấp nhất", "nhiều nhất", "ít nhất", "xếp hạng", "thứ hạng"]):
+        return "ranking"
+    # Priority 4: Lookups & specific entities
+    if any(k in q for k in ["ngày nào", "tháng nào", "hôm nào", "ai", "ở đâu", "mã nào", "tên gì"]):
+        return "lookup"
+    # Priority 5: Aggregations & business metrics
+    if any(k in q for k in ["doanh thu", "dthu", "revenue", "tổng", "trung bình", "aov", "số đơn", "mấy đơn", "bao nhiêu", "đếm", "nợ", "công nợ", "tồn kho"]):
+        return "aggregation"
+    return "general"
 
 
 def _sha256(path: Path) -> str:
@@ -109,10 +106,15 @@ def evaluate_files(
     ]
     if pilot_48:
         rep_path = root / "configs/representative_questions.json"
-        if rep_path.is_file():
-            rep_data = json.loads(rep_path.read_text(encoding="utf-8"))
-            rep_ids = {q["id"] for q in rep_data.get("questions", [])}
-            selected_questions = [q for q in selected_questions if q["id"] in rep_ids]
+        if not rep_path.is_file():
+            raise FileNotFoundError(f"Representative questions config not found at {rep_path}")
+        rep_data = json.loads(rep_path.read_text(encoding="utf-8"))
+        rep_ids = {q["id"] for q in rep_data.get("questions", [])}
+        selected_questions = [q for q in selected_questions if q["id"] in rep_ids]
+        if len(selected_questions) != 48:
+            raise ValueError(
+                f"Expected exactly 48 representative questions for development, got {len(selected_questions)}"
+            )
 
     selected_ids = {question["id"] for question in selected_questions}
     selected_references = {question_id: references[question_id] for question_id in selected_ids}
@@ -157,7 +159,14 @@ def evaluate_files(
     except Exception:
         pass
 
-    prompt_config_hash = hashlib.sha256(b"datamate-vllm-planner-v1").hexdigest()
+    prompt_config_hash = None
+    try:
+        from datamate.generation.vllm_adapter import VllmPlanner
+
+        model_env = os.environ.get("DATAMATE_MODEL_PATH", "models/qwen3.5-9b-q4/Qwen3.5-9B-Q4_K_M.gguf")
+        prompt_config_hash = VllmPlanner(model_env).get_config_hash()
+    except Exception:
+        prompt_config_hash = hashlib.sha256(b"datamate-vllm-planner-v2").hexdigest()[:16]
 
     latency_summary = None
     if logs_path is not None and logs_path.is_file():
@@ -165,10 +174,13 @@ def evaluate_files(
         try:
             with logs_path.open(encoding="utf-8") as stream:
                 for line in stream:
-                    if line.strip():
+                    line = line.strip()
+                    if line:
                         item = json.loads(line)
-                        if "elapsed_ms" in item and isinstance(item["elapsed_ms"], (int, float)):
-                            latencies.append(int(item["elapsed_ms"]))
+                        if item.get("id") in selected_ids and "elapsed_ms" in item:
+                            val = item["elapsed_ms"]
+                            if isinstance(val, (int, float)):
+                                latencies.append(int(val))
             if latencies:
                 latencies.sort()
                 latency_summary = {
@@ -177,10 +189,11 @@ def evaluate_files(
                     "max_ms": latencies[-1],
                     "avg_ms": round(sum(latencies) / len(latencies), 1),
                     "p50_ms": latencies[len(latencies) // 2],
+                    "p90_ms": latencies[int(len(latencies) * 0.90)],
                     "p95_ms": latencies[int(len(latencies) * 0.95)],
                 }
-        except Exception:
-            pass
+        except Exception as log_err:
+            print(f"Warning: Failed to process logs from {logs_path}: {log_err}", file=sys.stderr)
 
     try:
         commit = subprocess.check_output(
@@ -207,6 +220,9 @@ def evaluate_files(
         "references_sha256": _sha256(root / "train/answers.jsonl"),
         "vllm_version": vllm_version,
         "prompt_config_hash": prompt_config_hash,
+        "model_path": os.environ.get("DATAMATE_MODEL_PATH"),
+        "python_version": platform.python_version(),
+        "platform": platform.platform(),
         "latency_summary": latency_summary,
         "pilot_48": pilot_48,
         "commit": commit,
