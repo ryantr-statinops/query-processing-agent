@@ -15,6 +15,9 @@ SYSTEM_PROMPT = (
     "You must respond ONLY with a single valid JSON object containing exactly:\n"
     "- \"sql\": A valid read-only SQL SELECT statement.\n"
     "- \"type\": The expected answer type, one of: [\"number\", \"percent\", \"string\", \"date\", \"boolean\", \"list\", \"table\", \"unanswerable\"].\n"
+    "Important rules for DataFusion SQL:\n"
+    "- Many columns in CSV/Excel are strings. For numeric aggregations or calculations (SUM, AVG, +, -, etc.), always use TRY_CAST(col AS DOUBLE) or CAST(col AS DOUBLE).\n"
+    "- Avoid syntax errors, do not use multiple statements.\n"
     "Do not output explanation, markdown code fence, or text outside the JSON."
 )
 
@@ -58,6 +61,40 @@ def _resolve_tokenizer_path(model_path: str) -> str | None:
         ):
             return str(cand)
     return env_path
+
+
+class _HttpEngineOutput:
+    def __init__(self, text: str) -> None:
+        self.text = text
+
+
+class _HttpEngineResult:
+    def __init__(self, text: str) -> None:
+        self.outputs = [_HttpEngineOutput(text)]
+
+
+class _HttpEngine:
+    def __init__(self, base_url: str) -> None:
+        self.base_url = base_url.rstrip("/")
+
+    def generate(self, prompts: list[str], sampling_params: Any = None) -> list[_HttpEngineResult]:
+        import json
+        import urllib.request
+
+        results: list[_HttpEngineResult] = []
+        for prompt in prompts:
+            req = urllib.request.Request(
+                f"{self.base_url}/completion",
+                data=json.dumps({"prompt": prompt, "n_predict": 768, "temperature": 0.0}).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=60) as resp:
+                    payload = json.loads(resp.read().decode("utf-8"))
+                    results.append(_HttpEngineResult(payload.get("content", "")))
+            except Exception:
+                results.append(_HttpEngineResult("{}"))
+        return results
 
 
 class VllmPlanner:
@@ -104,6 +141,11 @@ class VllmPlanner:
 
     def _ensure_engine(self) -> Any:
         if self._llm is not None:
+            return self._llm
+
+        endpoint = os.environ.get("DATAMATE_INFERENCE_URL")
+        if endpoint:
+            self._llm = _HttpEngine(endpoint)
             return self._llm
 
         if self._init_error is not None:
