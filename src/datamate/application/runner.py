@@ -341,6 +341,93 @@ def _make_result(
     return internal
 
 
+def _execute_single_request(
+    request: Mapping[str, Any],
+    pipeline: Any,
+    generator: Any,
+    planner_init_error: str | None,
+    model_path: pathlib.Path | None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    started = time.monotonic()
+    candidates: list[dict[str, Any]] = []
+    if pipeline is not None:
+        try:
+            business_dir = pipeline.business_dir(request["business_id"])
+            with BusinessCatalog(business_dir) as catalog:
+                candidates = pipeline.generate(request, catalog)
+        except (FileNotFoundError, OSError) as error:
+            candidates = [
+                {
+                    "error": {
+                        "code": "catalog_unavailable",
+                        "message": str(error),
+                        "stage": "retrieval",
+                        "retryable": False,
+                        "detail": None,
+                    },
+                    "features": {"sql_valid": False},
+                }
+            ]
+        except Exception as error:
+            candidates = [
+                {
+                    "error": {
+                        "code": "invalid_model_output",
+                        "message": f"candidate generation failed: {error}",
+                        "stage": "planning",
+                        "retryable": False,
+                        "detail": None,
+                    },
+                    "features": {"sql_valid": False},
+                }
+            ]
+    accepted = next(
+        (
+            item
+            for item in candidates
+            if item.get("answer")
+            and (item.get("verification") or {}).get("passed") is True
+            and (
+                item.get("answer", {}).get("type") == "unanswerable"
+                or (item.get("features") or {}).get("sql_valid") is True
+            )
+        ),
+        candidates[0] if candidates else None,
+    )
+    duration_ms = int((time.monotonic() - started) * 1000)
+    planner_note = None
+    if generator is None:
+        if planner_init_error:
+            planner_note = planner_init_error
+        elif model_path is None:
+            planner_note = "no local planner adapter is configured; baseline abstains safely"
+        elif not pathlib.Path(model_path).is_file():
+            planner_note = f"model file does not exist: {model_path}; baseline abstains safely"
+        else:
+            planner_note = "model file exists but the local planner adapter could not be initialized"
+    internal = _make_result(
+        request,
+        candidate=accepted,
+        generator_configured=generator is not None,
+        duration_ms=duration_ms,
+        planner_note=planner_note,
+    )
+    sub = build_submission_record(
+        request["id"],
+        internal["answer"],
+        internal["execution_status"],
+    )
+    log = {
+        "id": request["id"],
+        "answer": internal["answer"],
+        "elapsed_ms": duration_ms,
+        "thinking": None,
+        "code": internal["reason_code"],
+        "output": internal,
+    }
+    return sub, log
+
+
 def run(
     data_root: pathlib.Path,
     result_root: pathlib.Path,
@@ -371,100 +458,79 @@ def run(
 
     candidate_count = int(os.environ.get("DATAMATE_CANDIDATE_COUNT", "1"))
     pipeline = CandidatePipeline(data_root, generator, count=candidate_count) if generator is not None else None
-    submissions: list[dict[str, Any]] = []
-    logs: list[dict[str, Any]] = []
-
-    for request in questions:
-        started = time.monotonic()
-        candidates: list[dict[str, Any]] = []
-        if pipeline is not None:
-            try:
-                business_dir = pipeline.business_dir(request["business_id"])
-                with BusinessCatalog(business_dir) as catalog:
-                    candidates = pipeline.generate(request, catalog)
-            except (FileNotFoundError, OSError) as error:
-                candidates = [
-                    {
-                        "error": {
-                            "code": "catalog_unavailable",
-                            "message": str(error),
-                            "stage": "retrieval",
-                            "retryable": False,
-                            "detail": None,
-                        },
-                        "features": {"sql_valid": False},
-                    }
-                ]
-            except Exception as error:
-                candidates = [
-                    {
-                        "error": {
-                            "code": "invalid_model_output",
-                            "message": f"candidate generation failed: {error}",
-                            "stage": "planning",
-                            "retryable": False,
-                            "detail": None,
-                        },
-                        "features": {"sql_valid": False},
-                    }
-                ]
-        accepted = next(
-            (
-                item
-                for item in candidates
-                if item.get("answer")
-                and (item.get("verification") or {}).get("passed") is True
-                and (
-                    item.get("answer", {}).get("type") == "unanswerable"
-                    or (item.get("features") or {}).get("sql_valid") is True
-                )
-            ),
-            candidates[0] if candidates else None,
-        )
-        duration_ms = int((time.monotonic() - started) * 1000)
-        planner_note = None
-        if generator is None:
-            if planner_init_error:
-                planner_note = planner_init_error
-            elif model_path is None:
-                planner_note = "no local planner adapter is configured; baseline abstains safely"
-            elif not pathlib.Path(model_path).is_file():
-                planner_note = f"model file does not exist: {model_path}; baseline abstains safely"
-            else:
-                planner_note = "model file exists but the local planner adapter could not be initialized"
-        internal = _make_result(
-            request,
-            candidate=accepted,
-            generator_configured=generator is not None,
-            duration_ms=duration_ms,
-            planner_note=planner_note,
-        )
-        submissions.append(
-            build_submission_record(
-                request["id"],
-                internal["answer"],
-                internal["execution_status"],
-            )
-        )
-        logs.append(
-            {
-                "id": request["id"],
-                "answer": internal["answer"],
-                "elapsed_ms": duration_ms,
-                "thinking": None,
-                "code": internal["reason_code"],
-                "output": internal,
-            }
-        )
+    workers = int(os.environ.get("DATAMATE_WORKERS", "3" if generator is not None else "1"))
 
     result_root.mkdir(parents=True, exist_ok=True)
     log_root = result_root / "logs"
     log_root.mkdir(parents=True, exist_ok=True)
-    (result_root / "submission.jsonl").write_text(
+    sub_path = result_root / "submission.jsonl"
+    log_path = log_root / "questions.jsonl"
+
+    # Pre-populate with safe unanswerable fallback so a valid complete submission exists AT ALL TIMES
+    submissions = [
+        {"id": q["id"], "type": "unanswerable", "answer": None}
+        for q in questions
+    ]
+    logs = [
+        {
+            "id": q["id"],
+            "answer": None,
+            "elapsed_ms": 0,
+            "thinking": None,
+            "code": "insufficient_evidence",
+            "output": None,
+        }
+        for q in questions
+    ]
+    sub_path.write_text(
         "".join(json.dumps(record, ensure_ascii=False, allow_nan=False) + "\n" for record in submissions),
         encoding="utf-8",
     )
-    (log_root / "questions.jsonl").write_text(
+
+    if workers > 1:
+        import threading
+        from concurrent.futures import ThreadPoolExecutor
+
+        write_lock = threading.Lock()
+        saved_counter = 0
+
+        indexed_questions = list(enumerate(questions))
+        # Group by business_id to maximize KV Cache prefix reuse in llama-server
+        indexed_questions.sort(key=lambda x: x[1].get("business_id", ""))
+
+        def _worker_fn(item: tuple[int, Mapping[str, Any]]) -> tuple[int, dict[str, Any], dict[str, Any]]:
+            nonlocal saved_counter
+            orig_idx, req = item
+            sub, log = _execute_single_request(req, pipeline, generator, planner_init_error, model_path)
+            with write_lock:
+                submissions[orig_idx] = sub
+                logs[orig_idx] = log
+                saved_counter += 1
+                if saved_counter % 5 == 0 or saved_counter == len(questions):
+                    sub_path.write_text(
+                        "".join(json.dumps(record, ensure_ascii=False, allow_nan=False) + "\n" for record in submissions),
+                        encoding="utf-8",
+                    )
+            return orig_idx, sub, log
+
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            list(executor.map(_worker_fn, indexed_questions))
+    else:
+        for orig_idx, request in enumerate(questions):
+            sub, log = _execute_single_request(request, pipeline, generator, planner_init_error, model_path)
+            submissions[orig_idx] = sub
+            logs[orig_idx] = log
+            if (orig_idx + 1) % 5 == 0 or (orig_idx + 1) == len(questions):
+                sub_path.write_text(
+                    "".join(json.dumps(record, ensure_ascii=False, allow_nan=False) + "\n" for record in submissions),
+                    encoding="utf-8",
+                )
+
+    sub_path.write_text(
+        "".join(json.dumps(record, ensure_ascii=False, allow_nan=False) + "\n" for record in submissions),
+        encoding="utf-8",
+    )
+    log_path.write_text(
         "".join(json.dumps(record, ensure_ascii=False, allow_nan=False) + "\n" for record in logs),
         encoding="utf-8",
     )

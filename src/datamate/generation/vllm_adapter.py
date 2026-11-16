@@ -17,6 +17,7 @@ SYSTEM_PROMPT = (
     "- \"type\": The expected answer type, one of: [\"number\", \"percent\", \"string\", \"date\", \"boolean\", \"list\", \"table\", \"unanswerable\"].\n"
     "Important rules for DataFusion SQL:\n"
     "- Many columns in CSV/Excel are strings. For numeric aggregations or calculations (SUM, AVG, +, -, etc.), always use TRY_CAST(col AS DOUBLE) or CAST(col AS DOUBLE).\n"
+    "- For scalar queries (number, percent, string, date, boolean), always return exactly 1 row and 1 column. Use COALESCE(..., 0) for aggregations so scalar queries never return NULL.\n"
     "- Avoid syntax errors, do not use multiple statements.\n"
     "Do not output explanation, markdown code fence, or text outside the JSON."
 )
@@ -79,19 +80,27 @@ class _HttpEngine:
 
     def generate(self, prompts: list[str], sampling_params: Any = None) -> list[_HttpEngineResult]:
         import json
+        import os
         import urllib.request
 
+        max_tokens = int(os.environ.get("DATAMATE_MAX_TOKENS", "160"))
         results: list[_HttpEngineResult] = []
         for prompt in prompts:
+            payload = {
+                "prompt": prompt,
+                "n_predict": max_tokens,
+                "temperature": 0.0,
+                "stop": ["<|im_end|>", "<|endoftext|>", "\n}\n", "}\n"],
+            }
             req = urllib.request.Request(
                 f"{self.base_url}/completion",
-                data=json.dumps({"prompt": prompt, "n_predict": 768, "temperature": 0.0}).encode("utf-8"),
+                data=json.dumps(payload).encode("utf-8"),
                 headers={"Content-Type": "application/json"},
             )
             try:
                 with urllib.request.urlopen(req, timeout=60) as resp:
-                    payload = json.loads(resp.read().decode("utf-8"))
-                    results.append(_HttpEngineResult(payload.get("content", "")))
+                    resp_payload = json.loads(resp.read().decode("utf-8"))
+                    results.append(_HttpEngineResult(resp_payload.get("content", "")))
             except Exception:
                 results.append(_HttpEngineResult("{}"))
         return results
@@ -243,7 +252,8 @@ class VllmPlanner:
         as_of_date = request.get("as_of_date", "")
         business_id = request.get("business_id", "")
 
-        bounded_schema = schema[:6000]
+        schema_limit = int(os.environ.get("DATAMATE_SCHEMA_LIMIT", "2200"))
+        bounded_schema = schema[:schema_limit]
         rules_section = f"\nRelevant Rules:\n{rules[:1200]}\n" if rules else ""
         calendar_section = f"\nCalendar context:\n{calendar[:400]}\n" if calendar else ""
 
