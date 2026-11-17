@@ -1,0 +1,49 @@
+{
+  "challenge": "ZAIC 2026 - DataMate",
+  "team_name": "Zalo trừ nửa",
+  "docker_identifier": "zalotrunua",
+  "datasets": {
+    "train": {
+      "url": "https://dl-challenge.zalo.ai/2026/datamate_dkewxftdzo/train.zip",
+      "sha256": "c1adbc654a301c30e4cf20b55d301381025f49db1162d88322b552d7472fea01",
+      "file_count": 162,
+      "description": "30 business packages with questions.jsonl, answers.jsonl, and calendar.csv"
+    },
+    "public_test": {
+      "url": "https://dl-challenge.zalo.ai/2026/datamate_dkewxftdzo/public_test.zip",
+      "sha256": "46fb50f926ed1510b9f099a53918f45e304b256680452c93e74401b4a5442c52",
+      "file_count": 97,
+      "description": "14 business packages with questions.jsonl and calendar.csv"
+    }
+  },
+  "models": {
+    "generator": {
+      "base_model": "Qwen/Qwen3.5-9B",
+      "hf_repo": "unsloth/Qwen3.5-9B-GGUF",
+      "revision": "3885219b6810b007914f3a7950a8d1b469d598a5",
+      "filename": "Qwen3.5-9B-Q4_K_M.gguf",
+      "size_bytes": 5680522464,
+      "sha256": "03b74727a860a56338e042c4420bb3f04b2fec5734175f4cb9fa853daf52b7e8",
+      "parameters": "9.0B",
+      "license": "Apache-2.0",
+      "release_date": "Prior to 2026-10-26 cutoff",
+      "quantization": "Q4_K_M"
+    },
+    "tokenizer": {
+      "base_repo": "Qwen/Qwen3.5-9B",
+      "files": [
+        "tokenizer.json",
+        "tokenizer_config.json",
+        "config.json",
+        "chat_template.jinja",
+        "vocab.json",
+        "merges.txt"
+      ]
+    }
+  },
+  "training_declaration": {
+    "fine_tuning": false,
+    "methodology": "Agentic RAG / Zero-Shot In-Context Learning with read-only Apache DataFusion SQL execution engine",
+    "notes": "Model weights are kept frozen in Q4_K_M GGUF format. Inference is driven by dynamic schema catalog extraction, business rulebooks, calendar context, and constrained prompt templates with immediate disk flushing."
+  }
+}

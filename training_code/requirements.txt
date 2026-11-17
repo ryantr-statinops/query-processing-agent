@@ -1,0 +1,5 @@
+# Training and verification dependencies
+datafusion>=43
+fastexcel>=0.12
+polars>=1.0
+huggingface-hub>=0.30

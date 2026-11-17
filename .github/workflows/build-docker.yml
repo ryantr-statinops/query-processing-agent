@@ -1,0 +1,123 @@
+name: Build Docker Submission
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'Dockerfile'
+      - 'predict.sh'
+      - 'requirements.txt'
+      - 'src/**'
+      - 'training_code/**'
+      - '.github/workflows/build-docker.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Free Disk Space on Runner
+        run: |
+          echo "Initial disk space:"
+          df -h
+          echo "Removing heavy unused tools to free up ~50GB..."
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo docker image prune --all --force || true
+          echo "Disk space after cleanup:"
+          df -h
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Model Downloader Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install huggingface-hub
+
+      - name: Download Model Weights and Tokenizer
+        run: |
+          echo "Downloading Qwen3.5-9B GGUF model and tokenizer..."
+          python scripts/download_model.py
+          echo "Checking downloaded model size:"
+          ls -lh models/qwen3.5-9b-q4/
+          ls -lh models/qwen3.5-9b-tokenizer/
+
+      - name: Build Docker Image
+        run: |
+          echo "Building Docker image zaic2026_datamate_zalotrunua:final..."
+          docker build -t zaic2026_datamate_zalotrunua:final .
+
+      - name: Export and Compress Docker Image
+        run: |
+          echo "Saving and compressing Docker image..."
+          docker save zaic2026_datamate_zalotrunua:final | gzip > zaic2026_datamate_zalotrunua.tar.gz
+          echo "Uncompressed size check (Rule: tar uncompressed <= 100GB):"
+          gzip -dc zaic2026_datamate_zalotrunua.tar.gz | wc -c
+          echo "Compressed archive size:"
+          ls -lh zaic2026_datamate_zalotrunua.tar.gz
+
+      - name: Generate MD5 Checksum
+        id: checksum
+        run: |
+          echo "Calculating MD5 checksum..."
+          md5sum zaic2026_datamate_zalotrunua.tar.gz > zaic2026_datamate_zalotrunua.tar.gz.md5
+          MD5_VAL=$(cat zaic2026_datamate_zalotrunua.tar.gz.md5 | awk '{print $1}')
+          echo "MD5_CHECKSUM=$MD5_VAL" >> $GITHUB_ENV
+          echo "=========================================================="
+          echo "OFFICIAL MD5 CHECKSUM: $MD5_VAL"
+          echo "=========================================================="
+          md5sum -c zaic2026_datamate_zalotrunua.tar.gz.md5
+
+      - name: Split Archive for GitHub Release (Max 2GB per asset)
+        run: |
+          echo "Splitting tar.gz into 1.9GB chunks..."
+          split -b 1900M -d zaic2026_datamate_zalotrunua.tar.gz zaic2026_datamate_zalotrunua.tar.gz.part_
+          ls -lh zaic2026_datamate_zalotrunua.tar.gz.part_*
+
+      - name: Create GitHub Release and Upload Artifacts
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: submission-final-${{ github.run_id }}
+          name: "DataMate Submission Final Package (Run ${{ github.run_id }})"
+          body: |
+            ### ZAIC 2026 DataMate - Đội thi: Zalo trừ nửa (`zalotrunua`)
+            
+            **Mã băm MD5 chính thức nộp BTC:**
+            ```text
+            ${{ env.MD5_CHECKSUM }}
+            ```
+            
+            ---
+            
+            ### Hướng dẫn ghép file sau khi tải về máy:
+            Tải tất cả các file `zaic2026_datamate_zalotrunua.tar.gz.part_*` và file `zaic2026_datamate_zalotrunua.tar.gz.md5` về cùng một thư mục:
+            
+            * **Trên Windows (Command Prompt / PowerShell):**
+              ```cmd
+              copy /b zaic2026_datamate_zalotrunua.tar.gz.part_* zaic2026_datamate_zalotrunua.tar.gz
+              ```
+            * **Trên Linux / macOS:**
+              ```bash
+              cat zaic2026_datamate_zalotrunua.tar.gz.part_* > zaic2026_datamate_zalotrunua.tar.gz
+              ```
+            * **Kiểm tra mã MD5 trước khi upload Google Drive:**
+              ```bash
+              md5sum -c zaic2026_datamate_zalotrunua.tar.gz.md5
+              ```
+          files: |
+            zaic2026_datamate_zalotrunua.tar.gz.md5
+            zaic2026_datamate_zalotrunua.tar.gz.part_*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

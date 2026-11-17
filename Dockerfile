@@ -15,11 +15,19 @@ WORKDIR /code
 
 RUN mkdir -p /models /data /result /result/logs
 
+# Install locked dependencies via uv
 COPY pyproject.toml uv.lock ./
 COPY --from=ghcr.io/astral-sh/uv:0.13.8 /uv /uvx /bin/
 RUN uv sync --locked --no-dev --no-install-project
 
-COPY predict.sh README.md /code/
+# Copy offline model weights and tokenizer (cached layer)
+COPY models/ /models/
+
+# Copy training documentation / manifest (BTC Rule 8)
+COPY training_code/ /code/training_code/
+
+# Copy inference runtime and entrypoint
+COPY predict.sh README.md requirements.txt /code/
 COPY src/ /code/src/
 RUN uv sync --locked --no-dev
 RUN chmod +x /code/predict.sh
