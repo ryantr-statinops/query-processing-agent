@@ -16,8 +16,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
       - name: Free Disk Space on Runner
@@ -74,7 +72,7 @@ jobs:
           docker save zaic2026_datamate_zalotrunua:final | gzip -1 > zaic2026_datamate_zalotrunua.tar.gz
           echo "Compressed archive size:"
           ls -lh zaic2026_datamate_zalotrunua.tar.gz
-          echo "Instantly freeing Docker images to make ~25GB room for splitting and upload..."
+          echo "Freeing Docker images to maximize space..."
           sudo docker rmi zaic2026_datamate_zalotrunua:final vllm/vllm-openai:v0.33.0 || true
           sudo docker system prune --all --force --volumes || true
           df -h
@@ -91,47 +89,27 @@ jobs:
           echo "=========================================================="
           md5sum -c zaic2026_datamate_zalotrunua.tar.gz.md5
 
-      - name: Split Archive for GitHub Release (Max 2GB per asset)
+      - name: Upload to Direct Cloud Storage (GoFile)
         run: |
-          echo "Splitting tar.gz into 1.9GB chunks..."
-          split -b 1900M -d zaic2026_datamate_zalotrunua.tar.gz zaic2026_datamate_zalotrunua.tar.gz.part_
-          echo "Deleting original large tar.gz to save ~10GB disk space..."
-          rm -f zaic2026_datamate_zalotrunua.tar.gz
-          ls -lh zaic2026_datamate_zalotrunua.tar.gz.part_*
-          df -h
-
-      - name: Create GitHub Release and Upload Artifacts
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: submission-final-${{ github.run_id }}
-          name: "DataMate Submission Final Package (Run ${{ github.run_id }})"
-          body: |
-            ### ZAIC 2026 DataMate - Đội thi: Zalo trừ nửa (`zalotrunua`)
-            
-            **Mã băm MD5 chính thức nộp BTC:**
-            ```text
-            ${{ env.MD5_CHECKSUM }}
-            ```
-            
-            ---
-            
-            ### Hướng dẫn ghép file sau khi tải về máy:
-            Tải tất cả các file `zaic2026_datamate_zalotrunua.tar.gz.part_*` và file `zaic2026_datamate_zalotrunua.tar.gz.md5` về cùng một thư mục:
-            
-            * **Trên Windows (Command Prompt / PowerShell):**
-              ```cmd
-              copy /b zaic2026_datamate_zalotrunua.tar.gz.part_* zaic2026_datamate_zalotrunua.tar.gz
-              ```
-            * **Trên Linux / macOS:**
-              ```bash
-              cat zaic2026_datamate_zalotrunua.tar.gz.part_* > zaic2026_datamate_zalotrunua.tar.gz
-              ```
-            * **Kiểm tra mã MD5 trước khi upload Google Drive:**
-              ```bash
-              md5sum -c zaic2026_datamate_zalotrunua.tar.gz.md5
-              ```
-          files: |
-            zaic2026_datamate_zalotrunua.tar.gz.md5
-            zaic2026_datamate_zalotrunua.tar.gz.part_*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          echo "Fetching best GoFile server..."
+          SERVER=$(curl -s https://api.gofile.io/servers | python3 -c "import sys, json; print(json.load(sys.stdin)['data']['servers'][0]['name'])")
+          echo "Uploading zaic2026_datamate_zalotrunua.tar.gz to ${SERVER}.gofile.io..."
+          RESP=$(curl -F "file=@zaic2026_datamate_zalotrunua.tar.gz" "https://${SERVER}.gofile.io/contents/uploadfile")
+          echo "Response: $RESP"
+          DOWNLOAD_URL=$(echo "$RESP" | python3 -c "import sys, json; print(json.loads(sys.stdin.read()).get('data', {}).get('downloadPage', 'Failed to parse'))")
+          echo "=========================================================="
+          echo "DIRECT DOWNLOAD LINK: $DOWNLOAD_URL"
+          echo "=========================================================="
+          
+          # Write summary to GitHub Step Summary
+          echo "## 🎉 DataMate Docker Submission Package Ready!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 1. Chuỗi mã MD5 nộp BTC:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`text" >> $GITHUB_STEP_SUMMARY
+          echo "${{ env.MD5_CHECKSUM }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 2. Link tải trực tiếp file nén (.tar.gz):" >> $GITHUB_STEP_SUMMARY
+          echo "**👉 [BẤM VÀO ĐÂY ĐỂ TẢI FILE NÉN]($DOWNLOAD_URL)**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Sau khi tải về, bạn chỉ việc upload file lên Google Drive của bạn và nộp link cho BTC." >> $GITHUB_STEP_SUMMARY
