@@ -61,7 +61,7 @@ jobs:
         run: |
           echo "Building Docker image zaic2026_datamate_zalotrunua:final..."
           docker build -t zaic2026_datamate_zalotrunua:final .
-          echo "Docker build finished. Cleaning host model copy and build cache to maximize free space..."
+          echo "Docker build finished. Cleaning host model copy and build cache..."
           rm -rf models/
           rm -rf train/ public_test/
           sudo docker builder prune --all --force || true
@@ -74,6 +74,9 @@ jobs:
           docker save zaic2026_datamate_zalotrunua:final | gzip -1 > zaic2026_datamate_zalotrunua.tar.gz
           echo "Compressed archive size:"
           ls -lh zaic2026_datamate_zalotrunua.tar.gz
+          echo "Instantly freeing Docker images to make ~25GB room for splitting and upload..."
+          sudo docker rmi zaic2026_datamate_zalotrunua:final vllm/vllm-openai:v0.33.0 || true
+          sudo docker system prune --all --force --volumes || true
           df -h
 
       - name: Generate MD5 Checksum
@@ -92,7 +95,10 @@ jobs:
         run: |
           echo "Splitting tar.gz into 1.9GB chunks..."
           split -b 1900M -d zaic2026_datamate_zalotrunua.tar.gz zaic2026_datamate_zalotrunua.tar.gz.part_
+          echo "Deleting original large tar.gz to save ~10GB disk space..."
+          rm -f zaic2026_datamate_zalotrunua.tar.gz
           ls -lh zaic2026_datamate_zalotrunua.tar.gz.part_*
+          df -h
 
       - name: Create GitHub Release and Upload Artifacts
         uses: softprops/action-gh-release@v2
